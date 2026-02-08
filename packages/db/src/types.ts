@@ -5,6 +5,7 @@ export interface Database {
         Row: {
           id: string;
           wallet_address: string;
+          display_name: string | null;
           auth_method: string | null;
           risk_profile: 'conservative' | 'moderate' | 'aggressive' | null;
           risk_answers: Record<string, unknown> | null;
@@ -16,6 +17,7 @@ export interface Database {
         Insert: {
           id?: string;
           wallet_address: string;
+          display_name?: string | null;
           auth_method?: string | null;
           risk_profile?: 'conservative' | 'moderate' | 'aggressive' | null;
           risk_answers?: Record<string, unknown> | null;
@@ -27,6 +29,7 @@ export interface Database {
         Update: {
           id?: string;
           wallet_address?: string;
+          display_name?: string | null;
           auth_method?: string | null;
           risk_profile?: 'conservative' | 'moderate' | 'aggressive' | null;
           risk_answers?: Record<string, unknown> | null;

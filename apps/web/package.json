@@ -10,22 +10,26 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@autoclaw/shared": "workspace:*",
+    "@tanstack/react-query": "^5.90.20",
+    "framer-motion": "^12.33.0",
+    "lucide-react": "^0.563.0",
     "next": "^15.x",
     "react": "^19.x",
     "react-dom": "^19.x",
-    "thirdweb": "^5.x",
-    "@autoclaw/shared": "workspace:*"
+    "recharts": "^3.7.0",
+    "thirdweb": "^5.x"
   },
   "devDependencies": {
     "@autoclaw/typescript-config": "workspace:*",
-    "typescript": "^5.x",
+    "@tailwindcss/postcss": "^4.x",
     "@types/node": "^20.x",
     "@types/react": "^19.x",
     "@types/react-dom": "^19.x",
-    "tailwindcss": "^4.x",
-    "@tailwindcss/postcss": "^4.x",
-    "postcss": "^8.x",
     "eslint": "^9.x",
-    "eslint-config-next": "^15.x"
+    "eslint-config-next": "^15.x",
+    "postcss": "^8.x",
+    "tailwindcss": "^4.x",
+    "typescript": "^5.x"
   }
 }

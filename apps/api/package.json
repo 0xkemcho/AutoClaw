@@ -11,18 +11,19 @@
     "lint": "echo 'no linter configured yet'"
   },
   "dependencies": {
-    "fastify": "^5.x",
-    "@fastify/cors": "^10.x",
-    "thirdweb": "^5.x",
-    "@supabase/supabase-js": "^2.x",
-    "@autoclaw/shared": "workspace:*",
     "@autoclaw/db": "workspace:*",
-    "dotenv": "^16.x"
+    "@autoclaw/shared": "workspace:*",
+    "@fastify/cors": "^10.x",
+    "@supabase/supabase-js": "^2.x",
+    "dotenv": "^16.x",
+    "fastify": "^5.x",
+    "thirdweb": "^5.x",
+    "viem": "^2.45.1"
   },
   "devDependencies": {
     "@autoclaw/typescript-config": "workspace:*",
-    "typescript": "^5.x",
+    "@types/node": "^20.x",
     "tsx": "^4.x",
-    "@types/node": "^20.x"
+    "typescript": "^5.x"
   }
 }
