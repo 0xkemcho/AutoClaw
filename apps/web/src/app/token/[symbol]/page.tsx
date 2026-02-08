@@ -210,7 +210,7 @@ function TokenDetailContent({
         <Button
           size="lg"
           className="w-full"
-          onClick={() => router.push('/swap')}
+          onClick={() => router.push(`/swap?to=${token.symbol}`)}
         >
           Buy {token.symbol}
         </Button>
