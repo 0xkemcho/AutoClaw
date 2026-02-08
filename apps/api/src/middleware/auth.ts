@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { thirdwebAuth } from '../lib/thirdweb.js';
+import { thirdwebAuth } from '../lib/thirdweb';
 
 declare module 'fastify' {
   interface FastifyRequest {

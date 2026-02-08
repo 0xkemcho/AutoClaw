@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import { authRoutes } from './routes/auth.js';
+import { authRoutes } from './routes/auth';
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 
