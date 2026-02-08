@@ -11,6 +11,7 @@
     "lint": "echo 'no linter configured yet'"
   },
   "dependencies": {
+    "@autoclaw/contracts": "workspace:*",
     "@autoclaw/db": "workspace:*",
     "@autoclaw/shared": "workspace:*",
     "@fastify/cors": "^10.x",

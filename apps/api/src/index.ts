@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import { authRoutes } from './routes/auth';
 import { userRoutes } from './routes/user';
 import { marketRoutes } from './routes/market';
+import { tradeRoutes } from './routes/trade';
 import { startPriceSnapshotCron } from './services/snapshot-cron';
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
@@ -24,6 +25,7 @@ app.get('/api/health', async () => {
 await app.register(authRoutes);
 await app.register(userRoutes);
 await app.register(marketRoutes);
+await app.register(tradeRoutes);
 
 try {
   await app.listen({ port: PORT, host: '0.0.0.0' });

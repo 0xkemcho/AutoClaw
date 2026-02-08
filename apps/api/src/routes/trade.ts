@@ -1,0 +1,321 @@
+import type { FastifyInstance } from 'fastify';
+import { parseUnits, formatUnits, type Address } from 'viem';
+import { authMiddleware } from '../middleware/auth';
+import { celoClient } from '../lib/celo-client';
+import { createSupabaseAdmin } from '@autoclaw/db';
+import {
+  getQuote,
+  checkAllowance,
+  buildApproveTx,
+  buildSwapInTx,
+  applySlippage,
+  BROKER_ADDRESS,
+} from '@autoclaw/contracts';
+import {
+  BASE_TOKENS,
+  MENTO_TOKENS,
+  COMMODITY_TOKENS,
+  getTokenDecimals,
+  getTokenAddress,
+  TOKEN_METADATA,
+  type SupportedToken,
+} from '@autoclaw/shared';
+
+const supabaseAdmin = createSupabaseAdmin(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
+
+const VALID_FROM_TOKENS = new Set<string>(BASE_TOKENS);
+const VALID_TO_TOKENS = new Set<string>([...MENTO_TOKENS, ...COMMODITY_TOKENS]);
+
+function isValidFromToken(token: string): boolean {
+  return VALID_FROM_TOKENS.has(token);
+}
+
+function isValidToToken(token: string): boolean {
+  return VALID_TO_TOKENS.has(token);
+}
+
+function isValidTxHash(hash: string): boolean {
+  return /^0x[a-fA-F0-9]{64}$/.test(hash);
+}
+
+export async function tradeRoutes(app: FastifyInstance) {
+  // POST /api/trade/quote
+  app.post(
+    '/api/trade/quote',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const body = request.body as {
+        from?: string;
+        to?: string;
+        amount?: string;
+        slippage?: number;
+      };
+
+      // Validate inputs
+      const { from, to, amount, slippage = 0.5 } = body;
+
+      if (!from || !isValidFromToken(from)) {
+        return reply.status(400).send({
+          error: `Invalid 'from' token. Must be one of: ${[...VALID_FROM_TOKENS].join(', ')}`,
+        });
+      }
+
+      if (!to || !isValidToToken(to)) {
+        return reply.status(400).send({
+          error: `Invalid 'to' token. Must be one of: ${[...VALID_TO_TOKENS].join(', ')}`,
+        });
+      }
+
+      if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+        return reply
+          .status(400)
+          .send({ error: "'amount' must be a positive number" });
+      }
+
+      if (slippage < 0.01 || slippage > 50) {
+        return reply
+          .status(400)
+          .send({ error: "'slippage' must be between 0.01 and 50" });
+      }
+
+      const fromAddress = getTokenAddress(from) as Address | undefined;
+      const toAddress = getTokenAddress(to) as Address | undefined;
+
+      if (!fromAddress || !toAddress) {
+        return reply.status(400).send({ error: 'Token address not found' });
+      }
+
+      try {
+        const fromDecimals = getTokenDecimals(from);
+        const toDecimals = getTokenDecimals(to);
+        const amountIn = parseUnits(amount, fromDecimals);
+
+        // Get quote from Mento Broker
+        const quote = await getQuote({
+          tokenIn: fromAddress,
+          tokenOut: toAddress,
+          amountIn,
+          tokenInDecimals: fromDecimals,
+          tokenOutDecimals: toDecimals,
+          celoClient,
+        });
+
+        const amountOutMin = applySlippage(quote.amountOut, slippage);
+
+        // Check existing allowance
+        const currentAllowance = await checkAllowance({
+          token: fromAddress,
+          owner: walletAddress as Address,
+          spender: BROKER_ADDRESS,
+          celoClient,
+        });
+
+        const needsApproval = currentAllowance < amountIn;
+
+        // Build swap tx
+        const swapTx = buildSwapInTx({
+          route: quote.route,
+          tokenIn: fromAddress,
+          tokenOut: toAddress,
+          amountIn,
+          amountOutMin,
+        });
+
+        // Build approve tx if needed
+        const approveTx = needsApproval
+          ? buildApproveTx({
+              token: fromAddress,
+              spender: BROKER_ADDRESS,
+            })
+          : null;
+
+        return {
+          estimatedAmountOut: formatUnits(quote.amountOut, toDecimals),
+          estimatedAmountOutRaw: quote.amountOut.toString(),
+          minimumAmountOut: formatUnits(amountOutMin, toDecimals),
+          minimumAmountOutRaw: amountOutMin.toString(),
+          exchangeRate: quote.rate.toFixed(6),
+          priceImpact: 0, // TODO: calculate price impact
+          estimatedGasCelo: '0.001',
+          exchangeProvider: quote.exchangeProvider,
+          exchangeId: quote.exchangeId,
+          approveTx,
+          swapTx,
+          fromToken: from,
+          toToken: to,
+          amountIn: amount,
+        };
+      } catch (err) {
+        console.error('Quote error:', err);
+        const message =
+          err instanceof Error ? err.message : 'Failed to get quote';
+        return reply.status(500).send({ error: message });
+      }
+    },
+  );
+
+  // POST /api/trade/execute — record a completed swap
+  app.post(
+    '/api/trade/execute',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const body = request.body as {
+        txHash?: string;
+        from?: string;
+        to?: string;
+        amountIn?: string;
+        amountOut?: string;
+        exchangeRate?: string;
+      };
+
+      const { txHash, from, to, amountIn, amountOut, exchangeRate } = body;
+
+      if (!txHash || !isValidTxHash(txHash)) {
+        return reply.status(400).send({ error: 'Invalid transaction hash' });
+      }
+
+      if (!from || !to || !amountIn || !amountOut) {
+        return reply
+          .status(400)
+          .send({ error: 'Missing required fields: from, to, amountIn, amountOut' });
+      }
+
+      try {
+        // Look up user
+        const { data: user, error: userError } = await supabaseAdmin
+          .from('user_profiles')
+          .select('id')
+          .eq('wallet_address', walletAddress)
+          .single();
+
+        if (userError || !user) {
+          return reply.status(404).send({ error: 'User profile not found' });
+        }
+
+        // Insert transaction record
+        const { data, error } = await supabaseAdmin
+          .from('transactions')
+          .insert({
+            user_id: user.id,
+            type: 'swap' as const,
+            source_token: from,
+            target_token: to,
+            source_amount: parseFloat(amountIn),
+            target_amount: parseFloat(amountOut),
+            exchange_rate: exchangeRate ? parseFloat(exchangeRate) : null,
+            tx_hash: txHash,
+            status: 'confirmed' as const,
+          })
+          .select('id')
+          .single();
+
+        if (error) {
+          console.error('Failed to record transaction:', error);
+          return reply
+            .status(500)
+            .send({ error: 'Failed to record transaction' });
+        }
+
+        return { id: data.id, status: 'confirmed' };
+      } catch (err) {
+        console.error('Execute error:', err);
+        return reply
+          .status(500)
+          .send({ error: 'Failed to record transaction' });
+      }
+    },
+  );
+
+  // GET /api/trade/history
+  app.get(
+    '/api/trade/history',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const query = request.query as {
+        page?: string;
+        limit?: string;
+        token?: string;
+        status?: string;
+      };
+
+      const page = Math.max(1, parseInt(query.page || '1', 10));
+      const limit = Math.min(100, Math.max(1, parseInt(query.limit || '50', 10)));
+      const offset = (page - 1) * limit;
+
+      try {
+        // Look up user
+        const { data: user, error: userError } = await supabaseAdmin
+          .from('user_profiles')
+          .select('id')
+          .eq('wallet_address', walletAddress)
+          .single();
+
+        if (userError || !user) {
+          return reply.status(404).send({ error: 'User profile not found' });
+        }
+
+        // Build query
+        let dbQuery = supabaseAdmin
+          .from('transactions')
+          .select('*', { count: 'exact' })
+          .eq('user_id', user.id)
+          .eq('type', 'swap')
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1);
+
+        if (query.token) {
+          dbQuery = dbQuery.or(
+            `source_token.eq.${query.token},target_token.eq.${query.token}`,
+          );
+        }
+
+        if (query.status) {
+          dbQuery = dbQuery.eq('status', query.status);
+        }
+
+        const { data, error, count } = await dbQuery;
+
+        if (error) {
+          console.error('Failed to fetch trade history:', error);
+          return reply
+            .status(500)
+            .send({ error: 'Failed to fetch trade history' });
+        }
+
+        const total = count ?? 0;
+
+        return {
+          transactions: (data ?? []).map((tx) => ({
+            id: tx.id,
+            type: tx.type,
+            sourceToken: tx.source_token,
+            targetToken: tx.target_token,
+            sourceAmount: String(tx.source_amount),
+            targetAmount: String(tx.target_amount),
+            exchangeRate: tx.exchange_rate ? String(tx.exchange_rate) : null,
+            txHash: tx.tx_hash,
+            status: tx.status,
+            createdAt: tx.created_at,
+          })),
+          pagination: {
+            page,
+            limit,
+            total,
+            hasMore: offset + limit < total,
+          },
+        };
+      } catch (err) {
+        console.error('History error:', err);
+        return reply
+          .status(500)
+          .send({ error: 'Failed to fetch trade history' });
+      }
+    },
+  );
+}

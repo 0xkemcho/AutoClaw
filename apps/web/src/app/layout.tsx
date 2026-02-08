@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Providers } from '@/providers/thirdweb-provider';
+import { ToastProvider } from '@/components/ui/toast-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased bg-background text-foreground">
         <Providers>{children}</Providers>
+        <ToastProvider />
       </body>
     </html>
   );
