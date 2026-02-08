@@ -10,6 +10,7 @@ import { CountUp } from '@/components/ui/count-up';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useMarketTokens } from '@/hooks/use-market-data';
+import { Spinner } from '@/components/ui/spinner';
 
 function TokenSkeleton() {
   return (
@@ -58,7 +59,7 @@ function HomeContent() {
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-white pb-20 md:pb-8"
+      className="min-h-screen bg-background pb-20 md:pb-8"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -68,7 +69,7 @@ function HomeContent() {
         {/* Pull-to-refresh indicator */}
         {isRefreshing && (
           <div className="flex justify-center pb-3">
-            <div className="w-5 h-5 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
+            <Spinner size="md" />
           </div>
         )}
 
@@ -78,8 +79,8 @@ function HomeContent() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <Card variant="dark" className="mb-6">
-            <p className="text-white/60 text-xs font-medium uppercase tracking-wider mb-1">
+          <Card className="mb-6">
+            <p className="text-foreground-secondary text-xs font-medium uppercase tracking-wider mb-1">
               Portfolio Value
             </p>
             <CountUp
@@ -88,7 +89,7 @@ function HomeContent() {
               decimals={2}
               className="text-3xl font-bold text-white"
             />
-            <p className="text-white/40 text-xs mt-1">
+            <p className="text-foreground-muted text-xs mt-1">
               Connect portfolio to see your holdings
             </p>
           </Card>

@@ -52,14 +52,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!account) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-background">
         <Header />
         <main className="flex flex-col items-center justify-center px-6 pt-32">
           <div className="text-center space-y-6">
-            <h2 className="text-2xl font-semibold text-black">
+            <h2 className="text-2xl font-semibold text-foreground">
               Connect your wallet
             </h2>
-            <p className="text-gray-500">
+            <p className="text-foreground-secondary">
               Please connect your wallet to access this page.
             </p>
             <ConnectButton
@@ -77,10 +77,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-background">
         <Header />
         <main className="flex items-center justify-center pt-32">
-          <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-foreground-secondary border-t-transparent rounded-full animate-spin" />
         </main>
       </div>
     );

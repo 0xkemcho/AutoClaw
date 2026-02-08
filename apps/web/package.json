@@ -12,6 +12,7 @@
   "dependencies": {
     "@autoclaw/shared": "workspace:*",
     "@tanstack/react-query": "^5.90.20",
+    "clsx": "^2.1.1",
     "framer-motion": "^12.33.0",
     "lucide-react": "^0.563.0",
     "next": "^15.x",
@@ -19,6 +20,7 @@
     "react-dom": "^19.x",
     "recharts": "^3.7.0",
     "sonner": "^2.0.7",
+    "tailwind-merge": "^3.4.0",
     "thirdweb": "^5.x"
   },
   "devDependencies": {

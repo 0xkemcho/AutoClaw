@@ -17,6 +17,7 @@ import { CountUp } from '@/components/ui/count-up';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useTokenDetail } from '@/hooks/use-market-data';
+import { Spinner } from '@/components/ui/spinner';
 
 function TokenDetailContent({
   symbol,
@@ -28,10 +29,10 @@ function TokenDetailContent({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-background">
         <Header />
         <main className="flex items-center justify-center pt-32">
-          <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+          <Spinner size="lg" />
         </main>
       </div>
     );
@@ -39,7 +40,7 @@ function TokenDetailContent({
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-background">
         <Header />
         <main className="px-6 pt-10">
           <div className="max-w-lg mx-auto text-center space-y-4">
@@ -61,7 +62,7 @@ function TokenDetailContent({
   }));
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <Header />
       <main className="max-w-lg mx-auto px-4 pt-4 pb-8">
         {/* Back + Token Header */}

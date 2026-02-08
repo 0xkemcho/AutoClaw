@@ -47,7 +47,7 @@ export function SlippageSettings({ value, onChange }: SlippageSettingsProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl border border-border shadow-lg p-3 z-50 w-56">
+        <div className="absolute right-0 top-full mt-2 bg-background rounded-xl border border-border shadow-lg p-3 z-50 w-56">
           <p className="text-xs font-medium text-foreground mb-2">
             Slippage tolerance
           </p>

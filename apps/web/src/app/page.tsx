@@ -20,8 +20,8 @@ function StatItem({ value, label, index }: { value: string; label: string; index
       transition={{ duration: 0.5, delay: index * 0.15 }}
       className="text-center"
     >
-      <p className="text-2xl md:text-3xl font-bold text-black">{value}</p>
-      <p className="text-gray-500 text-sm mt-1">{label}</p>
+      <p className="text-2xl md:text-3xl font-bold text-foreground">{value}</p>
+      <p className="text-foreground-secondary text-sm mt-1">{label}</p>
     </motion.div>
   );
 }
@@ -31,7 +31,7 @@ export default function LandingPage() {
   const isInView = useInView(secondFoldRef, { once: true, amount: 0.3 });
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <Header />
 
       {/* Hero — Fold 1 */}
@@ -41,21 +41,21 @@ export default function LandingPage() {
           alt="AutoClaw"
           className="w-16 h-16 rounded-2xl mb-4"
         />
-        <p className="text-sm font-semibold text-gray-500 mb-6">AutoClaw</p>
+        <p className="text-sm font-semibold text-foreground-secondary mb-6">AutoClaw</p>
 
-        <h1 className="text-4xl md:text-6xl font-light text-black leading-tight max-w-2xl">
+        <h1 className="text-4xl md:text-6xl font-light text-foreground leading-tight max-w-2xl">
           FX Investing
           <br />
           Made Easy
         </h1>
 
-        <p className="text-gray-400 mt-6 text-base max-w-md">
+        <p className="text-foreground-muted mt-6 text-base max-w-md">
           Pick a strategy. Connect your wallet. That&apos;s it.
         </p>
 
         <a
           href="/onboarding"
-          className="mt-10 inline-flex items-center gap-2 px-8 py-4 bg-black text-white text-base font-semibold rounded-pill hover:bg-gray-800 transition-colors"
+          className="mt-10 inline-flex items-center gap-2 px-8 py-4 bg-black text-white text-base font-semibold rounded-pill hover:bg-background-secondary transition-colors"
         >
           Get Started
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -67,7 +67,7 @@ export default function LandingPage() {
       {/* Stats — Fold 2 */}
       <section
         ref={secondFoldRef}
-        className="bg-white border-t border-gray-100 py-24 px-6"
+        className="bg-background border-t border-border py-24 px-6"
       >
         <motion.div
           initial={{ opacity: 0 }}
@@ -86,7 +86,7 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="text-center text-gray-400 text-sm mt-16 max-w-md mx-auto"
+            className="text-center text-foreground-muted text-sm mt-16 max-w-md mx-auto"
           >
             AI-powered FX investment on Celo. Buy any Mento stablecoin,
             set up recurring investments, and let AI guide your portfolio.

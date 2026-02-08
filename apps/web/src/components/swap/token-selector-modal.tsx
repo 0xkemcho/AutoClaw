@@ -91,7 +91,7 @@ export function TokenSelectorModal({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
             transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-            className="fixed inset-x-0 bottom-0 z-50 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 bg-white rounded-t-2xl md:rounded-2xl max-h-[80vh] md:max-h-[500px] md:w-[400px] flex flex-col shadow-xl"
+            className="fixed inset-x-0 bottom-0 z-50 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 bg-background rounded-t-2xl md:rounded-2xl max-h-[80vh] md:max-h-[500px] md:w-[400px] flex flex-col shadow-xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-5 pb-3">

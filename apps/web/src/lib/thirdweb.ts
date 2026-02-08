@@ -1,6 +1,6 @@
 import { createThirdwebClient } from 'thirdweb';
 import { inAppWallet, createWallet } from 'thirdweb/wallets';
-import { lightTheme } from 'thirdweb/react';
+import { darkTheme } from 'thirdweb/react';
 import type { Wallet } from 'thirdweb/wallets';
 
 export const client = createThirdwebClient({
@@ -16,19 +16,19 @@ export const wallets: Wallet[] = [
   createWallet('walletConnect'),
 ];
 
-export const walletTheme = lightTheme({
+export const walletTheme = darkTheme({
   colors: {
-    primaryButtonBg: '#000000',
+    primaryButtonBg: '#6366F1',
     primaryButtonText: '#ffffff',
-    connectedButtonBg: '#ffffff',
-    connectedButtonBgHover: '#f5f5f5',
-    borderColor: '#e5e5e5',
-    accentButtonBg: '#000000',
+    connectedButtonBg: '#1A1A1A',
+    connectedButtonBgHover: '#262626',
+    borderColor: '#262626',
+    accentButtonBg: '#6366F1',
     accentButtonText: '#ffffff',
-    accentText: '#000000',
-    modalBg: '#ffffff',
-    primaryText: '#000000',
-    secondaryText: '#737373',
+    accentText: '#818CF8',
+    modalBg: '#121212',
+    primaryText: '#FAFAFA',
+    secondaryText: '#A3A3A3',
   },
 });
 
@@ -48,8 +48,8 @@ export const detailsButtonStyle = {
   height: '36px',
   paddingLeft: '14px',
   paddingRight: '14px',
-  border: '1px solid #e5e5e5',
-  background: '#ffffff',
+  border: '1px solid #262626',
+  background: '#1A1A1A',
   minWidth: 'auto',
   padding: '0 14px',
   gap: '6px',

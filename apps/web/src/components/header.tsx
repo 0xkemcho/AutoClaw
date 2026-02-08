@@ -7,7 +7,7 @@ import { celo } from '@/lib/chains';
 function AccountButton() {
   const account = useActiveAccount();
   return (
-    <button className="h-9 px-4 text-sm font-medium text-black bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors">
+    <button className="h-9 px-4 text-sm font-medium text-foreground bg-background-secondary border border-border rounded-full hover:bg-background-card transition-colors">
       {account ? shortenAddress(account.address) : ''}
     </button>
   );
@@ -15,7 +15,7 @@ function AccountButton() {
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+    <header className="sticky top-0 z-50 bg-background-card/95 border-b border-border">
       <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
         <a href="/" className="flex items-center gap-2">
           <img
@@ -23,7 +23,7 @@ export function Header() {
             alt="AutoClaw"
             className="w-7 h-7 rounded-lg"
           />
-          <span className="font-bold text-black text-sm">AutoClaw</span>
+          <span className="font-bold text-foreground text-sm">AutoClaw</span>
         </a>
 
         <div className="flex items-center gap-4">

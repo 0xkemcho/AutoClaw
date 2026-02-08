@@ -36,7 +36,7 @@ interface QuoteResponse {
   exchangeProvider: string;
   exchangeId: string;
   approveTx: { to: string; data: string } | null;
-  swapTx: { to: string; data: string };
+  swapTxs: { to: string; data: string }[];
   fromToken: string;
   toToken: string;
   amountIn: string;
@@ -67,6 +67,10 @@ export function SwapCard({ initialToToken }: SwapCardProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   // Quote refresh interval
   const refreshRef = useRef<ReturnType<typeof setInterval>>(null);
+  // Re-entrancy guard for swap execution
+  const swapInProgressRef = useRef(false);
+  // Reset timeout after confirmed state
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   // Fetch quote
   const fetchQuote = useCallback(
@@ -180,6 +184,12 @@ export function SwapCard({ initialToToken }: SwapCardProps) {
   // Execute swap
   const handleSwap = async () => {
     if (!quote || !account) return;
+    if (swapInProgressRef.current) return;
+    swapInProgressRef.current = true;
+
+    // Stop quote refresh while swap is in progress
+    if (refreshRef.current) clearInterval(refreshRef.current);
+    if (resetTimeoutRef.current) clearTimeout(resetTimeoutRef.current);
 
     try {
       // Step 1: Approve if needed
@@ -210,26 +220,30 @@ export function SwapCard({ initialToToken }: SwapCardProps) {
         }
       }
 
-      // Step 2: Execute swap
+      // Step 2: Execute swap tx(s) — may be multi-hop
       setSwapState('swapping');
       const swapToastId = toast.loading(
         `Swapping ${quote.amountIn} ${quote.fromToken} → ${quote.toToken}...`,
       );
 
-      const swapTx = prepareTransaction({
-        to: quote.swapTx.to as `0x${string}`,
-        data: quote.swapTx.data as `0x${string}`,
-        chain: celo,
-        client,
-      });
+      let txHash = '';
+      for (const swapTxData of quote.swapTxs) {
+        const swapTx = prepareTransaction({
+          to: swapTxData.to as `0x${string}`,
+          data: swapTxData.data as `0x${string}`,
+          chain: celo,
+          client,
+        });
 
-      const swapResult = await sendTransaction(swapTx);
+        const swapResult = await sendTransaction(swapTx);
+
+        txHash =
+          typeof swapResult === 'object' && 'transactionHash' in swapResult
+            ? (swapResult as { transactionHash: string }).transactionHash
+            : String(swapResult);
+      }
+
       toast.dismiss(swapToastId);
-
-      const txHash =
-        typeof swapResult === 'object' && 'transactionHash' in swapResult
-          ? (swapResult as { transactionHash: string }).transactionHash
-          : String(swapResult);
 
       // Record transaction on backend
       try {
@@ -269,13 +283,15 @@ export function SwapCard({ initialToToken }: SwapCardProps) {
       setAmount('');
       setQuote(null);
 
-      // Reset after a moment
-      setTimeout(() => setSwapState('idle'), 2000);
+      // Reset after a moment — store ref so it can be cancelled
+      resetTimeoutRef.current = setTimeout(() => setSwapState('idle'), 2000);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Swap failed';
       toast.error(`Swap failed: ${message}`);
       setSwapState('error');
+    } finally {
+      swapInProgressRef.current = false;
     }
   };
 
@@ -360,7 +376,7 @@ export function SwapCard({ initialToToken }: SwapCardProps) {
 
           {/* Error */}
           {error && swapState === 'error' && (
-            <p className="text-sm text-red-500 text-center">{error}</p>
+            <p className="text-sm text-error text-center">{error}</p>
           )}
 
           {/* Swap button */}

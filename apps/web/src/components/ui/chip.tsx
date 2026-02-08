@@ -17,8 +17,8 @@ export function Chip({ label, selected, onClick, shortcut }: ChipProps) {
       onClick={onClick}
       className={`inline-flex items-center gap-2 px-5 py-3 rounded-pill text-sm font-semibold transition-all border ${
         selected
-          ? 'bg-black text-white border-black'
-          : 'bg-white text-black border-gray-300 hover:border-black'
+          ? 'bg-accent text-white border-accent'
+          : 'bg-background-secondary text-foreground border-border hover:border-foreground-muted'
       }`}
     >
       {label}

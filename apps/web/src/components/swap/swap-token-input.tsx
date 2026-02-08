@@ -49,7 +49,7 @@ export function SwapTokenInput({
         <button
           type="button"
           onClick={onTokenClick}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-gray-50 border border-border transition-colors shrink-0"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-background hover:bg-background-secondary border border-border transition-colors shrink-0"
         >
           {meta ? (
             <>

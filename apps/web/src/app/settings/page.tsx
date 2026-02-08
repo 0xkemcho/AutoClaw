@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { fetchWithAuth } from '@/lib/api';
 import type { RiskProfile } from '@autoclaw/shared';
+import { Spinner } from '@/components/ui/spinner';
 
 const PROFILE_INFO: Record<
   RiskProfile,
@@ -56,7 +57,7 @@ function SettingsContent() {
   if (loading) {
     return (
       <main className="flex items-center justify-center pt-32">
-        <div className="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin" />
+        <Spinner size="lg" />
       </main>
     );
   }
@@ -66,21 +67,21 @@ function SettingsContent() {
   return (
     <main className="px-6 pt-10 pb-8">
       <div className="max-w-lg mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-black">Settings</h1>
+        <h1 className="text-3xl font-bold text-foreground">Settings</h1>
 
         {profile?.display_name && (
-          <p className="text-gray-500">
+          <p className="text-foreground-secondary">
             Welcome, {profile.display_name}
           </p>
         )}
 
         {info ? (
-          <Card variant="dark" className="space-y-3">
+          <Card className="space-y-3">
             <div className="flex items-center gap-3">
               <span className="text-3xl">{info.badge}</span>
               <div>
                 <h2 className="text-lg font-bold">{info.name}</h2>
-                <p className="text-sm text-white/70">
+                <p className="text-sm text-foreground-secondary">
                   {info.description}
                 </p>
               </div>
@@ -88,7 +89,7 @@ function SettingsContent() {
           </Card>
         ) : (
           <Card className="space-y-3">
-            <p className="text-gray-500">No risk profile yet.</p>
+            <p className="text-foreground-secondary">No risk profile yet.</p>
           </Card>
         )}
 
@@ -106,7 +107,7 @@ function SettingsContent() {
 export default function SettingsPage() {
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-background">
         <Header />
         <SettingsContent />
       </div>

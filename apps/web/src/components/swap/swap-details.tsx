@@ -42,7 +42,7 @@ export function SwapDetails({
           value={
             <span
               className={
-                priceImpact > 1 ? 'text-red-500' : 'text-foreground-secondary'
+                priceImpact > 1 ? 'text-error' : 'text-foreground-secondary'
               }
             >
               {priceImpact.toFixed(2)}%

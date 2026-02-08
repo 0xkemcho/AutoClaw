@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { ChipGroup } from '@/components/ui/chip';
 import { Kbd } from '@/components/ui/kbd';
 import type { RiskAnswers } from '@autoclaw/shared';
+import { Spinner } from '@/components/ui/spinner';
 
 const QUESTIONS = [
   {
@@ -169,14 +170,14 @@ export default function OnboardingPage() {
 
   if (!account) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-background">
         <Header />
         <main className="flex flex-col items-center justify-center px-6 pt-32">
           <div className="text-center space-y-6">
-            <h2 className="text-2xl font-semibold text-black">
+            <h2 className="text-2xl font-semibold text-foreground">
               Connect your wallet
             </h2>
-            <p className="text-gray-500">
+            <p className="text-foreground-secondary">
               Please connect your wallet to continue.
             </p>
             <ConnectButton
@@ -226,7 +227,7 @@ export default function OnboardingPage() {
   const currentQ = isComplete ? null : QUESTIONS[step];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <Header />
       <main className="px-6 pt-10 pb-8">
         <div className="max-w-lg mx-auto">
@@ -239,7 +240,7 @@ export default function OnboardingPage() {
                 className="flex items-start gap-3 mb-5"
               >
                 <svg
-                  className="w-5 h-5 text-gray-400 mt-0.5 shrink-0"
+                  className="w-5 h-5 text-foreground-muted mt-0.5 shrink-0"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -247,7 +248,7 @@ export default function OnboardingPage() {
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span className="text-gray-400 text-lg">
+                <span className="text-foreground-muted text-lg">
                   {getDisplayValue(q, answers[q.key as keyof RiskAnswers])}
                 </span>
               </motion.div>
@@ -263,7 +264,7 @@ export default function OnboardingPage() {
             >
               {currentQ.type === 'text' && (
                 <form onSubmit={handleTextSubmit} className="flex items-center gap-3">
-                  <span className="text-black text-2xl shrink-0 leading-none select-none">&#x203A;</span>
+                  <span className="text-foreground text-2xl shrink-0 leading-none select-none">&#x203A;</span>
                   <input
                     ref={inputRef}
                     type="text"
@@ -272,7 +273,7 @@ export default function OnboardingPage() {
                       setAnswers((prev) => ({ ...prev, name: e.target.value }))
                     }
                     placeholder={currentQ.placeholder}
-                    className="w-full text-xl bg-transparent outline-none text-black placeholder:text-gray-400 py-0 border-0"
+                    className="w-full text-xl bg-transparent outline-none text-foreground placeholder:text-foreground-muted py-0 border-0"
                   />
                   <Kbd>↵</Kbd>
                 </form>
@@ -280,7 +281,7 @@ export default function OnboardingPage() {
 
               {(currentQ.type === 'chip' || currentQ.type === 'chip-multi') && (
                 <div className="space-y-5">
-                  <h2 className="text-2xl font-bold text-black leading-tight">
+                  <h2 className="text-2xl font-bold text-foreground leading-tight">
                     {currentQ.question}
                   </h2>
 
@@ -323,15 +324,15 @@ export default function OnboardingPage() {
             >
               {error ? (
                 <div className="space-y-3">
-                  <p className="text-red-500 text-sm">{error}</p>
+                  <p className="text-error text-sm">{error}</p>
                   <Button onClick={submitAnswers} disabled={submitting} size="sm">
                     Retry
                   </Button>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                  <span className="text-gray-500 text-sm">Setting up your profile...</span>
+                  <Spinner size="md" />
+                  <span className="text-foreground-secondary text-sm">Setting up your profile...</span>
                 </div>
               )}
             </motion.div>
