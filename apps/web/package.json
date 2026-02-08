@@ -1,0 +1,31 @@
+{
+  "name": "@autoclaw/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "type-check": "tsc --noEmit",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.x",
+    "react": "^19.x",
+    "react-dom": "^19.x",
+    "thirdweb": "^5.x",
+    "@autoclaw/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@autoclaw/typescript-config": "workspace:*",
+    "typescript": "^5.x",
+    "@types/node": "^20.x",
+    "@types/react": "^19.x",
+    "@types/react-dom": "^19.x",
+    "tailwindcss": "^4.x",
+    "@tailwindcss/postcss": "^4.x",
+    "postcss": "^8.x",
+    "eslint": "^9.x",
+    "eslint-config-next": "^15.x"
+  }
+}
