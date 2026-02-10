@@ -9,6 +9,10 @@ export const BIPOOL_MANAGER_ADDRESS: Address =
 export const CELO_ADDRESS: Address =
   '0x471EcE3750Da237f93B8E339c536989b8978a438';
 
+// USDm (cUSD) — used as hub token for routing
+export const USDM_ADDRESS: Address =
+  '0x765DE816845861e75A25fCA122bb6898B8B1282a';
+
 // Max uint256 for infinite token approvals
 export const MAX_UINT256 =
   115792089237316195423570985008687907853269984665640564039457584007913129639935n;

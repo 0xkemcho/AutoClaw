@@ -1,97 +1,110 @@
 'use client';
 
-import { useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useActiveAccount } from 'thirdweb/react';
 import { Header } from '@/components/header';
+import { NoiseBackground } from '@/components/ui/noise-background';
+import { BackgroundRippleEffect } from '@/components/ui/background-ripple-effect';
 
-const STATS = [
-  { value: '15+', label: 'Mento stablecoins supported' },
-  { value: '$0', label: 'platform fees' },
-  { value: '1-tap', label: 'swaps on Celo' },
-  { value: 'AI', label: 'powered recommendations' },
+const ONE_LINERS: { text: string; bold: string }[] = [
+  { text: 'AI-powered FX investing on Celo.', bold: 'AI-powered' },
+  { text: '15+ Mento stablecoins. Zero platform fees.', bold: '15+' },
+  { text: '1-tap swaps. Instant settlement.', bold: '1-tap' },
+  { text: 'Recurring investments on autopilot.', bold: 'autopilot' },
+  { text: 'Your portfolio. AI-guided.', bold: 'AI-guided' },
 ];
 
-function StatItem({ value, label, index }: { value: string; label: string; index: number }) {
+function highlightBold(text: string, bold: string) {
+  const idx = text.indexOf(bold);
+  if (idx === -1) return <>{text}</>;
+  const before = text.slice(0, idx);
+  const after = text.slice(idx + bold.length);
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5, delay: index * 0.15 }}
-      className="text-center"
-    >
-      <p className="text-2xl md:text-3xl font-bold text-foreground">{value}</p>
-      <p className="text-foreground-secondary text-sm mt-1">{label}</p>
-    </motion.div>
+    <>
+      {before}
+      <span className="font-bold">{bold}</span>
+      {after}
+    </>
   );
 }
 
 export default function LandingPage() {
-  const secondFoldRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(secondFoldRef, { once: true, amount: 0.3 });
+  const account = useActiveAccount();
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Hero — Fold 1 */}
-      <section className="flex flex-col items-center justify-center text-center px-6 pt-24 pb-32">
-        <img
-          src="https://cdn.prod.website-files.com/64078f74f400a576b871a774/65cfccdcd2a4fdd64f05be09_autopilotAppIcon.png"
-          alt="AutoClaw"
-          className="w-16 h-16 rounded-2xl mb-4"
-        />
-        <p className="text-sm font-semibold text-foreground-secondary mb-6">AutoClaw</p>
+      {/* Hero — Fold 1 with ripple grid background */}
+      <section className="relative flex flex-col items-center justify-center text-center px-6 pt-24 pb-32 overflow-hidden">
+        {/* Ripple grid bg */}
+        <BackgroundRippleEffect rows={10} cols={30} cellSize={52} />
 
-        <h1 className="text-4xl md:text-6xl font-light text-foreground leading-tight max-w-2xl">
-          FX Investing
-          <br />
-          Made Easy
-        </h1>
+        {/* Radial fade overlay so grid fades at edges */}
+        <div className="absolute inset-0 z-[1] pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_30%,var(--color-background)_75%)]" />
 
-        <p className="text-foreground-muted mt-6 text-base max-w-md">
-          Pick a strategy. Connect your wallet. That&apos;s it.
-        </p>
+        {/* Content */}
+        <div className="relative z-10">
+          <img
+            src="https://cdn.prod.website-files.com/64078f74f400a576b871a774/65cfccdcd2a4fdd64f05be09_autopilotAppIcon.png"
+            alt="AutoClaw"
+            className="w-16 h-16 rounded-2xl mb-4 mx-auto"
+          />
+          <p className="text-sm font-semibold text-foreground-secondary mb-6">AutoClaw</p>
 
-        <a
-          href="/onboarding"
-          className="mt-10 inline-flex items-center gap-2 px-8 py-4 bg-black text-white text-base font-semibold rounded-pill hover:bg-background-secondary transition-colors"
-        >
-          Get Started
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-          </svg>
-        </a>
+          <h1 className="text-4xl md:text-6xl font-bold text-foreground leading-tight max-w-2xl">
+            FX Investing
+            <br />
+            Made Easy
+          </h1>
+
+          <p className="text-foreground-muted mt-6 text-base max-w-md mx-auto">
+            Pick a strategy. Connect your wallet. That&apos;s it.
+          </p>
+
+          {/* CTA with noise background */}
+          <div className="mt-10 inline-block">
+            <NoiseBackground
+              containerClassName="rounded-pill"
+              className="px-8 py-4"
+              gradientColors={[
+                'rgb(99, 102, 241)',
+                'rgb(139, 92, 246)',
+                'rgb(59, 130, 246)',
+              ]}
+              noiseIntensity={0.15}
+              speed={0.08}
+            >
+              <a
+                href={account ? '/home' : '/onboarding'}
+                className="inline-flex items-center gap-2 text-white text-base font-semibold"
+              >
+                {account ? 'Go to Dashboard' : 'Get Started'}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </a>
+            </NoiseBackground>
+          </div>
+        </div>
       </section>
 
-      {/* Stats — Fold 2 */}
-      <section
-        ref={secondFoldRef}
-        className="bg-background border-t border-border py-24 px-6"
-      >
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={isInView ? { opacity: 1 } : {}}
-          transition={{ duration: 0.8 }}
-          className="max-w-3xl mx-auto"
-        >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
-            {STATS.map((stat, i) => (
-              <StatItem key={stat.label} value={stat.value} label={stat.label} index={i} />
-            ))}
-          </div>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="text-center text-foreground-muted text-sm mt-16 max-w-md mx-auto"
-          >
-            AI-powered FX investment on Celo. Buy any Mento stablecoin,
-            set up recurring investments, and let AI guide your portfolio.
-          </motion.p>
-        </motion.div>
+      {/* One-liners — Fold 2 */}
+      <section className="bg-background border-t border-border px-6">
+        <div className="max-w-4xl mx-auto">
+          {ONE_LINERS.map((item, i) => (
+            <motion.p
+              key={i}
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: false, amount: 0.5 }}
+              transition={{ duration: 0.6, delay: i * 0.1 }}
+              className="text-center text-foreground font-light text-2xl md:text-4xl lg:text-5xl leading-snug py-10 md:py-14"
+            >
+              {highlightBold(item.text, item.bold)}
+            </motion.p>
+          ))}
+        </div>
       </section>
     </div>
   );

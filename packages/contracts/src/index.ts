@@ -6,6 +6,7 @@ export {
   BROKER_ADDRESS,
   BIPOOL_MANAGER_ADDRESS,
   CELO_ADDRESS,
+  USDM_ADDRESS,
   MAX_UINT256,
 } from './addresses';
 
@@ -17,4 +18,5 @@ export type { QuoteResult } from './quote';
 
 export { checkAllowance, buildApproveTx } from './allowance';
 
-export { buildSwapInTx, applySlippage } from './swap';
+export { buildSwapInTx, buildSwapInTxs, applySlippage } from './swap';
+export type { SwapTxData } from './swap';

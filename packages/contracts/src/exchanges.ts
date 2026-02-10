@@ -1,6 +1,6 @@
 import type { Address, PublicClient } from 'viem';
 import { biPoolManagerAbi } from './abis/bipool-manager';
-import { BIPOOL_MANAGER_ADDRESS, CELO_ADDRESS } from './addresses';
+import { BIPOOL_MANAGER_ADDRESS, CELO_ADDRESS, USDM_ADDRESS } from './addresses';
 
 export interface ExchangeRoute {
   exchangeId: `0x${string}`;
@@ -52,15 +52,17 @@ export async function getRoutes(
 
 let _pairToExchange: Map<string, `0x${string}`> | null = null;
 
+// Hub tokens to try for 2-hop routing (order matters — try USDm first, then CELO)
+const HUB_TOKENS: Address[] = [USDM_ADDRESS, CELO_ADDRESS];
+
 /**
  * Find a swap route between two tokens.
- * Tries direct route first, then 2-hop via CELO or via a hub token.
+ * Tries direct route first, then 2-hop via each hub token (USDm, CELO).
  */
 export async function findRoute(
   tokenIn: Address,
   tokenOut: Address,
   celoClient: PublicClient,
-  hubToken?: Address,
 ): Promise<PriceRoute | null> {
   // Ensure routes are built
   await getRoutes(celoClient);
@@ -82,26 +84,31 @@ export async function findRoute(
     ];
   }
 
-  // 2-hop via hub token (default: CELO)
-  const hub = (hubToken ?? CELO_ADDRESS).toLowerCase();
-  const toHubKey = `${inAddr}:${hub}`;
-  const hubToOutKey = `${hub}:${outAddr}`;
-  const toHubExchange = _pairToExchange.get(toHubKey);
-  const hubToOutExchange = _pairToExchange.get(hubToOutKey);
+  // 2-hop via hub tokens (try USDm first, then CELO)
+  for (const hubToken of HUB_TOKENS) {
+    const hub = hubToken.toLowerCase();
+    // Skip if hub is the same as input or output
+    if (hub === inAddr || hub === outAddr) continue;
 
-  if (toHubExchange && hubToOutExchange) {
-    return [
-      {
-        exchangeId: toHubExchange,
-        tokenIn: tokenIn,
-        tokenOut: (hubToken ?? CELO_ADDRESS) as Address,
-      },
-      {
-        exchangeId: hubToOutExchange,
-        tokenIn: (hubToken ?? CELO_ADDRESS) as Address,
-        tokenOut: tokenOut,
-      },
-    ];
+    const toHubKey = `${inAddr}:${hub}`;
+    const hubToOutKey = `${hub}:${outAddr}`;
+    const toHubExchange = _pairToExchange.get(toHubKey);
+    const hubToOutExchange = _pairToExchange.get(hubToOutKey);
+
+    if (toHubExchange && hubToOutExchange) {
+      return [
+        {
+          exchangeId: toHubExchange,
+          tokenIn: tokenIn,
+          tokenOut: hubToken,
+        },
+        {
+          exchangeId: hubToOutExchange,
+          tokenIn: hubToken,
+          tokenOut: tokenOut,
+        },
+      ];
+    }
   }
 
   return null;

@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, MessageSquare, ArrowLeftRight, PieChart } from 'lucide-react';
+import { Home, MessageSquare, ArrowLeftRight, TrendingUp } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/home', label: 'Home', icon: Home },
-  { href: '/chat', label: 'Chat', icon: MessageSquare },
+  { href: '/markets', label: 'Markets', icon: TrendingUp },
   { href: '/swap', label: 'Swap', icon: ArrowLeftRight },
-  { href: '/portfolio', label: 'Portfolio', icon: PieChart },
+  { href: '/chat', label: 'Chat', icon: MessageSquare },
 ] as const;
 
 export function BottomNav() {

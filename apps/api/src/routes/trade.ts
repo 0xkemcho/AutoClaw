@@ -7,7 +7,7 @@ import {
   getQuote,
   checkAllowance,
   buildApproveTx,
-  buildSwapInTx,
+  buildSwapInTxs,
   applySlippage,
   BROKER_ADDRESS,
 } from '@autoclaw/contracts';
@@ -116,11 +116,9 @@ export async function tradeRoutes(app: FastifyInstance) {
 
         const needsApproval = currentAllowance < amountIn;
 
-        // Build swap tx
-        const swapTx = buildSwapInTx({
+        // Build swap tx(s) — may be multi-hop (e.g. USDC → USDm → EURm)
+        const swapTxs = buildSwapInTxs({
           route: quote.route,
-          tokenIn: fromAddress,
-          tokenOut: toAddress,
           amountIn,
           amountOutMin,
         });
@@ -144,7 +142,7 @@ export async function tradeRoutes(app: FastifyInstance) {
           exchangeProvider: quote.exchangeProvider,
           exchangeId: quote.exchangeId,
           approveTx,
-          swapTx,
+          swapTxs,
           fromToken: from,
           toToken: to,
           amountIn: amount,

@@ -6,7 +6,6 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ['Open Sans', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
       },
       borderRadius: {
         card: '16px',

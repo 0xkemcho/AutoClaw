@@ -98,6 +98,43 @@ export default function OnboardingPage() {
   const [answers, setAnswers] = useState<Partial<RiskAnswers>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+  const hasCheckedRef = useRef(false);
+
+  // Redirect if already onboarded — wait briefly for wallet to hydrate
+  useEffect(() => {
+    if (hasCheckedRef.current) return;
+
+    if (account) {
+      hasCheckedRef.current = true;
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setCheckingOnboarding(false);
+        return;
+      }
+      fetchWithAuth('/api/auth/me', token)
+        .then((data) => {
+          if (data.onboarding_completed) {
+            router.replace('/home');
+          } else {
+            setCheckingOnboarding(false);
+          }
+        })
+        .catch(() => {
+          setCheckingOnboarding(false);
+        });
+      return;
+    }
+
+    // Give wallet 500ms to hydrate before showing "connect wallet"
+    const timeout = setTimeout(() => {
+      if (!hasCheckedRef.current) {
+        hasCheckedRef.current = true;
+        setCheckingOnboarding(false);
+      }
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [account, router]);
 
   useEffect(() => {
     if (step < QUESTIONS.length && QUESTIONS[step].type === 'text' && inputRef.current) {
@@ -167,6 +204,17 @@ export default function OnboardingPage() {
       submitAnswers();
     }
   }, [isComplete, submitting, error, submitAnswers]);
+
+  if (checkingOnboarding) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="flex items-center justify-center pt-32">
+          <Spinner size="lg" />
+        </main>
+      </div>
+    );
+  }
 
   if (!account) {
     return (
