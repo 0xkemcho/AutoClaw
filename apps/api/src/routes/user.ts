@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../middleware/auth';
 import { createSupabaseAdmin } from '@autoclaw/db';
 import { computeRiskScore, scoreToProfile } from '../lib/risk-scoring';
-import type { RiskAnswers } from '@autoclaw/shared';
+import { createAgentWallet } from '../lib/turnkey-wallet';
+import { DEFAULT_GUARDRAILS, type RiskAnswers, type RiskProfile } from '@autoclaw/shared';
 
 const supabaseAdmin = createSupabaseAdmin(
   process.env.SUPABASE_URL!,
@@ -47,7 +48,53 @@ export async function userRoutes(app: FastifyInstance) {
         return reply.status(500).send({ error: 'Failed to save risk profile' });
       }
 
-      return { profile: data, riskProfile: profile, score };
+      // Create Turnkey wallet and agent config
+      let turnkeyWalletAddress: string | null = null;
+      try {
+        // Check if agent config already exists
+        const { data: existingConfig } = await supabaseAdmin
+          .from('agent_configs')
+          .select('turnkey_wallet_address')
+          .eq('wallet_address', walletAddress)
+          .single();
+
+        if (existingConfig?.turnkey_wallet_address) {
+          turnkeyWalletAddress = existingConfig.turnkey_wallet_address;
+        } else {
+          // Create new Turnkey wallet
+          const wallet = await createAgentWallet(walletAddress);
+          turnkeyWalletAddress = wallet.address;
+
+          // Insert agent config with default guardrails based on risk profile
+          const defaults = DEFAULT_GUARDRAILS[profile as RiskProfile] ?? DEFAULT_GUARDRAILS.moderate;
+
+          await supabaseAdmin.from('agent_configs').upsert(
+            {
+              wallet_address: walletAddress,
+              turnkey_wallet_address: wallet.address,
+              turnkey_wallet_id: wallet.walletId,
+              active: false,
+              frequency: defaults.frequency,
+              max_trade_size_usd: defaults.maxTradeSizeUsd,
+              max_allocation_pct: defaults.maxAllocationPct,
+              stop_loss_pct: defaults.stopLossPct,
+              daily_trade_limit: defaults.dailyTradeLimit,
+              allowed_currencies: answers.currencies.length > 0 ? answers.currencies : undefined,
+            },
+            { onConflict: 'wallet_address' },
+          );
+        }
+      } catch (walletErr) {
+        console.error('Failed to create agent wallet:', walletErr);
+        // Non-fatal — user profile is saved, wallet creation can be retried
+      }
+
+      return {
+        profile: data,
+        riskProfile: profile,
+        score,
+        turnkeyWalletAddress,
+      };
     },
   );
 
