@@ -152,7 +152,8 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
       // Execute trade
       try {
         const result = await executeTrade({
-          turnkeyAddress: config.turnkey_wallet_address!,
+          serverWalletId: config.server_wallet_id!,
+          serverWalletAddress: config.server_wallet_address!,
           currency: signal.currency,
           direction: signal.direction as 'buy' | 'sell',
           amountUsd: tradeAmountUsd,

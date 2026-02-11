@@ -62,7 +62,7 @@ export async function agentRoutes(app: FastifyInstance) {
           allowedCurrencies: config.allowed_currencies,
           blockedCurrencies: config.blocked_currencies,
           customPrompt: config.custom_prompt,
-          turnkeyWalletAddress: config.turnkey_wallet_address,
+          serverWalletAddress: config.server_wallet_address,
           lastRunAt: config.last_run_at,
           nextRunAt: config.next_run_at,
         },

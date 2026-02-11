@@ -32,15 +32,15 @@ function balanceKey(wallet: string, symbol: string): string {
 export async function checkForDeposits(): Promise<void> {
   const { data: configs, error } = await supabaseAdmin
     .from('agent_configs')
-    .select('wallet_address, turnkey_wallet_address')
-    .not('turnkey_wallet_address', 'is', null);
+    .select('wallet_address, server_wallet_address')
+    .not('server_wallet_address', 'is', null);
 
   if (error || !configs) return;
 
   for (const rawConfig of configs) {
-    const config = rawConfig as Pick<AgentConfigRow, 'wallet_address' | 'turnkey_wallet_address'>;
-    const turnkeyAddress = config.turnkey_wallet_address as Address;
-    if (!turnkeyAddress) continue;
+    const config = rawConfig as Pick<AgentConfigRow, 'wallet_address' | 'server_wallet_address'>;
+    const serverAddress = config.server_wallet_address as Address;
+    if (!serverAddress) continue;
 
     for (const token of MONITORED_TOKENS) {
       try {
@@ -48,10 +48,10 @@ export async function checkForDeposits(): Promise<void> {
           address: token.address,
           abi: erc20Abi,
           functionName: 'balanceOf',
-          args: [turnkeyAddress],
+          args: [serverAddress],
         });
 
-        const key = balanceKey(turnkeyAddress, token.symbol);
+        const key = balanceKey(serverAddress, token.symbol);
         const previous = lastKnownBalances.get(key);
 
         // Update cache
@@ -78,7 +78,7 @@ export async function checkForDeposits(): Promise<void> {
         }
       } catch (err) {
         // Silently skip individual token balance checks
-        console.error(`Failed to check ${token.symbol} balance for ${turnkeyAddress}:`, err);
+        console.error(`Failed to check ${token.symbol} balance for ${serverAddress}:`, err);
       }
     }
   }

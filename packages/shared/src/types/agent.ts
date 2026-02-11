@@ -12,8 +12,8 @@ export type TradeDirection = 'buy' | 'sell';
 export interface AgentConfig {
   id: string;
   walletAddress: string;
-  turnkeyWalletAddress: string | null;
-  turnkeyWalletId: string | null;
+  serverWalletAddress: string | null;
+  serverWalletId: string | null;
   active: boolean;
   frequency: AgentFrequency;
   maxTradeSizeUsd: number;

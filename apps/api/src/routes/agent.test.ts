@@ -126,7 +126,7 @@ function makeConfigRow(overrides: Record<string, unknown> = {}) {
     allowed_currencies: ['CELO', 'cUSD'],
     blocked_currencies: [],
     custom_prompt: null,
-    turnkey_wallet_address: '0xTURNKEY',
+    server_wallet_address: '0xSERVER',
     last_run_at: '2026-01-01T00:00:00Z',
     next_run_at: '2026-01-02T00:00:00Z',
     created_at: '2026-01-01T00:00:00Z',
@@ -206,7 +206,7 @@ describe('GET /api/agent/status', () => {
       allowedCurrencies: ['CELO', 'cUSD'],
       blockedCurrencies: [],
       customPrompt: null,
-      turnkeyWalletAddress: '0xTURNKEY',
+      serverWalletAddress: '0xSERVER',
       lastRunAt: '2026-01-01T00:00:00Z',
       nextRunAt: '2026-01-02T00:00:00Z',
     });

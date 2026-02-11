@@ -284,8 +284,8 @@ export interface Database {
         Row: {
           id: string;
           wallet_address: string;
-          turnkey_wallet_address: string | null;
-          turnkey_wallet_id: string | null;
+          server_wallet_address: string | null;
+          server_wallet_id: string | null;
           active: boolean;
           frequency: 'daily' | '4h' | 'hourly';
           max_trade_size_usd: number;
@@ -303,8 +303,8 @@ export interface Database {
         Insert: {
           id?: string;
           wallet_address: string;
-          turnkey_wallet_address?: string | null;
-          turnkey_wallet_id?: string | null;
+          server_wallet_address?: string | null;
+          server_wallet_id?: string | null;
           active?: boolean;
           frequency?: 'daily' | '4h' | 'hourly';
           max_trade_size_usd?: number;
@@ -322,8 +322,8 @@ export interface Database {
         Update: {
           id?: string;
           wallet_address?: string;
-          turnkey_wallet_address?: string | null;
-          turnkey_wallet_id?: string | null;
+          server_wallet_address?: string | null;
+          server_wallet_id?: string | null;
           active?: boolean;
           frequency?: 'daily' | '4h' | 'hourly';
           max_trade_size_usd?: number;

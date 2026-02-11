@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../middleware/auth';
 import { createSupabaseAdmin } from '@autoclaw/db';
 import { computeRiskScore, scoreToProfile } from '../lib/risk-scoring';
-import { createAgentWallet } from '../lib/turnkey-wallet';
+import { createAgentWallet } from '../lib/privy-wallet';
 import { DEFAULT_GUARDRAILS, type RiskAnswers, type RiskProfile } from '@autoclaw/shared';
 
 const supabaseAdmin = createSupabaseAdmin(
@@ -48,22 +48,22 @@ export async function userRoutes(app: FastifyInstance) {
         return reply.status(500).send({ error: 'Failed to save risk profile' });
       }
 
-      // Create Turnkey wallet and agent config
-      let turnkeyWalletAddress: string | null = null;
+      // Create server wallet and agent config
+      let serverWalletAddress: string | null = null;
       try {
         // Check if agent config already exists
         const { data: existingConfig } = await supabaseAdmin
           .from('agent_configs')
-          .select('turnkey_wallet_address')
+          .select('server_wallet_address')
           .eq('wallet_address', walletAddress)
           .single();
 
-        if (existingConfig?.turnkey_wallet_address) {
-          turnkeyWalletAddress = existingConfig.turnkey_wallet_address;
+        if (existingConfig?.server_wallet_address) {
+          serverWalletAddress = existingConfig.server_wallet_address;
         } else {
-          // Create new Turnkey wallet
+          // Create new Privy server wallet
           const wallet = await createAgentWallet(walletAddress);
-          turnkeyWalletAddress = wallet.address;
+          serverWalletAddress = wallet.address;
 
           // Insert agent config with default guardrails based on risk profile
           const defaults = DEFAULT_GUARDRAILS[profile as RiskProfile] ?? DEFAULT_GUARDRAILS.moderate;
@@ -71,8 +71,8 @@ export async function userRoutes(app: FastifyInstance) {
           await supabaseAdmin.from('agent_configs').upsert(
             {
               wallet_address: walletAddress,
-              turnkey_wallet_address: wallet.address,
-              turnkey_wallet_id: wallet.walletId,
+              server_wallet_address: wallet.address,
+              server_wallet_id: wallet.walletId,
               active: false,
               frequency: defaults.frequency,
               max_trade_size_usd: defaults.maxTradeSizeUsd,
@@ -93,7 +93,7 @@ export async function userRoutes(app: FastifyInstance) {
         profile: data,
         riskProfile: profile,
         score,
-        turnkeyWalletAddress,
+        serverWalletAddress,
       };
     },
   );

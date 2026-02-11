@@ -1,54 +1,44 @@
 ---
 name: turnkey
-description: 'Turnkey SDK for server-side wallet creation and signing. Use when working with Turnkey wallets, server-side transaction signing, custodial wallets, or automated trading wallets. Triggers on: "turnkey", "server wallet", "custodial wallet", "turnkey signing", "automated wallet", "@turnkey/viem".'
+description: 'Privy server wallets for server-side wallet creation and signing. Use when working with Privy wallets, server-side transaction signing, custodial wallets, or automated trading wallets. Triggers on: "privy", "server wallet", "custodial wallet", "privy signing", "automated wallet", "@privy-io/node".'
 ---
 
 ## Overview
 
-Turnkey provides server-side wallet management for AutoClaw. Use it for:
-- Creating wallets for users on the server (no private key exposure)
+Privy provides server-side wallet management for AutoClaw. Use it for:
+- Creating application-owned wallets on the server (no private key exposure)
 - Signing transactions server-side for automated trading
-- Integration with viem via `@turnkey/viem`
+- Integration with viem via `@privy-io/node/viem`
 
 ## Installation
 
 ```bash
-pnpm add @turnkey/sdk-server @turnkey/viem
+pnpm add @privy-io/node
 ```
 
 ## Authentication
 
-Turnkey uses P-256 API key pairs (not secp256k1). Generate via Turnkey dashboard.
+Privy uses App ID + App Secret from the Privy dashboard (console.privy.io).
 
 ```ts
-import { Turnkey } from '@turnkey/sdk-server';
+import { PrivyClient } from '@privy-io/node';
 
-const turnkey = new Turnkey({
-  apiBaseUrl: 'https://api.turnkey.com',
-  apiPublicKey: process.env.TURNKEY_API_PUBLIC_KEY!,
-  apiPrivateKey: process.env.TURNKEY_API_PRIVATE_KEY!,
-  defaultOrganizationId: process.env.TURNKEY_ORGANIZATION_ID!,
+const privy = new PrivyClient({
+  appId: process.env.PRIVY_APP_ID!,
+  appSecret: process.env.PRIVY_APP_SECRET!,
 });
 ```
 
 ## Wallet Creation
 
 ```ts
-const apiClient = turnkey.apiClient();
-
-// Create a new wallet
-const wallet = await apiClient.createWallet({
-  walletName: `user-${userId}`,
-  accounts: [
-    {
-      curve: 'CURVE_SECP256K1',
-      pathFormat: 'PATH_FORMAT_BIP32',
-      path: "m/44'/60'/0'/0/0",
-    },
-  ],
+// Create an application-owned wallet (no Privy user needed)
+const wallet = await privy.wallets().create({
+  chain_type: 'ethereum',
+  idempotency_key: `agent-${userId}`,
 });
 
-const walletAddress = wallet.addresses[0];
+const { id: walletId, address } = wallet;
 ```
 
 ## Signing with Viem
@@ -56,16 +46,15 @@ const walletAddress = wallet.addresses[0];
 ```ts
 import { createWalletClient, http } from 'viem';
 import { celo } from 'viem/chains';
-import { createAccount } from '@turnkey/viem';
+import { createViemAccount } from '@privy-io/node/viem';
 
-const turnkeyAccount = await createAccount({
-  client: turnkey.apiClient(),
-  organizationId: process.env.TURNKEY_ORGANIZATION_ID!,
-  signWith: walletAddress, // The Turnkey wallet address
+const account = await createViemAccount(privy, {
+  walletId,
+  address: walletAddress as `0x${string}`,
 });
 
 const walletClient = createWalletClient({
-  account: turnkeyAccount,
+  account,
   chain: celo,
   transport: http(process.env.CELO_RPC_URL),
 });
@@ -82,13 +71,12 @@ const hash = await walletClient.sendTransaction({
 
 | Variable | Description |
 |---|---|
-| `TURNKEY_API_PUBLIC_KEY` | P-256 public key from Turnkey dashboard |
-| `TURNKEY_API_PRIVATE_KEY` | P-256 private key from Turnkey dashboard |
-| `TURNKEY_ORGANIZATION_ID` | Your Turnkey org ID |
+| `PRIVY_APP_ID` | App ID from Privy dashboard |
+| `PRIVY_APP_SECRET` | App secret from Privy dashboard |
 
 ## Integration with Mento Swaps
 
-For automated trading, combine Turnkey signing with Mento swap transactions:
+For automated trading, combine Privy signing with Mento swap transactions:
 
 ```ts
 import { buildSwapInTx } from '@autoclaw/contracts';
@@ -103,7 +91,9 @@ const hash = await walletClient.sendTransaction({
 
 ## Important Notes
 
-- Turnkey API keys are P-256 (not Ethereum secp256k1) — don't confuse them
-- Never store Turnkey private keys in client-side code
-- Turnkey handles key management — you never see the actual Ethereum private key
-- Use `@turnkey/viem` for seamless viem integration on Celo
+- Privy handles key custody — you never see the actual Ethereum private key
+- Never store Privy secrets in client-side code
+- Use `@privy-io/node/viem` for seamless viem integration on Celo
+- `createViemAccount` requires both `walletId` and `address`
+- Application wallets don't require a Privy user account
+- 50K free signatures/month, $0.01/signature after

@@ -21,7 +21,7 @@ export interface AgentConfig {
   allowedCurrencies: string[] | null;
   blockedCurrencies: string[] | null;
   customPrompt: string | null;
-  turnkeyWalletAddress: string | null;
+  serverWalletAddress: string | null;
   lastRunAt: string | null;
   nextRunAt: string | null;
 }

@@ -36,7 +36,7 @@ vi.mock('../lib/celo-client', () => ({
   },
 }));
 
-vi.mock('../lib/turnkey-wallet', () => ({
+vi.mock('../lib/privy-wallet', () => ({
   getAgentWalletClient: mockGetAgentWalletClient,
 }));
 
@@ -79,7 +79,8 @@ describe('trade-executor', () => {
   describe('executeTrade', () => {
     it('resolves token addresses for buy direction (USDm → currency)', async () => {
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 100,
@@ -95,7 +96,8 @@ describe('trade-executor', () => {
 
     it('resolves token addresses for sell direction (currency → USDm)', async () => {
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'sell',
         amountUsd: 100,
@@ -111,7 +113,8 @@ describe('trade-executor', () => {
 
     it('gets quote with correct params', async () => {
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 50,
@@ -125,7 +128,8 @@ describe('trade-executor', () => {
 
     it('applies 0.5% slippage', async () => {
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 100,
@@ -136,7 +140,8 @@ describe('trade-executor', () => {
 
     it('checks allowance before first trade', async () => {
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 100,
@@ -155,7 +160,8 @@ describe('trade-executor', () => {
       mockCheckAllowance.mockResolvedValue(0n);
 
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 100,
@@ -170,7 +176,8 @@ describe('trade-executor', () => {
       mockCheckAllowance.mockResolvedValue(BigInt('999999999999999999999'));
 
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 100,
@@ -183,7 +190,8 @@ describe('trade-executor', () => {
 
     it('skips allowance check on second trade (cached)', async () => {
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 100,
@@ -192,7 +200,8 @@ describe('trade-executor', () => {
       mockCheckAllowance.mockClear();
 
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 50,
@@ -203,7 +212,8 @@ describe('trade-executor', () => {
 
     it('builds swap txs from quote route', async () => {
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 100,
@@ -224,7 +234,8 @@ describe('trade-executor', () => {
       ]);
 
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 100,
@@ -237,7 +248,8 @@ describe('trade-executor', () => {
 
     it('returns txHash, amountIn, amountOut, rate', async () => {
       const result = await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 100,
@@ -252,7 +264,8 @@ describe('trade-executor', () => {
     it('throws on unknown currency', async () => {
       await expect(
         executeTrade({
-          turnkeyAddress: MOCK_WALLET_ADDRESS,
+          serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
           currency: 'INVALID',
           direction: 'buy',
           amountUsd: 100,
@@ -265,7 +278,8 @@ describe('trade-executor', () => {
     it('resets tracked approvals', async () => {
       // First trade caches the approval
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 100,
@@ -276,7 +290,8 @@ describe('trade-executor', () => {
 
       // After clearing cache, should check allowance again
       await executeTrade({
-        turnkeyAddress: MOCK_WALLET_ADDRESS,
+        serverWalletId: 'mock-wallet-id',
+        serverWalletAddress: MOCK_WALLET_ADDRESS,
         currency: 'EURm',
         direction: 'buy',
         amountUsd: 50,

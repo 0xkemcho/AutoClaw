@@ -159,10 +159,10 @@ export function SettingsForm({ config }: SettingsFormProps) {
           Agent Wallet
         </h2>
         <p className="text-sm text-foreground-muted mb-4">
-          Your Turnkey-managed wallet for agent operations. Fund it to enable
+          Your server-managed wallet for agent operations. Fund it to enable
           trading.
         </p>
-        <WalletSection walletAddress={config.turnkeyWalletAddress} />
+        <WalletSection walletAddress={config.serverWalletAddress} />
       </Card>
 
       {/* Save Button */}

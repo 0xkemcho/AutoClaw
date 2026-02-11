@@ -299,8 +299,8 @@ describe('runAgentCycle', () => {
     const fakeConfig = {
       id: 'cfg-1',
       wallet_address: '0xAGENT',
-      turnkey_wallet_address: '0xTURNKEY',
-      turnkey_wallet_id: 'tk-1',
+      server_wallet_address: '0xSERVER',
+      server_wallet_id: 'sw-1',
       active: true,
       frequency: 'daily' as const,
       max_trade_size_usd: 50,

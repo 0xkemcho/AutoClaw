@@ -43,12 +43,12 @@ import { MENTO_TOKEN_ADDRESSES, USDC_CELO_ADDRESS, USDT_CELO_ADDRESS } from '@au
 // Helpers
 // ---------------------------------------------------------------------------
 
-const TURNKEY_WALLET = '0xABCDef1234567890abcdef1234567890ABCDEF12';
+const SERVER_WALLET = '0xABCDef1234567890abcdef1234567890ABCDEF12';
 const OWNER_WALLET = '0x1111111111111111111111111111111111111111';
 
 /** Convenience: set up the supabase mock to return the given configs list. */
 function mockConfigs(
-  configs: Array<{ wallet_address: string; turnkey_wallet_address: string | null }>,
+  configs: Array<{ wallet_address: string; server_wallet_address: string | null }>,
   error: unknown = null,
 ) {
   mockNot.mockResolvedValue({ data: error ? null : configs, error });
@@ -78,14 +78,14 @@ describe('funding-monitor · checkForDeposits', () => {
   // Supabase query shape
   // -------------------------------------------------------------------------
 
-  it('queries agent_configs with non-null turnkey_wallet_address', async () => {
+  it('queries agent_configs with non-null server_wallet_address', async () => {
     mockConfigs([]);
 
     await checkForDeposits();
 
     expect(mockFrom).toHaveBeenCalledWith('agent_configs');
-    expect(mockSelect).toHaveBeenCalledWith('wallet_address, turnkey_wallet_address');
-    expect(mockNot).toHaveBeenCalledWith('turnkey_wallet_address', 'is', null);
+    expect(mockSelect).toHaveBeenCalledWith('wallet_address, server_wallet_address');
+    expect(mockNot).toHaveBeenCalledWith('server_wallet_address', 'is', null);
   });
 
   // -------------------------------------------------------------------------
@@ -94,7 +94,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
   it('calls balanceOf for USDm, USDC, USDT on each wallet', async () => {
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
     mockBalances(0n, 0n, 0n);
 
@@ -107,7 +107,7 @@ describe('funding-monitor · checkForDeposits', () => {
       expect.objectContaining({
         address: MENTO_TOKEN_ADDRESSES.USDm,
         functionName: 'balanceOf',
-        args: [TURNKEY_WALLET],
+        args: [SERVER_WALLET],
       }),
     );
     // USDC
@@ -115,7 +115,7 @@ describe('funding-monitor · checkForDeposits', () => {
       expect.objectContaining({
         address: USDC_CELO_ADDRESS,
         functionName: 'balanceOf',
-        args: [TURNKEY_WALLET],
+        args: [SERVER_WALLET],
       }),
     );
     // USDT
@@ -123,7 +123,7 @@ describe('funding-monitor · checkForDeposits', () => {
       expect.objectContaining({
         address: USDT_CELO_ADDRESS,
         functionName: 'balanceOf',
-        args: [TURNKEY_WALLET],
+        args: [SERVER_WALLET],
       }),
     );
   });
@@ -136,7 +136,7 @@ describe('funding-monitor · checkForDeposits', () => {
     // Use a unique wallet address so the module-level Map has no prior entry
     const freshWallet = '0xFRESH000000000000000000000000000000000001';
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: freshWallet },
+      { wallet_address: OWNER_WALLET, server_wallet_address: freshWallet },
     ]);
     mockBalances(1000n, 2000n, 3000n);
 
@@ -151,7 +151,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
   it('logs a funding event when balance increases between checks', async () => {
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
 
     // First call – seed the cache
@@ -161,7 +161,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
     // Second call – USDm increased
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
     mockBalances(
       BigInt('5000000000000000000'), // 5 USDm (18 decimals)
@@ -187,7 +187,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
   it('does not log a funding event when balance stays the same', async () => {
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
 
     // First call – seed
@@ -197,7 +197,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
     // Second call – identical balances
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
     mockBalances(1000n, 2000n, 3000n);
     await checkForDeposits();
@@ -211,7 +211,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
   it('does not log a funding event when balance decreases', async () => {
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
 
     // First call – seed with non-zero
@@ -221,7 +221,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
     // Second call – balances dropped
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
     mockBalances(1000n, 1000n, 1000n);
     await checkForDeposits();
@@ -235,7 +235,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
   it('formats USDm deposit with 18 decimals correctly', async () => {
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
 
     // Seed with zero
@@ -246,7 +246,7 @@ describe('funding-monitor · checkForDeposits', () => {
     // Deposit 1.50 USDm = 1_500_000_000_000_000_000n
     const depositRaw = BigInt('1500000000000000000');
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
     mockBalances(depositRaw, 0n, 0n);
     await checkForDeposits();
@@ -267,7 +267,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
   it('formats USDC deposit with 6 decimals correctly', async () => {
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
 
     // Seed
@@ -278,7 +278,7 @@ describe('funding-monitor · checkForDeposits', () => {
     // Deposit 25.75 USDC = 25_750_000 (6 decimals)
     const depositRaw = 25_750_000n;
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
     mockBalances(0n, depositRaw, 0n);
     await checkForDeposits();
@@ -299,7 +299,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
   it('formats USDT deposit with 6 decimals correctly', async () => {
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
 
     // Seed
@@ -310,7 +310,7 @@ describe('funding-monitor · checkForDeposits', () => {
     // Deposit 100.00 USDT = 100_000_000 (6 decimals)
     const depositRaw = 100_000_000n;
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
     mockBalances(0n, 0n, depositRaw);
     await checkForDeposits();
@@ -331,7 +331,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
   it('handles error on individual token check gracefully (continues to next token)', async () => {
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -391,8 +391,8 @@ describe('funding-monitor · checkForDeposits', () => {
     const WALLET_B = '0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB';
 
     mockConfigs([
-      { wallet_address: '0x0001', turnkey_wallet_address: WALLET_A },
-      { wallet_address: '0x0002', turnkey_wallet_address: WALLET_B },
+      { wallet_address: '0x0001', server_wallet_address: WALLET_A },
+      { wallet_address: '0x0002', server_wallet_address: WALLET_B },
     ]);
 
     // 6 calls total: 3 tokens x 2 wallets
@@ -405,12 +405,12 @@ describe('funding-monitor · checkForDeposits', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Skips configs where turnkey_wallet_address is null
+  // Skips configs where server_wallet_address is null
   // -------------------------------------------------------------------------
 
-  it('skips configs where turnkey_wallet_address is null/falsy', async () => {
+  it('skips configs where server_wallet_address is null/falsy', async () => {
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: null },
+      { wallet_address: OWNER_WALLET, server_wallet_address: null },
     ]);
 
     await checkForDeposits();
@@ -424,7 +424,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
   it('logs separate funding events when multiple tokens have deposits', async () => {
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
 
     // Seed with zero
@@ -434,7 +434,7 @@ describe('funding-monitor · checkForDeposits', () => {
 
     // Second check: all three tokens increased
     mockConfigs([
-      { wallet_address: OWNER_WALLET, turnkey_wallet_address: TURNKEY_WALLET },
+      { wallet_address: OWNER_WALLET, server_wallet_address: SERVER_WALLET },
     ]);
     mockBalances(
       BigInt('2000000000000000000'), // 2.00 USDm

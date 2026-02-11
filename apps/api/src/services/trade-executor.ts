@@ -10,7 +10,7 @@ import {
 } from '@autoclaw/contracts';
 import { getTokenAddress, getTokenDecimals } from '@autoclaw/shared';
 import { celoClient } from '../lib/celo-client';
-import { getAgentWalletClient } from '../lib/turnkey-wallet';
+import { getAgentWalletClient } from '../lib/privy-wallet';
 
 const DEFAULT_SLIPPAGE_PCT = 0.5;
 const approvedTokens = new Set<string>();
@@ -23,15 +23,16 @@ export interface TradeResult {
 }
 
 /**
- * Execute a trade on the Mento Broker via the Turnkey wallet.
+ * Execute a trade on the Mento Broker via the Privy server wallet.
  */
 export async function executeTrade(params: {
-  turnkeyAddress: string;
+  serverWalletId: string;
+  serverWalletAddress: string;
   currency: string;
   direction: 'buy' | 'sell';
   amountUsd: number;
 }): Promise<TradeResult> {
-  const { turnkeyAddress, currency, direction, amountUsd } = params;
+  const { serverWalletId, serverWalletAddress, currency, direction, amountUsd } = params;
 
   const tokenIn = direction === 'buy' ? USDM_ADDRESS : getTokenAddress(currency) as Address;
   const tokenOut = direction === 'buy' ? getTokenAddress(currency) as Address : USDM_ADDRESS;
@@ -59,14 +60,14 @@ export async function executeTrade(params: {
   const amountOutMin = applySlippage(quote.amountOut, DEFAULT_SLIPPAGE_PCT);
 
   // 3. Get wallet client
-  const walletClient = await getAgentWalletClient(turnkeyAddress);
+  const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
 
   // 4. Check and set approval if needed
-  const approvalKey = `${tokenIn}-${turnkeyAddress}`;
+  const approvalKey = `${tokenIn}-${serverWalletAddress}`;
   if (!approvedTokens.has(approvalKey)) {
     const allowance = await checkAllowance({
       token: tokenIn,
-      owner: turnkeyAddress as Address,
+      owner: serverWalletAddress as Address,
       spender: BROKER_ADDRESS,
       celoClient: celoClient as unknown as PublicClient,
     });
