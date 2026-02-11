@@ -123,3 +123,17 @@ export function useToggleAgent() {
     },
   });
 }
+
+export function useRunAgentNow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => fetchApi('/api/agent/run-now', { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent', 'status'] });
+      // Refetch timeline after a short delay to pick up new events
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['agent', 'timeline'] });
+      }, 3000);
+    },
+  });
+}

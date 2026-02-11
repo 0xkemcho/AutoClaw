@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Pause, Play, Activity, Clock, BarChart3 } from 'lucide-react';
+import { Pause, Play, Clock, BarChart3, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAgentStatus, useToggleAgent } from '@/hooks/use-agent';
+import { useAgentStatus, useToggleAgent, useRunAgentNow } from '@/hooks/use-agent';
 import { Spinner } from '@/components/ui/spinner';
 
 function formatCountdown(nextRunAt: string | null): string | null {
@@ -20,6 +20,7 @@ function formatCountdown(nextRunAt: string | null): string | null {
 export function AgentStatusBar() {
   const { data, isLoading } = useAgentStatus();
   const toggle = useToggleAgent();
+  const runNow = useRunAgentNow();
 
   const countdown = useMemo(
     () => (data ? formatCountdown(data.config.nextRunAt) : null),
@@ -88,31 +89,50 @@ export function AgentStatusBar() {
         </div>
       </div>
 
-      {/* Right section: toggle button */}
-      <button
-        type="button"
-        disabled={toggle.isPending}
-        onClick={() => toggle.mutate()}
-        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-pill transition-colors shrink-0 ${
-          isActive
-            ? 'bg-background-secondary text-foreground border border-border hover:bg-background-card'
-            : 'bg-accent text-white hover:brightness-110'
-        } disabled:opacity-50 disabled:cursor-not-allowed`}
-      >
-        {toggle.isPending ? (
-          <Spinner size="sm" />
-        ) : isActive ? (
-          <>
-            <Pause size={14} />
-            Pause
-          </>
-        ) : (
-          <>
-            <Play size={14} />
-            Resume
-          </>
+      {/* Right section: action buttons */}
+      <div className="flex items-center gap-2 shrink-0">
+        {isActive && (
+          <button
+            type="button"
+            disabled={runNow.isPending}
+            onClick={() => runNow.mutate()}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-pill transition-colors bg-accent text-white hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {runNow.isPending ? (
+              <Spinner size="sm" />
+            ) : (
+              <>
+                <Zap size={14} />
+                Run Now
+              </>
+            )}
+          </button>
         )}
-      </button>
+        <button
+          type="button"
+          disabled={toggle.isPending}
+          onClick={() => toggle.mutate()}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-pill transition-colors ${
+            isActive
+              ? 'bg-background-secondary text-foreground border border-border hover:bg-background-card'
+              : 'bg-accent text-white hover:brightness-110'
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          {toggle.isPending ? (
+            <Spinner size="sm" />
+          ) : isActive ? (
+            <>
+              <Pause size={14} />
+              Pause
+            </>
+          ) : (
+            <>
+              <Play size={14} />
+              Resume
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

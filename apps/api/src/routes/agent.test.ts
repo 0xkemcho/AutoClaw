@@ -89,6 +89,11 @@ vi.mock('../middleware/auth', () => ({
   },
 }));
 
+const mockRunAgentCycle = vi.fn().mockResolvedValue(undefined);
+vi.mock('../services/agent-cron', () => ({
+  runAgentCycle: (...args: unknown[]) => mockRunAgentCycle(...args),
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -98,6 +103,7 @@ let app: ReturnType<typeof Fastify>;
 beforeEach(async () => {
   callRecordsRef.value = [];
   mockResultsRef.value = {};
+  mockRunAgentCycle.mockClear();
   app = Fastify();
   await app.register(agentRoutes);
   await app.ready();
@@ -726,5 +732,64 @@ describe('GET /api/agent/portfolio', () => {
     const body = res.json();
     expect(body.totalValueUsd).toBe(0);
     expect(body.holdings).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/agent/run-now
+// ---------------------------------------------------------------------------
+
+describe('POST /api/agent/run-now', () => {
+  it('returns 404 when no agent config exists', async () => {
+    mockResultsRef.value['agent_configs'] = { data: null, error: { message: 'not found' } };
+
+    const res = await inject({ method: 'POST', url: '/api/agent/run-now' });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({ error: 'Agent not configured' });
+  });
+
+  it('returns 400 when server wallet not set up', async () => {
+    mockResultsRef.value['agent_configs'] = [
+      { data: makeConfigRow({ server_wallet_address: null, server_wallet_id: null }), error: null },
+    ];
+
+    const res = await inject({ method: 'POST', url: '/api/agent/run-now' });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: 'Agent wallet not set up' });
+  });
+
+  it('triggers runAgentCycle and returns { triggered: true }', async () => {
+    const config = makeConfigRow({ server_wallet_id: 'sw-1' });
+    mockResultsRef.value['agent_configs'] = [
+      { data: config, error: null },
+      { data: null, error: null }, // for the update call
+    ];
+
+    const res = await inject({ method: 'POST', url: '/api/agent/run-now' });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ triggered: true });
+    expect(mockRunAgentCycle).toHaveBeenCalledWith(config);
+  });
+
+  it('updates last_run_at and next_run_at', async () => {
+    const config = makeConfigRow({ server_wallet_id: 'sw-1', frequency: 'hourly' });
+    mockResultsRef.value['agent_configs'] = [
+      { data: config, error: null },
+      { data: null, error: null },
+    ];
+
+    await inject({ method: 'POST', url: '/api/agent/run-now' });
+
+    const updateRecord = callRecordsRef.value.find(
+      (r) => r.table === 'agent_configs' && r.methods.some((m) => m.name === 'update'),
+    );
+    expect(updateRecord).toBeDefined();
+    const updateCall = updateRecord!.methods.find((m) => m.name === 'update');
+    const payload = updateCall!.args[0] as Record<string, unknown>;
+    expect(payload.last_run_at).toBeDefined();
+    expect(payload.next_run_at).toBeDefined();
   });
 });

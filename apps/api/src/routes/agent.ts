@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../middleware/auth';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import type { AgentFrequency } from '@autoclaw/shared';
+import { runAgentCycle } from '../services/agent-cron';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 type AgentTimelineRow = Database['public']['Tables']['agent_timeline']['Row'];
@@ -119,6 +120,56 @@ export async function agentRoutes(app: FastifyInstance) {
       }
 
       return { active: newActive };
+    },
+  );
+
+  // POST /api/agent/run-now — trigger an immediate agent cycle
+  app.post(
+    '/api/agent/run-now',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+
+      const { data: configData, error: fetchError } = await supabaseAdmin
+        .from('agent_configs')
+        .select('*')
+        .eq('wallet_address', walletAddress)
+        .single();
+
+      const config = configData as AgentConfigRow | null;
+
+      if (fetchError || !config) {
+        return reply.status(404).send({ error: 'Agent not configured' });
+      }
+
+      if (!config.server_wallet_address || !config.server_wallet_id) {
+        return reply.status(400).send({ error: 'Agent wallet not set up' });
+      }
+
+      // Run the cycle in background — respond immediately
+      runAgentCycle(config).catch((err) => {
+        console.error(`On-demand agent cycle failed for ${walletAddress}:`, err);
+      });
+
+      // Update last_run_at and next_run_at
+      const frequency = (config.frequency || 'daily') as AgentFrequency;
+      const frequencyMs: Record<AgentFrequency, number> = {
+        hourly: 60 * 60 * 1000,
+        '4h': 4 * 60 * 60 * 1000,
+        daily: 24 * 60 * 60 * 1000,
+      };
+      const nextRun = new Date(Date.now() + frequencyMs[frequency]).toISOString();
+
+      await supabaseAdmin
+        .from('agent_configs')
+        .update({
+          last_run_at: new Date().toISOString(),
+          next_run_at: nextRun,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', config.id);
+
+      return { triggered: true };
     },
   );
 
