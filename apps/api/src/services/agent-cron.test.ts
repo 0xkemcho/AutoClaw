@@ -116,6 +116,39 @@ vi.mock('@autoclaw/db', () => ({
   }),
 }));
 
+// Mock the Part 2 dependencies that agent-cron now imports
+vi.mock('./news-fetcher', () => ({
+  fetchFxNews: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock('./llm-analyzer', () => ({
+  analyzeFxNews: vi.fn().mockResolvedValue({
+    signals: [],
+    marketSummary: 'No market data',
+    sourcesUsed: 0,
+  }),
+}));
+
+vi.mock('./trade-executor', () => ({
+  executeTrade: vi.fn().mockResolvedValue({
+    txHash: '0x123',
+    amountIn: 0n,
+    amountOut: 0n,
+    rate: 1.0,
+  }),
+}));
+
+vi.mock('./position-tracker', () => ({
+  getPositions: vi.fn().mockResolvedValue([]),
+  calculatePortfolioValue: vi.fn().mockResolvedValue(0),
+  updatePositionAfterTrade: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('./rules-engine', () => ({
+  checkGuardrails: vi.fn().mockReturnValue({ passed: true }),
+  calculateTradeAmount: vi.fn().mockReturnValue(0),
+}));
+
 // ---------------------------------------------------------------------------
 // Import the module under test AFTER vi.mock so the mock is in place
 // ---------------------------------------------------------------------------
@@ -243,15 +276,31 @@ describe('getTradeCountToday', () => {
 // runAgentCycle
 // ---------------------------------------------------------------------------
 describe('runAgentCycle', () => {
-  it('calls logTimeline with system event type and correct wallet_address', async () => {
-    const capture = { insertedRow: null as any };
-    mockFrom.mockImplementation(() => createCapturingProxy(capture));
+  it('orchestrates full cycle: positions → news → LLM → rules → log', async () => {
+    const insertedRows: any[] = [];
+    mockFrom.mockImplementation(() => {
+      const handler: ProxyHandler<any> = {
+        get(_t, prop) {
+          if (prop === 'then') {
+            return (resolve: (v: any) => void) => resolve({ data: [], error: null, count: 0 });
+          }
+          if (prop === 'insert') {
+            return (row: any) => {
+              insertedRows.push(row);
+              return new Proxy({}, handler);
+            };
+          }
+          return (..._args: any[]) => new Proxy({}, handler);
+        },
+      };
+      return new Proxy({}, handler);
+    });
 
     const fakeConfig = {
       id: 'cfg-1',
       wallet_address: '0xAGENT',
-      turnkey_wallet_address: null,
-      turnkey_wallet_id: null,
+      turnkey_wallet_address: '0xTURNKEY',
+      turnkey_wallet_id: 'tk-1',
       active: true,
       frequency: 'daily' as const,
       max_trade_size_usd: 50,
@@ -270,10 +319,18 @@ describe('runAgentCycle', () => {
     await runAgentCycle(fakeConfig);
 
     expect(mockFrom.calls).toContain('agent_timeline');
-    expect(capture.insertedRow).toMatchObject({
+
+    // First insert should be 'system' event: "Agent cycle started"
+    expect(insertedRows[0]).toMatchObject({
       wallet_address: '0xAGENT',
       event_type: 'system',
-      summary: 'Agent cycle started (intelligence layer not yet implemented)',
+      summary: 'Agent cycle started',
+    });
+
+    // Second insert should be 'analysis' event
+    expect(insertedRows[1]).toMatchObject({
+      wallet_address: '0xAGENT',
+      event_type: 'analysis',
     });
   });
 });

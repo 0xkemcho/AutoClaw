@@ -7,3 +7,5 @@ process.env.TURNKEY_ORGANIZATION_ID = 'test-org-id';
 process.env.CELO_RPC_URL = 'https://forno.celo.org';
 process.env.CORS_ORIGIN = 'http://localhost:3000';
 process.env.PORT = '4001';
+process.env.PARALLEL_API_KEY = 'test-parallel-key';
+process.env.GEMINI_CLI_AUTH_TYPE = 'oauth-personal';

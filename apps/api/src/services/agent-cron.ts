@@ -1,5 +1,10 @@
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import type { AgentFrequency } from '@autoclaw/shared';
+import { fetchFxNews } from './news-fetcher';
+import { analyzeFxNews } from './llm-analyzer';
+import { executeTrade } from './trade-executor';
+import { getPositions, calculatePortfolioValue, updatePositionAfterTrade } from './position-tracker';
+import { checkGuardrails, calculateTradeAmount } from './rules-engine';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 type TimelineInsert = Database['public']['Tables']['agent_timeline']['Insert'];
@@ -81,16 +86,110 @@ async function agentTick(): Promise<void> {
 export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
   const walletAddress = config.wallet_address;
 
-  await logTimeline(walletAddress, 'system', {
-    summary: 'Agent cycle started (intelligence layer not yet implemented)',
-  });
+  try {
+    // 1. Log cycle start
+    await logTimeline(walletAddress, 'system', { summary: 'Agent cycle started' });
 
-  // Part 2 will implement:
-  // 1. Fetch news (Parallel AI)
-  // 2. LLM analysis (AI SDK + Gemini)
-  // 3. Rules engine check
-  // 4. Execute trade (Mento Broker + Turnkey)
-  // 5. Log results to timeline
+    // 2. Fetch positions and portfolio value
+    const positions = await getPositions(walletAddress);
+    const portfolioValue = await calculatePortfolioValue(positions);
+
+    // 3. Fetch FX news
+    const allowedCurrencies = (config.allowed_currencies ?? []) as string[];
+    const news = await fetchFxNews(allowedCurrencies.length > 0 ? allowedCurrencies : ['EURm', 'GBPm', 'JPYm']);
+
+    // 4. Analyze with LLM
+    const signals = await analyzeFxNews({
+      news,
+      currentPositions: positions.map(p => ({ tokenSymbol: p.token_symbol, balance: p.balance })),
+      portfolioValueUsd: portfolioValue,
+      allowedCurrencies,
+      customPrompt: config.custom_prompt,
+    });
+
+    // 5. Log analysis event
+    await logTimeline(walletAddress, 'analysis', {
+      summary: `Scanned ${news.length} sources. ${signals.signals.filter(s => s.direction !== 'hold').length} actionable signals.`,
+      detail: { marketSummary: signals.marketSummary, signalCount: signals.signals.length },
+      citations: news.slice(0, 5).map(n => ({ url: n.url, title: n.title, excerpt: n.excerpt })),
+    });
+
+    // 6. Process signals through rules engine
+    const tradesToday = await getTradeCountToday(walletAddress);
+
+    for (const signal of signals.signals) {
+      if (signal.direction === 'hold') continue;
+      if (signal.confidence < 60) continue;
+
+      const tradeAmountUsd = calculateTradeAmount(signal.confidence, config.max_trade_size_usd);
+      if (tradeAmountUsd === 0) continue;
+
+      const check = checkGuardrails({
+        signal: { currency: signal.currency, direction: signal.direction, confidence: signal.confidence, reasoning: signal.reasoning },
+        config: {
+          maxTradeSizeUsd: config.max_trade_size_usd,
+          maxAllocationPct: config.max_allocation_pct,
+          stopLossPct: config.stop_loss_pct,
+          dailyTradeLimit: config.daily_trade_limit,
+          allowedCurrencies,
+          blockedCurrencies: (config.blocked_currencies ?? []) as string[],
+        },
+        positions: positions.map(p => ({ tokenSymbol: p.token_symbol, balance: p.balance })),
+        portfolioValueUsd: portfolioValue,
+        tradesToday,
+        tradeAmountUsd,
+      });
+
+      if (!check.passed) {
+        await logTimeline(walletAddress, 'guardrail', {
+          summary: `Blocked ${signal.currency} ${signal.direction} — ${check.blockedReason}`,
+          detail: { rule: check.ruleName, signal },
+          currency: signal.currency,
+        });
+        continue;
+      }
+
+      // Execute trade
+      try {
+        const result = await executeTrade({
+          turnkeyAddress: config.turnkey_wallet_address!,
+          currency: signal.currency,
+          direction: signal.direction as 'buy' | 'sell',
+          amountUsd: tradeAmountUsd,
+        });
+
+        await logTimeline(walletAddress, 'trade', {
+          summary: `${signal.direction === 'buy' ? 'Bought' : 'Sold'} ${signal.currency} ($${tradeAmountUsd.toFixed(2)})`,
+          detail: { reasoning: signal.reasoning, confidence: signal.confidence, rate: result.rate },
+          citations: news.slice(0, 3).map(n => ({ url: n.url, title: n.title })),
+          currency: signal.currency,
+          amountUsd: tradeAmountUsd,
+          direction: signal.direction as 'buy' | 'sell',
+          txHash: result.txHash,
+          confidencePct: signal.confidence,
+        });
+
+        await updatePositionAfterTrade({
+          walletAddress,
+          currency: signal.currency,
+          direction: signal.direction as 'buy' | 'sell',
+          amountUsd: tradeAmountUsd,
+          rate: result.rate,
+        });
+      } catch (tradeErr) {
+        await logTimeline(walletAddress, 'system', {
+          summary: `Trade execution failed for ${signal.currency}: ${tradeErr instanceof Error ? tradeErr.message : 'Unknown error'}`,
+          detail: { signal, error: tradeErr instanceof Error ? tradeErr.message : String(tradeErr) },
+          currency: signal.currency,
+        });
+      }
+    }
+  } catch (error) {
+    await logTimeline(walletAddress, 'system', {
+      summary: `Agent cycle failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      detail: { error: error instanceof Error ? error.message : String(error) },
+    });
+  }
 }
 
 /**
