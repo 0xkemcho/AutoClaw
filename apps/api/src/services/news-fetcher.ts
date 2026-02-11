@@ -1,22 +1,13 @@
-import { Parallel } from 'parallel-web';
+import Parallel from 'parallel-web';
 
-interface ParallelSearchClient {
-  search(params: { query: string; maxResults: number }): Promise<Array<{
-    title: string;
-    url: string;
-    snippet: string;
-    publishedAt?: string;
-  }>>;
-}
+let _parallel: Parallel | null = null;
 
-let _parallel: ParallelSearchClient | null = null;
-
-function getParallelClient(): ParallelSearchClient {
+function getParallelClient(): Parallel {
   if (!_parallel) {
     if (!process.env.PARALLEL_API_KEY) {
       throw new Error('PARALLEL_API_KEY not set — news fetching disabled');
     }
-    _parallel = new Parallel({ apiKey: process.env.PARALLEL_API_KEY }) as unknown as ParallelSearchClient;
+    _parallel = new Parallel({ apiKey: process.env.PARALLEL_API_KEY });
   }
   return _parallel;
 }
@@ -59,16 +50,22 @@ export async function fetchFxNews(currencies: string[]): Promise<NewsArticle[]> 
 
   for (const query of queries.slice(0, 5)) {
     try {
-      const results = await getParallelClient().search({ query, maxResults: 5 });
-      for (const r of results) {
-        if (!seenUrls.has(r.url)) {
-          seenUrls.add(r.url);
+      const response = await getParallelClient().beta.search({
+        objective: query,
+        search_queries: [query],
+        max_results: 5,
+        max_chars_per_result: 2000,
+      });
+      for (const r of response.results ?? []) {
+        const url = r.url ?? '';
+        if (url && !seenUrls.has(url)) {
+          seenUrls.add(url);
           allArticles.push({
-            title: r.title,
-            url: r.url,
-            excerpt: r.snippet,
-            publishedAt: r.publishedAt,
-            source: new URL(r.url).hostname,
+            title: r.title ?? query,
+            url,
+            excerpt: r.snippet ?? r.text?.slice(0, 300) ?? '',
+            publishedAt: r.published_at ?? undefined,
+            source: url ? new URL(url).hostname : undefined,
           });
         }
       }

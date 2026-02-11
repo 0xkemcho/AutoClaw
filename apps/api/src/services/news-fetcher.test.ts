@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock the parallel-web module
+// Mock the parallel-web module — client.beta.search()
 const mockSearch = vi.hoisted(() => vi.fn());
 vi.mock('parallel-web', () => {
   return {
-    Parallel: function Parallel() {
-      return { search: mockSearch };
+    default: function Parallel() {
+      return { beta: { search: mockSearch } };
     },
   };
 });
@@ -20,9 +20,9 @@ describe('news-fetcher', () => {
 
   describe('fetchFxNews', () => {
     it('returns articles from Parallel AI search', async () => {
-      mockSearch.mockResolvedValue([
-        { title: 'EUR rises', url: 'https://example.com/1', snippet: 'Euro up', publishedAt: '2026-02-11T10:00:00Z' },
-      ]);
+      mockSearch.mockResolvedValue({ results: [
+        { title: 'EUR rises', url: 'https://example.com/1', snippet: 'Euro up', published_at: '2026-02-11T10:00:00Z' },
+      ] });
 
       const articles = await fetchFxNews(['EURm']);
       expect(articles).toHaveLength(1);
@@ -31,19 +31,19 @@ describe('news-fetcher', () => {
     });
 
     it('deduplicates articles by URL', async () => {
-      mockSearch.mockResolvedValue([
+      mockSearch.mockResolvedValue({ results: [
         { title: 'Article A', url: 'https://example.com/same', snippet: 'Text A' },
         { title: 'Article B', url: 'https://example.com/same', snippet: 'Text B' },
-      ]);
+      ] });
 
       const articles = await fetchFxNews(['EURm']);
       expect(articles).toHaveLength(1);
     });
 
     it('caches results for 1 hour', async () => {
-      mockSearch.mockResolvedValue([
+      mockSearch.mockResolvedValue({ results: [
         { title: 'Cached', url: 'https://example.com/cached', snippet: 'Text' },
-      ]);
+      ] });
 
       await fetchFxNews(['EURm']);
       mockSearch.mockClear();
@@ -55,25 +55,25 @@ describe('news-fetcher', () => {
     });
 
     it('refetches after cache TTL expires', async () => {
-      mockSearch.mockResolvedValue([
+      mockSearch.mockResolvedValue({ results: [
         { title: 'Old', url: 'https://example.com/old', snippet: 'Text' },
-      ]);
+      ] });
 
       await fetchFxNews(['EURm']);
 
       // Manually expire the cache by manipulating the timestamp
       // We do this by clearing and setting up new mock data
       clearNewsCache();
-      mockSearch.mockResolvedValue([
+      mockSearch.mockResolvedValue({ results: [
         { title: 'New', url: 'https://example.com/new', snippet: 'Text' },
-      ]);
+      ] });
 
       const fresh = await fetchFxNews(['EURm']);
       expect(fresh[0].title).toBe('New');
     });
 
     it('limits to 5 search queries per call', async () => {
-      mockSearch.mockResolvedValue([]);
+      mockSearch.mockResolvedValue({ results: [] });
 
       // 4 currencies = 3 currency-specific + 2 macro = 5 queries (4th currency skipped in currency-specific)
       await fetchFxNews(['EURm', 'GBPm', 'JPYm', 'BRLm']);
@@ -83,9 +83,9 @@ describe('news-fetcher', () => {
     it('handles individual search errors gracefully', async () => {
       mockSearch
         .mockRejectedValueOnce(new Error('API error'))
-        .mockResolvedValue([
+        .mockResolvedValue({ results: [
           { title: 'Success', url: 'https://example.com/ok', snippet: 'Works' },
-        ]);
+        ] });
 
       const articles = await fetchFxNews(['EURm']);
       expect(articles.length).toBeGreaterThan(0);
@@ -97,7 +97,7 @@ describe('news-fetcher', () => {
         url: `https://example.com/${i}`,
         snippet: `Text ${i}`,
       }));
-      mockSearch.mockResolvedValue(manyResults);
+      mockSearch.mockResolvedValue({ results: manyResults });
 
       // With 5 queries * 10 results (minus duplicates), should cap at 15
       const articles = await fetchFxNews(['EURm', 'GBPm', 'JPYm']);
@@ -105,10 +105,10 @@ describe('news-fetcher', () => {
     });
 
     it('sorts articles by recency', async () => {
-      mockSearch.mockResolvedValue([
-        { title: 'Old', url: 'https://example.com/old', snippet: 'Old', publishedAt: '2026-02-01T00:00:00Z' },
-        { title: 'New', url: 'https://example.com/new', snippet: 'New', publishedAt: '2026-02-11T00:00:00Z' },
-      ]);
+      mockSearch.mockResolvedValue({ results: [
+        { title: 'Old', url: 'https://example.com/old', snippet: 'Old', published_at: '2026-02-01T00:00:00Z' },
+        { title: 'New', url: 'https://example.com/new', snippet: 'New', published_at: '2026-02-11T00:00:00Z' },
+      ] });
 
       const articles = await fetchFxNews(['EURm']);
       expect(articles[0].title).toBe('New');
@@ -140,17 +140,17 @@ describe('news-fetcher', () => {
 
   describe('clearNewsCache', () => {
     it('empties the cache', async () => {
-      mockSearch.mockResolvedValue([
+      mockSearch.mockResolvedValue({ results: [
         { title: 'Cached', url: 'https://example.com/1', snippet: 'Text' },
-      ]);
+      ] });
 
       await fetchFxNews(['EURm']);
       clearNewsCache();
       mockSearch.mockClear();
 
-      mockSearch.mockResolvedValue([
+      mockSearch.mockResolvedValue({ results: [
         { title: 'Fresh', url: 'https://example.com/2', snippet: 'Text' },
-      ]);
+      ] });
 
       const fresh = await fetchFxNews(['EURm']);
       expect(fresh[0].title).toBe('Fresh');
