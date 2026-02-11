@@ -32,14 +32,21 @@ export async function fetchApi<T = unknown>(
   const token = localStorage.getItem('auth_token');
   if (!token) throw new Error('Not authenticated');
 
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+  };
+  const serializedBody = options?.body ? JSON.stringify(options.body) : undefined;
+  if (serializedBody) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...headers,
       ...options?.headers,
     },
-    body: options?.body ? JSON.stringify(options.body) : undefined,
+    body: serializedBody,
   });
 
   if (!res.ok) {

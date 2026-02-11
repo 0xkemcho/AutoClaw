@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useActiveAccount } from 'thirdweb/react';
-import { ConnectButton } from 'thirdweb/react';
+import { useEffect, useState } from 'react';
+import { useActiveAccount, ConnectButton } from 'thirdweb/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { client, wallets, walletTheme, connectButtonStyle } from '@/lib/thirdweb';
 import { celo } from '@/lib/chains';
@@ -13,42 +12,33 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const account = useActiveAccount();
   const router = useRouter();
   const pathname = usePathname();
-  const [checking, setChecking] = useState(true);
-  const [allowed, setAllowed] = useState(false);
+  const checkedRef = useState(() => new Set<string>())[0];
 
   useEffect(() => {
-    if (!account) {
-      setChecking(false);
-      return;
-    }
+    if (!account) return;
 
     // Skip onboarding check on the onboarding page itself
-    if (pathname === '/onboarding') {
-      setAllowed(true);
-      setChecking(false);
-      return;
-    }
+    if (pathname === '/onboarding') return;
 
     const token = localStorage.getItem('auth_token');
-    if (!token) {
-      setChecking(false);
-      setAllowed(true);
-      return;
-    }
+    if (!token) return;
 
+    // Only check once per session per path
+    const key = `${account.address}:${pathname}`;
+    if (checkedRef.has(key)) return;
+    checkedRef.add(key);
+
+    // Non-blocking: check onboarding status in background, redirect if needed
     fetchWithAuth('/api/auth/me', token)
       .then((data) => {
         if (!data.onboarding_completed) {
           router.replace('/onboarding');
-        } else {
-          setAllowed(true);
         }
       })
       .catch(() => {
-        setAllowed(true);
-      })
-      .finally(() => setChecking(false));
-  }, [account, pathname, router]);
+        // Ignore — let the page render
+      });
+  }, [account, pathname, router, checkedRef]);
 
   if (!account) {
     return (
@@ -73,21 +63,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     );
-  }
-
-  if (checking) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="flex items-center justify-center pt-32">
-          <div className="w-8 h-8 border-2 border-foreground-secondary border-t-transparent rounded-full animate-spin" />
-        </main>
-      </div>
-    );
-  }
-
-  if (!allowed) {
-    return null;
   }
 
   return <>{children}</>;
