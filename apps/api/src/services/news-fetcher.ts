@@ -9,7 +9,17 @@ interface ParallelSearchClient {
   }>>;
 }
 
-const parallel = new Parallel({ apiKey: process.env.PARALLEL_API_KEY! }) as unknown as ParallelSearchClient;
+let _parallel: ParallelSearchClient | null = null;
+
+function getParallelClient(): ParallelSearchClient {
+  if (!_parallel) {
+    if (!process.env.PARALLEL_API_KEY) {
+      throw new Error('PARALLEL_API_KEY not set — news fetching disabled');
+    }
+    _parallel = new Parallel({ apiKey: process.env.PARALLEL_API_KEY }) as unknown as ParallelSearchClient;
+  }
+  return _parallel;
+}
 
 export interface NewsArticle {
   title: string;
@@ -49,7 +59,7 @@ export async function fetchFxNews(currencies: string[]): Promise<NewsArticle[]> 
 
   for (const query of queries.slice(0, 5)) {
     try {
-      const results = await parallel.search({ query, maxResults: 5 });
+      const results = await getParallelClient().search({ query, maxResults: 5 });
       for (const r of results) {
         if (!seenUrls.has(r.url)) {
           seenUrls.add(r.url);
