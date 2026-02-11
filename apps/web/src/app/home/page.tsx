@@ -1,23 +1,31 @@
 'use client';
 
-import { Header } from '@/components/header';
 import { ProtectedRoute } from '@/components/protected-route';
+import { AppShell } from '@/components/app-shell';
+import { AgentStatusBar } from '@/components/dashboard/agent-status-bar';
+import { PortfolioCard } from '@/components/dashboard/portfolio-card';
+import { TimelineFeed } from '@/components/dashboard/timeline-feed';
 
-function HomeContent() {
+function DashboardContent() {
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="flex items-center justify-center pt-32">
-        <p className="text-foreground-muted text-lg">Something new is coming soon.</p>
-      </main>
-    </div>
+    <AppShell>
+      <div className="max-w-2xl mx-auto px-4 py-6 pb-24 md:pb-6">
+        <AgentStatusBar />
+        <div className="md:hidden mt-4">
+          <PortfolioCard />
+        </div>
+        <div className="mt-6">
+          <TimelineFeed />
+        </div>
+      </div>
+    </AppShell>
   );
 }
 
 export default function HomePage() {
   return (
     <ProtectedRoute>
-      <HomeContent />
+      <DashboardContent />
     </ProtectedRoute>
   );
 }

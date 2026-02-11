@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useActiveAccount } from 'thirdweb/react';
@@ -9,6 +9,7 @@ import { client, wallets, walletTheme, connectButtonStyle } from '@/lib/thirdweb
 import { celo } from '@/lib/chains';
 import { fetchWithAuth } from '@/lib/api';
 import { useEnsureAuth } from '@/providers/thirdweb-provider';
+import { Copy, Check, ArrowRight } from 'lucide-react';
 import { Header } from '@/components/header';
 import { Button } from '@/components/ui/button';
 import { ChipGroup } from '@/components/ui/chip';
@@ -99,6 +100,8 @@ export default function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+  const [agentWalletAddress, setAgentWalletAddress] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const hasCheckedRef = useRef(false);
 
   // Redirect if already onboarded — wait briefly for wallet to hydrate
@@ -187,16 +190,22 @@ export default function OnboardingPage() {
         setSubmitting(false);
         return;
       }
-      await fetchWithAuth('/api/user/risk-profile', token, {
+      const result = await fetchWithAuth('/api/user/risk-profile', token, {
         method: 'POST',
         body: JSON.stringify(answers),
       });
-      router.push('/home');
+      // Show wallet address if returned, otherwise go to dashboard
+      if (result?.agentWalletAddress) {
+        setAgentWalletAddress(result.agentWalletAddress);
+        setSubmitting(false);
+      } else {
+        router.push('/home');
+      }
     } catch {
       setError('Something went wrong. Please try again.');
       setSubmitting(false);
     }
-  }, [answers, ensureAuth]);
+  }, [answers, ensureAuth, router]);
 
   // Auto-submit when all questions are answered
   useEffect(() => {
@@ -377,10 +386,59 @@ export default function OnboardingPage() {
                     Retry
                   </Button>
                 </div>
+              ) : agentWalletAddress ? (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold text-foreground">Your agent is ready!</h2>
+                    <p className="text-foreground-secondary text-sm">
+                      Fund the wallet below to start automated FX trading.
+                    </p>
+                  </div>
+
+                  <div className="rounded-card-lg p-5 bg-background-card border border-border space-y-3">
+                    <p className="text-xs text-foreground-muted uppercase tracking-wider font-medium">
+                      Agent Wallet Address
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <code className="text-sm text-foreground bg-background-secondary border border-border rounded-card px-3 py-2 flex-1 break-all">
+                        {agentWalletAddress}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(agentWalletAddress);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                        className="shrink-0 p-2.5 bg-background-secondary border border-border rounded-card hover:bg-background-card transition-colors"
+                      >
+                        {copied ? (
+                          <Check size={16} className="text-success" />
+                        ) : (
+                          <Copy size={16} className="text-foreground-muted" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-foreground-muted">
+                      Accepts USDm, USDC, and USDT on Celo
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => router.push('/home')}
+                    size="md"
+                    className="flex items-center gap-2"
+                  >
+                    Go to Dashboard
+                    <ArrowRight size={16} />
+                  </Button>
+                </div>
               ) : (
                 <div className="flex items-center gap-3">
                   <Spinner size="md" />
-                  <span className="text-foreground-secondary text-sm">Setting up your profile...</span>
+                  <span className="text-foreground-secondary text-sm">
+                    {submitting ? 'Creating your agent wallet...' : 'Setting up your profile...'}
+                  </span>
                 </div>
               )}
             </motion.div>

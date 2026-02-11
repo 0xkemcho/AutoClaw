@@ -232,23 +232,23 @@ export async function fetchApi(path: string, options?: RequestInit) {
 
 ## Acceptance Criteria
 
-- [ ] App shell with sidebar (desktop) and bottom tabs (mobile) wraps all authenticated pages
-- [ ] Sidebar shows portfolio summary, nav links with active state, agent toggle
-- [ ] Dashboard shows agent status bar with active state, next run countdown, trade count
-- [ ] Timeline feed loads paginated entries from API with infinite scroll
-- [ ] All 5 entry types render with correct icons, colors, and badges
-- [ ] Timeline entries expandable to show full reasoning and citations
-- [ ] Citation chips are clickable links opening in new tab
-- [ ] Settings page has all 5 sections: frequency, risk limits, currencies, instructions, wallet
-- [ ] Settings save correctly via `PUT /api/agent/settings`
-- [ ] Currency grid shows all 15 Mento stables + XAUT with flags
-- [ ] Wallet section shows address with copy button
-- [ ] History page shows full-detail entries with type/currency/date filters
-- [ ] CSV export generates correct file
-- [ ] Mobile layout works: collapsible portfolio card, bottom tabs, responsive timeline
-- [ ] Onboarding completion shows wallet address and fund CTA
-- [ ] Dark theme consistent across all new pages
-- [ ] `lucide-react` icons used throughout (existing dependency)
+- [x] App shell with sidebar (desktop) and bottom tabs (mobile) wraps all authenticated pages
+- [x] Sidebar shows portfolio summary, nav links with active state, agent toggle
+- [x] Dashboard shows agent status bar with active state, next run countdown, trade count
+- [x] Timeline feed loads paginated entries from API with infinite scroll
+- [x] All 5 entry types render with correct icons, colors, and badges
+- [x] Timeline entries expandable to show full reasoning and citations
+- [x] Citation chips are clickable links opening in new tab
+- [x] Settings page has all 5 sections: frequency, risk limits, currencies, instructions, wallet
+- [x] Settings save correctly via `PUT /api/agent/settings`
+- [x] Currency grid shows all 15 Mento stables + XAUT with flags
+- [x] Wallet section shows address with copy button
+- [x] History page shows full-detail entries with type/currency filters
+- [x] CSV export generates correct file
+- [x] Mobile layout works: collapsible portfolio card, bottom tabs, responsive timeline
+- [x] Onboarding completion shows wallet address and fund CTA
+- [x] Dark theme consistent across all new pages
+- [x] `lucide-react` icons used throughout (existing dependency)
 
 ## Technical Considerations
 
