@@ -6,13 +6,11 @@ import { getPrivyClient } from './privy';
 /**
  * Create a new Privy server wallet for an agent user.
  * Returns the wallet ID and Ethereum address.
- * Uses idempotencyKey to prevent duplicate wallets.
  */
 export async function createAgentWallet(userId: string) {
   const privy = getPrivyClient();
   const wallet = await privy.wallets().create({
     chain_type: 'ethereum',
-    idempotency_key: `agent-${userId}`,
   });
 
   return {
