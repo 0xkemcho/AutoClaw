@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { Pause, Play, Clock, BarChart3, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAgentStatus, useToggleAgent, useRunAgentNow } from '@/hooks/use-agent';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 
 function formatCountdown(nextRunAt: string | null): string | null {
@@ -29,8 +30,12 @@ export function AgentStatusBar() {
 
   if (isLoading) {
     return (
-      <div className="bg-background-card border border-border rounded-card p-4 flex items-center justify-center">
-        <Spinner size="sm" />
+      <div className="rounded-card-lg p-5 bg-background-card border border-border space-y-3">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-6 w-16 rounded-pill" />
+        </div>
+        <Skeleton className="h-4 w-40" />
       </div>
     );
   }

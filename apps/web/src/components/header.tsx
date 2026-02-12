@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ConnectButton, useActiveAccount } from 'thirdweb/react';
 import { TrendingUp, ArrowLeftRight } from 'lucide-react';
+import { useWalletReady } from '@/hooks/use-wallet-ready';
+import { Skeleton } from '@/components/ui/skeleton';
 import { client, wallets, walletTheme, connectButtonStyle, shortenAddress } from '@/lib/thirdweb';
 import { celo } from '@/lib/chains';
 
@@ -23,6 +25,7 @@ function AccountButton() {
 
 export function Header() {
   const account = useActiveAccount();
+  const { isHydrating } = useWalletReady();
   const pathname = usePathname();
 
   return (
@@ -58,17 +61,21 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <ConnectButton
-            client={client}
-            wallets={wallets}
-            chain={celo}
-            theme={walletTheme}
-            connectButton={{ label: 'Connect', style: connectButtonStyle }}
-            connectModal={{ size: 'compact' }}
-            detailsButton={{
-              render: () => <AccountButton />,
-            }}
-          />
+          {isHydrating ? (
+            <Skeleton className="w-32 h-10 rounded-pill" />
+          ) : (
+            <ConnectButton
+              client={client}
+              wallets={wallets}
+              chain={celo}
+              theme={walletTheme}
+              connectButton={{ label: 'Connect', style: connectButtonStyle }}
+              connectModal={{ size: 'compact' }}
+              detailsButton={{
+                render: () => <AccountButton />,
+              }}
+            />
+          )}
         </div>
       </div>
     </header>

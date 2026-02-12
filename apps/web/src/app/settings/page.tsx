@@ -3,7 +3,7 @@
 import { ProtectedRoute } from '@/components/protected-route';
 import { AppShell } from '@/components/app-shell';
 import { useAgentStatus } from '@/hooks/use-agent';
-import { Spinner } from '@/components/ui/spinner';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SettingsForm } from '@/components/settings/settings-form';
 import { AlertTriangle } from 'lucide-react';
 
@@ -13,8 +13,16 @@ function SettingsContent() {
   if (isLoading) {
     return (
       <AppShell>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Spinner size="lg" />
+        <div className="max-w-2xl mx-auto px-4 py-6 pb-24 md:pb-6 space-y-6">
+          <Skeleton className="h-6 w-32" />
+          <div className="rounded-card-lg p-5 bg-background-card border border-border space-y-4">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-full rounded-lg" />
+          </div>
         </div>
       </AppShell>
     );

@@ -129,13 +129,13 @@ export default function OnboardingPage() {
       return;
     }
 
-    // Give wallet 500ms to hydrate before showing "connect wallet"
+    // Give wallet time to hydrate before showing "connect wallet"
     const timeout = setTimeout(() => {
       if (!hasCheckedRef.current) {
         hasCheckedRef.current = true;
         setCheckingOnboarding(false);
       }
-    }, 500);
+    }, 800);
     return () => clearTimeout(timeout);
   }, [account, router]);
 
@@ -260,7 +260,7 @@ export default function OnboardingPage() {
 
   const handleChipSelect = (key: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
-    setTimeout(() => setStep((s) => s + 1), 200);
+    setTimeout(() => setStep((s) => s + 1), 100);
   };
 
   const handleMultiChipSelect = (key: string, value: string) => {

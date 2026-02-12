@@ -26,6 +26,7 @@ function SidebarNav() {
 
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
+    sessionStorage.removeItem('onboarding_checked');
     if (wallet) disconnect(wallet);
     router.push('/');
   };

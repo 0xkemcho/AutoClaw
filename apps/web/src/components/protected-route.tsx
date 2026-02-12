@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useActiveAccount, ConnectButton } from 'thirdweb/react';
+import { ConnectButton } from 'thirdweb/react';
+import { useWalletReady } from '@/hooks/use-wallet-ready';
+import { AppShellSkeleton } from '@/components/app-shell-skeleton';
 import { useRouter, usePathname } from 'next/navigation';
 import { client, wallets, walletTheme, connectButtonStyle } from '@/lib/thirdweb';
 import { celo } from '@/lib/chains';
@@ -9,7 +11,7 @@ import { fetchWithAuth } from '@/lib/api';
 import { Header } from '@/components/header';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const account = useActiveAccount();
+  const { account, isHydrating } = useWalletReady();
   const router = useRouter();
   const pathname = usePathname();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
@@ -19,6 +21,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     if (!account) return;
     if (pathname === '/onboarding') return;
     if (checkingRef.current || onboardingChecked) return;
+
+    if (sessionStorage.getItem('onboarding_checked') === 'true') {
+      setOnboardingChecked(true);
+      return;
+    }
 
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -34,6 +41,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         if (!data.onboarding_completed) {
           router.replace('/onboarding');
         } else {
+          sessionStorage.setItem('onboarding_checked', 'true');
           setOnboardingChecked(true);
         }
       })
@@ -45,6 +53,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         checkingRef.current = false;
       });
   }, [account, pathname, router, onboardingChecked]);
+
+  if (isHydrating) {
+    return <AppShellSkeleton />;
+  }
 
   if (!account) {
     return (
@@ -73,9 +85,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // Block rendering until onboarding check completes — prevents dashboard flash
   if (!onboardingChecked && pathname !== '/onboarding') {
-    return (
-      <div className="min-h-screen bg-background" />
-    );
+    return <AppShellSkeleton />;
   }
 
   return <>{children}</>;

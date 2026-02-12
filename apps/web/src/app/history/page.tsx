@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Loader2, Inbox } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ProtectedRoute } from '@/components/protected-route';
 import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
@@ -48,8 +49,16 @@ function HistoryContent() {
 
         {/* Loading state */}
         {isLoading && (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 size={24} className="animate-spin text-foreground-muted" />
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="rounded-card-lg p-4 bg-background-card border border-border flex items-start gap-3">
+                <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

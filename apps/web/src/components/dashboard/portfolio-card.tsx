@@ -5,7 +5,7 @@ import { ChevronDown, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePortfolio } from '@/hooks/use-agent';
 import { CountUp } from '@/components/ui/count-up';
-import { Spinner } from '@/components/ui/spinner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function formatUsd(value: number): string {
   return value.toLocaleString('en-US', {
@@ -22,8 +22,10 @@ export function PortfolioCard() {
 
   if (isLoading) {
     return (
-      <div className="rounded-card-lg p-6 bg-background-card border border-border flex items-center justify-center">
-        <Spinner size="sm" />
+      <div className="rounded-card-lg p-5 bg-background-card border border-border space-y-3">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-7 w-32" />
+        <Skeleton className="h-3 w-24" />
       </div>
     );
   }

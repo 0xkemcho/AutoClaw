@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useActiveAccount } from 'thirdweb/react';
+import { useWalletReady } from '@/hooks/use-wallet-ready';
 import { Header } from '@/components/header';
 import { NoiseBackground } from '@/components/ui/noise-background';
 import { BackgroundRippleEffect } from '@/components/ui/background-ripple-effect';
@@ -29,7 +29,7 @@ function highlightBold(text: string, bold: string) {
 }
 
 export default function LandingPage() {
-  const account = useActiveAccount();
+  const { account, isHydrating } = useWalletReady();
 
   return (
     <div className="min-h-screen bg-background">
@@ -79,7 +79,7 @@ export default function LandingPage() {
                 href="/onboarding"
                 className="inline-flex items-center gap-2 text-white text-base font-semibold"
               >
-                {account ? 'Go to Dashboard' : 'Get Started'}
+                {!isHydrating && account ? 'Go to Dashboard' : 'Get Started'}
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>

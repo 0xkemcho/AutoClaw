@@ -2,7 +2,7 @@
 
 import { Inbox, Loader2 } from 'lucide-react';
 import { useAgentTimeline } from '@/hooks/use-agent';
-import { Spinner } from '@/components/ui/spinner';
+import { Skeleton } from '@/components/ui/skeleton';
 import { TimelineEntry } from './timeline-entry';
 
 interface TimelineFeedProps {
@@ -22,8 +22,16 @@ export function TimelineFeed({ filters }: TimelineFeedProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Spinner size="lg" />
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="rounded-card-lg p-4 bg-background-card border border-border flex items-start gap-3">
+            <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

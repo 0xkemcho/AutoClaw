@@ -130,10 +130,10 @@ export function useRunAgentNow() {
     mutationFn: () => fetchApi('/api/agent/run-now', { method: 'POST' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent', 'status'] });
-      // Refetch timeline after a short delay to pick up new events
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['agent', 'timeline'] });
-      }, 3000);
+      queryClient.invalidateQueries({ queryKey: ['agent', 'timeline'] });
+      // Poll for new entries as agent executes
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ['agent', 'timeline'] }), 2000);
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ['agent', 'timeline'] }), 5000);
     },
   });
 }
