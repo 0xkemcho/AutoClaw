@@ -8,6 +8,7 @@ import { client, wallets, walletTheme, detailsButtonStyle } from '@/lib/thirdweb
 import { celo } from '@/lib/chains';
 import { useAgentStatus, useToggleAgent, usePortfolio } from '@/hooks/use-agent';
 import { Header } from '@/components/header';
+import { SidebarSwap } from '@/components/sidebar-swap';
 
 const NAV_ITEMS = [
   { href: '/home', label: 'Dashboard', icon: LayoutDashboard },
@@ -35,7 +36,7 @@ function SidebarNav() {
   const totalValue = portfolio?.totalValueUsd ?? 0;
 
   return (
-    <aside className="hidden md:flex flex-col w-60 h-screen sticky top-0 bg-background-card border-r border-border">
+    <aside className="hidden md:flex flex-col w-60 lg:w-[280px] h-screen sticky top-0 bg-background-card border-r border-border">
       {/* Logo area */}
       <div className="h-14 flex items-center px-5 border-b border-border">
         <a href="/home" className="flex items-center gap-2">
@@ -68,6 +69,11 @@ function SidebarNav() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Quick Swap */}
+      <div className="px-4 pb-3">
+        <SidebarSwap />
       </div>
 
       {/* Quick stats */}
@@ -179,7 +185,13 @@ function MobileBottomNav() {
   );
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  rightPanel,
+}: {
+  children: React.ReactNode;
+  rightPanel?: React.ReactNode;
+}) {
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile header */}
@@ -187,11 +199,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Header />
       </div>
 
-      <div className="flex">
+      <div className="flex md:grid md:grid-cols-[240px_1fr] lg:grid-cols-[280px_1fr_320px]">
         <SidebarNav />
-        <main className="flex-1 min-h-screen md:overflow-y-auto">
+        <main className="flex-1 min-h-screen overflow-y-auto">
           {children}
         </main>
+        {rightPanel && (
+          <aside className="hidden lg:block h-screen sticky top-0 border-l border-border overflow-y-auto">
+            {rightPanel}
+          </aside>
+        )}
       </div>
 
       <MobileBottomNav />

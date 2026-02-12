@@ -5,7 +5,7 @@ import { Header } from '@/components/header';
 
 function SidebarSkeleton() {
   return (
-    <aside className="hidden md:flex flex-col w-60 h-screen sticky top-0 bg-background-card border-r border-border">
+    <aside className="hidden md:flex flex-col w-60 lg:w-[280px] h-screen sticky top-0 bg-background-card border-r border-border">
       {/* Logo area */}
       <div className="h-14 flex items-center px-5 border-b border-border gap-2">
         <Skeleton className="w-7 h-7 rounded-lg" />
@@ -77,9 +77,9 @@ export function AppShellSkeleton() {
         <Header />
       </div>
 
-      <div className="flex">
+      <div className="flex md:grid md:grid-cols-[240px_1fr] lg:grid-cols-[280px_1fr_320px]">
         <SidebarSkeleton />
-        <main className="flex-1 min-h-screen md:overflow-y-auto">
+        <main className="flex-1 min-h-screen overflow-y-auto">
           <ContentSkeleton />
         </main>
       </div>
