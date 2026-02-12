@@ -76,7 +76,7 @@ export default function LandingPage() {
               speed={0.08}
             >
               <a
-                href={account ? '/home' : '/onboarding'}
+                href="/onboarding"
                 className="inline-flex items-center gap-2 text-white text-base font-semibold"
               >
                 {account ? 'Go to Dashboard' : 'Get Started'}

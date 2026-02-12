@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useActiveAccount, ConnectButton } from 'thirdweb/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { client, wallets, walletTheme, connectButtonStyle } from '@/lib/thirdweb';
@@ -12,33 +12,39 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const account = useActiveAccount();
   const router = useRouter();
   const pathname = usePathname();
-  const checkedRef = useState(() => new Set<string>())[0];
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const checkingRef = useRef(false);
 
   useEffect(() => {
     if (!account) return;
-
-    // Skip onboarding check on the onboarding page itself
     if (pathname === '/onboarding') return;
+    if (checkingRef.current || onboardingChecked) return;
 
     const token = localStorage.getItem('auth_token');
-    if (!token) return;
+    if (!token) {
+      // No token yet — allow page to render, auth will happen on interaction
+      setOnboardingChecked(true);
+      return;
+    }
 
-    // Only check once per session per path
-    const key = `${account.address}:${pathname}`;
-    if (checkedRef.has(key)) return;
-    checkedRef.add(key);
+    checkingRef.current = true;
 
-    // Non-blocking: check onboarding status in background, redirect if needed
     fetchWithAuth('/api/auth/me', token)
       .then((data) => {
         if (!data.onboarding_completed) {
           router.replace('/onboarding');
+        } else {
+          setOnboardingChecked(true);
         }
       })
       .catch(() => {
-        // Ignore — let the page render
+        // Auth failed — allow page to render
+        setOnboardingChecked(true);
+      })
+      .finally(() => {
+        checkingRef.current = false;
       });
-  }, [account, pathname, router, checkedRef]);
+  }, [account, pathname, router, onboardingChecked]);
 
   if (!account) {
     return (
@@ -62,6 +68,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+    );
+  }
+
+  // Block rendering until onboarding check completes — prevents dashboard flash
+  if (!onboardingChecked && pathname !== '/onboarding') {
+    return (
+      <div className="min-h-screen bg-background" />
     );
   }
 
