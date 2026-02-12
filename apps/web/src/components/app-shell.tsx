@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Sliders, Clock, Power } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { LayoutDashboard, Sliders, Clock, Power, LogOut } from 'lucide-react';
+import { useDisconnect, useActiveWallet } from 'thirdweb/react';
 import { useAgentStatus, useToggleAgent, usePortfolio } from '@/hooks/use-agent';
 import { Header } from '@/components/header';
 
@@ -14,11 +15,20 @@ const NAV_ITEMS = [
 
 function SidebarNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: status } = useAgentStatus();
   const { data: portfolio } = usePortfolio();
   const toggleAgent = useToggleAgent();
+  const { disconnect } = useDisconnect();
+  const wallet = useActiveWallet();
 
   const totalValue = portfolio?.totalValueUsd ?? 0;
+
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token');
+    if (wallet) disconnect(wallet);
+    router.push('/');
+  };
 
   return (
     <aside className="hidden md:flex flex-col w-60 h-screen sticky top-0 bg-background-card border-r border-border">
@@ -70,8 +80,8 @@ function SidebarNav() {
         })}
       </nav>
 
-      {/* Agent toggle */}
-      <div className="px-4 pb-5">
+      {/* Agent toggle + Logout */}
+      <div className="px-4 pb-5 space-y-2">
         <button
           onClick={() => toggleAgent.mutate()}
           disabled={toggleAgent.isPending || !status}
@@ -83,6 +93,13 @@ function SidebarNav() {
         >
           <Power size={14} />
           {status?.config.active ? 'Agent Running' : 'Agent Paused'}
+        </button>
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-pill text-sm font-medium text-foreground-muted hover:text-error transition-colors"
+        >
+          <LogOut size={14} />
+          Log out
         </button>
       </div>
     </aside>
