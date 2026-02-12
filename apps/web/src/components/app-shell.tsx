@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Sliders, Clock, Power, LogOut } from 'lucide-react';
-import { useDisconnect, useActiveWallet } from 'thirdweb/react';
+import { usePathname } from 'next/navigation';
+import { LayoutDashboard, Sliders, Clock, Power } from 'lucide-react';
+import { ConnectButton } from 'thirdweb/react';
+import { client, wallets, walletTheme, detailsButtonStyle } from '@/lib/thirdweb';
+import { celo } from '@/lib/chains';
 import { useAgentStatus, useToggleAgent, usePortfolio } from '@/hooks/use-agent';
 import { Header } from '@/components/header';
 
@@ -13,23 +15,24 @@ const NAV_ITEMS = [
   { href: '/history', label: 'History', icon: Clock },
 ] as const;
 
+function formatTimeUntil(isoDate: string | null | undefined): string {
+  if (!isoDate) return '\u2014';
+  const diff = new Date(isoDate).getTime() - Date.now();
+  if (diff <= 0) return 'Soon';
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const remainMins = mins % 60;
+  return remainMins > 0 ? `${hrs}h ${remainMins}m` : `${hrs}h`;
+}
+
 function SidebarNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const { data: status } = useAgentStatus();
   const { data: portfolio } = usePortfolio();
   const toggleAgent = useToggleAgent();
-  const { disconnect } = useDisconnect();
-  const wallet = useActiveWallet();
 
   const totalValue = portfolio?.totalValueUsd ?? 0;
-
-  const handleLogout = () => {
-    localStorage.removeItem('auth_token');
-    sessionStorage.removeItem('onboarding_checked');
-    if (wallet) disconnect(wallet);
-    router.push('/');
-  };
 
   return (
     <aside className="hidden md:flex flex-col w-60 h-screen sticky top-0 bg-background-card border-r border-border">
@@ -48,17 +51,51 @@ function SidebarNav() {
       {/* Portfolio card */}
       <div className="px-4 pt-5 pb-3">
         <div className="rounded-card bg-background-secondary border border-border p-4">
-          <p className="text-xs text-foreground-muted uppercase tracking-wider mb-1">Portfolio</p>
+          <p className="text-xs text-foreground-muted uppercase tracking-wider mb-1">Agent Portfolio</p>
           <p className="text-xl font-bold text-foreground">
             ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
           {portfolio && portfolio.holdings.length > 0 && (
-            <p className="text-xs text-foreground-muted mt-1">
-              {portfolio.holdings.length} position{portfolio.holdings.length !== 1 ? 's' : ''}
-            </p>
+            <div className="mt-3 space-y-2">
+              {portfolio.holdings.map((h) => (
+                <div key={h.tokenSymbol} className="flex items-center justify-between text-xs">
+                  <span className="text-foreground-secondary">{h.tokenSymbol}</span>
+                  <span className="text-foreground font-medium">
+                    ${h.valueUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
+
+      {/* Quick stats */}
+      <div className="px-4 pb-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-card bg-background-secondary border border-border p-3">
+            <p className="text-[10px] text-foreground-muted uppercase tracking-wider">Trades Today</p>
+            <p className="text-base font-bold text-foreground mt-0.5">{status?.tradesToday ?? 0}</p>
+          </div>
+          <div className="rounded-card bg-background-secondary border border-border p-3">
+            <p className="text-[10px] text-foreground-muted uppercase tracking-wider">Positions</p>
+            <p className="text-base font-bold text-foreground mt-0.5">{status?.positionCount ?? 0}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Next run */}
+      {status?.config.active && (
+        <div className="px-4 pb-3">
+          <div className="flex items-center justify-between rounded-card bg-background-secondary border border-border p-3">
+            <div className="flex items-center gap-2">
+              <Clock size={14} className="text-foreground-muted" />
+              <span className="text-xs text-foreground-muted">Next run</span>
+            </div>
+            <span className="text-xs font-medium text-foreground">{formatTimeUntil(status.config.nextRunAt)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Nav links */}
       <nav className="flex-1 px-3 py-2 space-y-1">
@@ -81,7 +118,7 @@ function SidebarNav() {
         })}
       </nav>
 
-      {/* Agent toggle + Logout */}
+      {/* Agent toggle + Wallet */}
       <div className="px-4 pb-5 space-y-2">
         <button
           onClick={() => toggleAgent.mutate()}
@@ -95,13 +132,20 @@ function SidebarNav() {
           <Power size={14} />
           {status?.config.active ? 'Agent Running' : 'Agent Paused'}
         </button>
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-pill text-sm font-medium text-foreground-muted hover:text-error transition-colors"
-        >
-          <LogOut size={14} />
-          Log out
-        </button>
+        <div className="[&_button]:!w-full">
+          <ConnectButton
+            client={client}
+            wallets={wallets}
+            chain={celo}
+            theme={walletTheme}
+            detailsButton={{ style: { ...detailsButtonStyle, width: '100%' } }}
+            onDisconnect={() => {
+              localStorage.removeItem('auth_token');
+              sessionStorage.removeItem('onboarding_checked');
+              window.location.href = '/';
+            }}
+          />
+        </div>
       </div>
     </aside>
   );
