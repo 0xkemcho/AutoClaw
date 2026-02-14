@@ -287,7 +287,7 @@ export interface Database {
           server_wallet_address: string | null;
           server_wallet_id: string | null;
           active: boolean;
-          frequency: 'daily' | '4h' | 'hourly';
+          frequency: string | number;
           max_trade_size_usd: number;
           max_allocation_pct: number;
           stop_loss_pct: number;
@@ -295,6 +295,8 @@ export interface Database {
           allowed_currencies: string[] | null;
           blocked_currencies: string[] | null;
           custom_prompt: string | null;
+          agent_8004_id: number | null;
+          agent_8004_tx_hash: string | null;
           last_run_at: string | null;
           next_run_at: string | null;
           created_at: string;
@@ -306,7 +308,7 @@ export interface Database {
           server_wallet_address?: string | null;
           server_wallet_id?: string | null;
           active?: boolean;
-          frequency?: 'daily' | '4h' | 'hourly';
+          frequency?: string | number;
           max_trade_size_usd?: number;
           max_allocation_pct?: number;
           stop_loss_pct?: number;
@@ -314,6 +316,8 @@ export interface Database {
           allowed_currencies?: string[] | null;
           blocked_currencies?: string[] | null;
           custom_prompt?: string | null;
+          agent_8004_id?: number | null;
+          agent_8004_tx_hash?: string | null;
           last_run_at?: string | null;
           next_run_at?: string | null;
           created_at?: string;
@@ -325,7 +329,7 @@ export interface Database {
           server_wallet_address?: string | null;
           server_wallet_id?: string | null;
           active?: boolean;
-          frequency?: 'daily' | '4h' | 'hourly';
+          frequency?: string | number;
           max_trade_size_usd?: number;
           max_allocation_pct?: number;
           stop_loss_pct?: number;
@@ -333,6 +337,8 @@ export interface Database {
           allowed_currencies?: string[] | null;
           blocked_currencies?: string[] | null;
           custom_prompt?: string | null;
+          agent_8004_id?: number | null;
+          agent_8004_tx_hash?: string | null;
           last_run_at?: string | null;
           next_run_at?: string | null;
           created_at?: string;

@@ -16,3 +16,18 @@ export const USDM_ADDRESS: Address =
 // Max uint256 for infinite token approvals
 export const MAX_UINT256 =
   115792089237316195423570985008687907853269984665640564039457584007913129639935n;
+
+// Celo fee currency adapters (CIP-64).
+// USDC/USDT have 6 decimals but gas math expects 18, so Celo provides adapter contracts.
+export const USDC_FEE_ADAPTER: Address =
+  '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B';
+
+export const USDT_FEE_ADAPTER: Address =
+  '0x0e2a3e05bc9a16f5292a6170456a710cb89c6f72';
+
+// ERC-8004 Agent Registry
+export const IDENTITY_REGISTRY_ADDRESS: Address =
+  '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432';
+
+export const REPUTATION_REGISTRY_ADDRESS: Address =
+  '0x8004BAa17C55a88189AE136b182e5fdA19dE9b63';

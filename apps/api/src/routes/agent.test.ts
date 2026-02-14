@@ -94,6 +94,11 @@ vi.mock('../services/agent-cron', () => ({
   runAgentCycle: (...args: unknown[]) => mockRunAgentCycle(...args),
 }));
 
+const mockGetWalletBalances = vi.fn();
+vi.mock('../services/dune-balances', () => ({
+  getWalletBalances: (...args: unknown[]) => mockGetWalletBalances(...args),
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -104,6 +109,7 @@ beforeEach(async () => {
   callRecordsRef.value = [];
   mockResultsRef.value = {};
   mockRunAgentCycle.mockClear();
+  mockGetWalletBalances.mockReset();
   app = Fastify();
   await app.register(agentRoutes);
   await app.ready();
@@ -155,6 +161,7 @@ function makeTimelineRow(overrides: Record<string, unknown> = {}) {
     amount_usd: 50,
     direction: 'buy',
     tx_hash: '0xabc123',
+    run_id: null,
     created_at: '2026-01-01T12:00:00Z',
     ...overrides,
   };
@@ -269,10 +276,10 @@ describe('POST /api/agent/toggle', () => {
   });
 
   it('toggles active false -> true and returns { active: true }', async () => {
-    // First call: fetch config (active=false)
+    // First call: fetch config (active=false, with agent_8004_id so gating passes)
     // Second call: update
     mockResultsRef.value['agent_configs'] = [
-      { data: { id: 'cfg-1', active: false, frequency: 'daily' }, error: null },
+      { data: { id: 'cfg-1', active: false, frequency: 'daily', agent_8004_id: 29 }, error: null },
       { data: null, error: null },
     ];
 
@@ -308,7 +315,7 @@ describe('POST /api/agent/toggle', () => {
 
   it('sets next_run_at when activating', async () => {
     mockResultsRef.value['agent_configs'] = [
-      { data: { id: 'cfg-1', active: false, frequency: 'hourly' }, error: null },
+      { data: { id: 'cfg-1', active: false, frequency: 'hourly', agent_8004_id: 29 }, error: null },
       { data: null, error: null },
     ];
 
@@ -403,6 +410,7 @@ describe('GET /api/agent/timeline', () => {
       amountUsd: 50,
       direction: 'buy',
       txHash: '0xabc123',
+      runId: null,
       createdAt: '2026-01-01T12:00:00Z',
     });
   });
@@ -491,7 +499,7 @@ describe('PUT /api/agent/settings', () => {
       method: 'PUT',
       url: '/api/agent/settings',
       payload: {
-        frequency: 'hourly',
+        frequency: 1,
         maxTradeSizeUsd: 1000,
         maxAllocationPct: 30,
         stopLossPct: 15,
@@ -509,7 +517,7 @@ describe('PUT /api/agent/settings', () => {
     const res = await inject({
       method: 'PUT',
       url: '/api/agent/settings',
-      payload: { frequency: '4h' },
+      payload: { frequency: 4 },
     });
 
     expect(res.statusCode).toBe(500);
@@ -548,8 +556,8 @@ describe('PUT /api/agent/settings', () => {
       method: 'PUT',
       url: '/api/agent/settings',
       payload: {
-        allowedCurrencies: ['CELO', 'cUSD', 'USDC'],
-        blockedCurrencies: ['SCAM'],
+        allowedCurrencies: ['EURm', 'GBPm', 'JPYm'],
+        blockedCurrencies: ['XAUT'],
       },
     });
 
@@ -558,8 +566,8 @@ describe('PUT /api/agent/settings', () => {
     );
     const updateCall = record!.methods.find((m) => m.name === 'update');
     const payload = updateCall!.args[0] as Record<string, unknown>;
-    expect(payload.allowed_currencies).toEqual(['CELO', 'cUSD', 'USDC']);
-    expect(payload.blocked_currencies).toEqual(['SCAM']);
+    expect(payload.allowed_currencies).toEqual(['EURm', 'GBPm', 'JPYm']);
+    expect(payload.blocked_currencies).toEqual(['XAUT']);
   });
 });
 
@@ -635,76 +643,60 @@ describe('GET /api/agent/positions', () => {
 // ---------------------------------------------------------------------------
 
 describe('GET /api/agent/portfolio', () => {
-  it('returns totalValueUsd and holdings array', async () => {
-    const positions = [
-      makePositionRow({ token_symbol: 'CELO', balance: 100 }),
-    ];
-    mockResultsRef.value['agent_positions'] = { data: positions, error: null };
-    mockResultsRef.value['token_price_snapshots'] = { data: { price_usd: 2.5 }, error: null };
+  it('returns totalValueUsd and holdings from Dune balances', async () => {
+    mockResultsRef.value['agent_configs'] = {
+      data: { server_wallet_address: '0xSERVER' },
+      error: null,
+    };
+    mockGetWalletBalances.mockResolvedValue([
+      { chain_id: 42220, address: '0xUSDC', amount: '10000000', symbol: 'USDC', name: 'USD Coin', decimals: 6, price_usd: 1.0, value_usd: 10 },
+    ]);
 
     const res = await inject({ method: 'GET', url: '/api/agent/portfolio' });
 
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.totalValueUsd).toBe(250); // 100 * 2.5
+    expect(body.totalValueUsd).toBe(10);
     expect(body.holdings).toHaveLength(1);
     expect(body.holdings[0]).toEqual({
-      tokenSymbol: 'CELO',
-      balance: 100,
-      priceUsd: 2.5,
-      valueUsd: 250,
+      tokenSymbol: 'USDC',
+      balance: 10, // 10000000 / 10^6
+      priceUsd: 1.0,
+      valueUsd: 10,
+      avgEntryRate: null,
+      costBasis: null,
+      pnl: 0,
     });
+    expect(mockGetWalletBalances).toHaveBeenCalledWith('0xSERVER');
   });
 
-  it('each holding has tokenSymbol, balance, priceUsd, valueUsd', async () => {
-    const positions = [
-      makePositionRow({ token_symbol: 'CELO', balance: 200 }),
-      makePositionRow({ id: 'pos-2', token_symbol: 'cUSD', balance: 500 }),
-    ];
-    mockResultsRef.value['agent_positions'] = { data: positions, error: null };
-    mockResultsRef.value['token_price_snapshots'] = [
-      { data: { price_usd: 3.0 }, error: null },
-      { data: { price_usd: 1.0 }, error: null },
-    ];
+  it('aggregates multiple token holdings', async () => {
+    mockResultsRef.value['agent_configs'] = {
+      data: { server_wallet_address: '0xSERVER' },
+      error: null,
+    };
+    mockGetWalletBalances.mockResolvedValue([
+      { chain_id: 42220, address: '0xUSDC', amount: '5000000', symbol: 'USDC', name: 'USD Coin', decimals: 6, price_usd: 1.0, value_usd: 5 },
+      { chain_id: 42220, address: '0xCELO', amount: '2000000000000000000', symbol: 'CELO', name: 'Celo', decimals: 18, price_usd: 0.5, value_usd: 1 },
+    ]);
 
     const res = await inject({ method: 'GET', url: '/api/agent/portfolio' });
 
     const body = res.json();
     expect(body.holdings).toHaveLength(2);
-
-    const celo = body.holdings[0];
-    expect(celo.tokenSymbol).toBe('CELO');
-    expect(celo.balance).toBe(200);
-    expect(celo.priceUsd).toBe(3.0);
-    expect(celo.valueUsd).toBe(600);
-
-    const cusd = body.holdings[1];
-    expect(cusd.tokenSymbol).toBe('cUSD');
-    expect(cusd.balance).toBe(500);
-    expect(cusd.priceUsd).toBe(1.0);
-    expect(cusd.valueUsd).toBe(500);
-
-    expect(body.totalValueUsd).toBe(1100); // 600 + 500
+    expect(body.holdings[0].tokenSymbol).toBe('USDC');
+    expect(body.holdings[0].balance).toBe(5);
+    expect(body.holdings[1].tokenSymbol).toBe('CELO');
+    expect(body.holdings[1].balance).toBe(2);
+    expect(body.totalValueUsd).toBe(6); // 5 + 1
   });
 
-  it('defaults price to $1 when no snapshot exists', async () => {
-    const positions = [
-      makePositionRow({ token_symbol: 'UNKNOWN', balance: 300 }),
-    ];
-    mockResultsRef.value['agent_positions'] = { data: positions, error: null };
-    // No price snapshot: data is null
-    mockResultsRef.value['token_price_snapshots'] = { data: null, error: { message: 'not found' } };
-
-    const res = await inject({ method: 'GET', url: '/api/agent/portfolio' });
-
-    const body = res.json();
-    expect(body.holdings[0].priceUsd).toBe(1);
-    expect(body.holdings[0].valueUsd).toBe(300); // 300 * 1
-    expect(body.totalValueUsd).toBe(300);
-  });
-
-  it('returns empty holdings and zero total when no positions', async () => {
-    mockResultsRef.value['agent_positions'] = { data: [], error: null };
+  it('returns empty holdings when Dune returns no balances', async () => {
+    mockResultsRef.value['agent_configs'] = {
+      data: { server_wallet_address: '0xSERVER' },
+      error: null,
+    };
+    mockGetWalletBalances.mockResolvedValue([]);
 
     const res = await inject({ method: 'GET', url: '/api/agent/portfolio' });
 
@@ -714,24 +706,41 @@ describe('GET /api/agent/portfolio', () => {
     expect(body.holdings).toEqual([]);
   });
 
-  it('returns 500 when positions query fails', async () => {
-    mockResultsRef.value['agent_positions'] = { data: null, error: { message: 'db error' } };
+  it('returns 404 when agent wallet not configured', async () => {
+    mockResultsRef.value['agent_configs'] = {
+      data: null,
+      error: { message: 'not found' },
+    };
+
+    const res = await inject({ method: 'GET', url: '/api/agent/portfolio' });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({ error: 'Agent wallet not configured' });
+  });
+
+  it('returns 404 when server_wallet_address is null', async () => {
+    mockResultsRef.value['agent_configs'] = {
+      data: { server_wallet_address: null },
+      error: null,
+    };
+
+    const res = await inject({ method: 'GET', url: '/api/agent/portfolio' });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({ error: 'Agent wallet not configured' });
+  });
+
+  it('returns 500 when Dune API fails', async () => {
+    mockResultsRef.value['agent_configs'] = {
+      data: { server_wallet_address: '0xSERVER' },
+      error: null,
+    };
+    mockGetWalletBalances.mockRejectedValue(new Error('Dune SIM API error: 500'));
 
     const res = await inject({ method: 'GET', url: '/api/agent/portfolio' });
 
     expect(res.statusCode).toBe(500);
     expect(res.json()).toEqual({ error: 'Failed to fetch portfolio' });
-  });
-
-  it('handles null position data gracefully', async () => {
-    mockResultsRef.value['agent_positions'] = { data: null, error: null };
-
-    const res = await inject({ method: 'GET', url: '/api/agent/portfolio' });
-
-    expect(res.statusCode).toBe(200);
-    const body = res.json();
-    expect(body.totalValueUsd).toBe(0);
-    expect(body.holdings).toEqual([]);
   });
 });
 
