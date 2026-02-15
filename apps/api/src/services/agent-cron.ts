@@ -9,6 +9,7 @@ import { submitTradeFeedback } from './agent-registry';
 import { getStrategy } from './strategies';
 import type { WalletBalance } from './strategies/types';
 import { celoClient } from '../lib/celo-client';
+import { formatExecutionError } from '../lib/format-error';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 type TimelineInsert = Database['public']['Tables']['agent_timeline']['Insert'];
@@ -70,7 +71,7 @@ async function agentTick(): Promise<void> {
       } catch (err) {
         console.error(`Agent cycle failed for ${config.wallet_address}:`, err);
         await logTimeline(config.wallet_address, 'system', {
-          summary: `Agent cycle failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          summary: `Agent cycle failed: ${formatExecutionError(err)}`,
         });
 
         // Failure — retry in 5 minutes instead of full interval
@@ -161,6 +162,23 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
       summary: `${agentType.toUpperCase()}: ${signals.length} signals. ${summary}`,
       detail: { summary, signalCount: signals.length, signals, sourcesUsed },
     }, runId);
+
+    // Skip execution if wallet is empty (exploration mode only)
+    if (portfolioValue === 0) {
+      console.log(`[agent:${walletAddress.slice(0, 8)}:${agentType}] Wallet empty - skipping execution`);
+      emitProgress(
+        walletAddress,
+        'complete',
+        'Analysis complete - add funds to your wallet to start investing',
+        { signalCount: signals.length, tradeCount: 0, blockedCount: 0 },
+        agentType
+      );
+      await logTimeline(walletAddress, 'system', {
+        summary: 'Wallet empty - add funds to execute trades',
+        detail: { signals, portfolioValue: 0 },
+      }, runId);
+      return;
+    }
 
     // 5. STRATEGY: Check guardrails and execute each signal
     const guardrailStep = progressSteps[2] ?? ('checking_signals' as ProgressStep);
@@ -256,7 +274,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
             `Failed ${signalAction} ${signalLabel}: ${result.error}`,
           );
           await logTimeline(walletAddress, 'system', {
-            summary: `Execution failed for ${signalLabel}: ${result.error}`,
+            summary: `Execution failed for ${signalLabel}: ${formatExecutionError(result.error)}`,
             detail: { signal, error: result.error },
           }, runId);
         }
@@ -265,7 +283,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
           `Error executing ${signalLabel}: ${execErr instanceof Error ? execErr.message : 'Unknown error'}`,
         );
         await logTimeline(walletAddress, 'system', {
-          summary: `Execution error for ${signalLabel}: ${execErr instanceof Error ? execErr.message : 'Unknown error'}`,
+          summary: `Execution error for ${signalLabel}: ${formatExecutionError(execErr)}`,
           detail: { signal, error: execErr instanceof Error ? execErr.message : String(execErr) },
         }, runId);
       }
@@ -284,7 +302,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
       { step: 'unknown', error: error instanceof Error ? error.message : String(error) },
     );
     await logTimeline(walletAddress, 'system', {
-      summary: `Agent cycle failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      summary: `Agent cycle failed: ${formatExecutionError(error)}`,
       detail: { error: error instanceof Error ? error.message : String(error) },
     }, runId);
   }

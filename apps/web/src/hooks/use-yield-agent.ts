@@ -49,6 +49,8 @@ interface YieldOpportunityResponse {
   tvl: number;
   dailyRewards: number;
   tokens: Array<{ symbol: string; address: string; decimals: number }>;
+  depositUrl?: string;  // Merkl deposit page URL
+  status?: string;
 }
 
 interface YieldRewardResponse {

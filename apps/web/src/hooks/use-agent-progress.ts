@@ -104,16 +104,25 @@ export function useAgentProgress(): ProgressState {
 
   const connect = useCallback(() => {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+      console.warn('[ws] No token available, skipping connection');
+      return;
+    }
 
     // Don't create duplicate connections
-    if (wsRef.current && wsRef.current.readyState <= 1) return;
+    if (wsRef.current && wsRef.current.readyState <= 1) {
+      console.log('[ws] Connection already exists, readyState:', wsRef.current.readyState);
+      return;
+    }
 
-    const ws = new WebSocket(getWsUrl());
+    const wsUrl = getWsUrl();
+    console.log('[ws] Connecting to:', wsUrl);
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({ type: 'auth', token }));
+      console.log('[ws] Connection opened, sending auth...');
+      ws.send(JSON.stringify({ type: 'auth', token: token.substring(0, 20) + '...' }));
     };
 
     ws.onmessage = (event) => {
@@ -182,7 +191,8 @@ export function useAgentProgress(): ProgressState {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.log('[ws] Connection closed, code:', event.code, 'reason:', event.reason);
       // Only clear the ref if it still points to this socket (avoids
       // clobbering a newer connection created during React Strict Mode
       // double-mount or rapid reconnect cycles).
@@ -198,10 +208,12 @@ export function useAgentProgress(): ProgressState {
         return prev;
       });
       // Reconnect after 3s
+      console.log('[ws] Reconnecting in 3s...');
       reconnectTimer.current = setTimeout(connect, 3000);
     };
 
-    ws.onerror = () => {
+    ws.onerror = (error) => {
+      console.error('[ws] WebSocket error:', error);
       ws.close();
     };
   }, [queryClient, resetStaleTimer]);

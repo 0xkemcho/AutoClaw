@@ -22,6 +22,7 @@ import {
   Copy,
   Check,
   Wallet,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -513,7 +514,17 @@ function YieldOpportunitiesSection() {
             {opportunities.map((opp, idx) => (
               <div
                 key={opp.id}
-                className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30"
+                className={cn(
+                  "flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30",
+                  opp.depositUrl && "cursor-pointer"
+                )}
+                onClick={() => {
+                  if (opp.depositUrl) {
+                    window.open(opp.depositUrl, '_blank', 'noopener,noreferrer');
+                  }
+                }}
+                role={opp.depositUrl ? "button" : undefined}
+                tabIndex={opp.depositUrl ? 0 : undefined}
               >
                 {/* Rank */}
                 <span className="w-8 text-center text-sm text-muted-foreground font-mono">
@@ -651,6 +662,12 @@ function YieldRewardsSection() {
 
 function AgentTab() {
   const progress = useAgentProgress();
+  const { data: statusData } = useYieldAgentStatus();
+  const { data: positionsData } = useYieldPositions();
+  const [fundingBannerDismissed, setFundingBannerDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('autoclaw_yield_funding_banner_dismissed') === 'true';
+  });
 
   // Show error toast when progress enters error state
   useEffect(() => {
@@ -659,6 +676,19 @@ function AgentTab() {
     }
   }, [progress.currentStep, progress.stepMessage]);
 
+  // Calculate portfolio value from positions
+  const portfolioValueUsd = (positionsData?.positions ?? []).reduce(
+    (sum, pos) => sum + pos.depositAmountUsd,
+    0
+  );
+  const serverWalletAddress = statusData?.config?.serverWalletAddress;
+  const showFundingBanner = portfolioValueUsd === 0 && !fundingBannerDismissed && serverWalletAddress;
+
+  const handleDismissFundingBanner = () => {
+    setFundingBannerDismissed(true);
+    localStorage.setItem('autoclaw_yield_funding_banner_dismissed', 'true');
+  };
+
   return (
     <div className="space-y-6">
       {/* Agent and Wallet side-by-side */}
@@ -666,6 +696,25 @@ function AgentTab() {
         <YieldStatusSection />
         <YieldWalletSection />
       </div>
+
+      {/* Empty wallet funding banner */}
+      {showFundingBanner && (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+          <Coins className="size-5 text-amber-500 shrink-0" />
+          <p className="flex-1 text-sm">
+            <span className="font-medium">Add funds to your wallet</span> to start investing in yield opportunities. Your agent will explore and analyze opportunities, but needs funds to execute deposits.
+          </p>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="shrink-0"
+            onClick={handleDismissFundingBanner}
+          >
+            <X className="size-4" />
+            <span className="sr-only">Dismiss</span>
+          </Button>
+        </div>
+      )}
 
       {/* Real-time reasoning display during analysis */}
       {progress.isRunning && progress.reasoning && (

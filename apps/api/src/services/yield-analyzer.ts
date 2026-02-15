@@ -113,8 +113,14 @@ export function buildYieldSystemPrompt(input: YieldAnalysisInput): string {
       ).join('\n')
     : '- No current positions';
 
+  // Add warning if wallet is empty
+  const walletWarning = portfolioValueUsd === 0
+    ? '\n\n⚠️ **IMPORTANT**: User wallet is currently empty ($0.00). Provide analysis and recommendations but DO NOT suggest specific deposit amounts or actions. Inform the user they need to fund their wallet first before any deposits can be executed. Focus on educational insights about the opportunities.'
+    : '';
+
   return [
     'You are a DeFi yield optimization analyst. Analyze the available vault opportunities and current positions to recommend deposit, withdraw, or hold actions.',
+    walletWarning,
     '',
     '## Portfolio',
     `Total portfolio value: $${portfolioValueUsd.toFixed(2)}`,
