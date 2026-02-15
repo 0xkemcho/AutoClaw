@@ -83,7 +83,7 @@ function FxHero() {
         <Button
           size="lg"
           className="gap-2"
-          onClick={() => router.push('/onboarding')}
+          onClick={() => router.push('/onboarding?agent=fx')}
         >
           <TrendingUp className="size-4" />
           Create FX Agent
