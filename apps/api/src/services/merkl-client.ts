@@ -14,10 +14,10 @@ interface CacheEntry<T> {
 const opportunitiesCache = new Map<string, CacheEntry<YieldOpportunity[]>>();
 const rewardsCache = new Map<string, CacheEntry<MerklReward[]>>();
 
-async function merklFetch(url: string): Promise<Response> {
+async function merklFetch(url: string): Promise<any> {
   // retry up to 3 times with exponential backoff
   for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(url);
+    const res: any = await fetch(url);
     if (res.status === 429) {
       const delay = Math.pow(2, attempt) * 1000;
       console.warn(`[merkl] Rate limited, retrying in ${delay}ms...`);
