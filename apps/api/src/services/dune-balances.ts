@@ -27,7 +27,7 @@ export async function getWalletBalances(walletAddress: string): Promise<DuneBala
   url.searchParams.set('filters', 'erc20');
   url.searchParams.set('exclude_spam_tokens', 'true');
 
-  const res = await fetch(url.toString(), {
+  const res: any = await fetch(url.toString(), {
     headers: { 'X-Sim-Api-Key': apiKey },
   });
 
