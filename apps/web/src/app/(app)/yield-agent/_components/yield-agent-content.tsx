@@ -21,6 +21,7 @@ import {
   ShieldAlert,
   Star,
   ChevronDown,
+  Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -47,6 +48,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 import {
   useYieldAgentStatus,
@@ -112,6 +119,7 @@ function YieldStatusSection() {
   const router = useRouter();
   const { data, isLoading } = useYieldAgentStatus();
   const { data: timelineData } = useYieldTimeline({ limit: 5 });
+  const portfolioQuery = usePortfolio('yield');
   const toggleAgent = useToggleYieldAgent();
   const runNow = useRunYieldNow();
   const progress = useAgentProgress();
@@ -149,15 +157,22 @@ function YieldStatusSection() {
 
   const { config, positionCount, tradesToday } = data;
   const isActive = config.active;
+  const totalValueUsd = portfolioQuery.data?.totalValueUsd ?? 0;
+  const hasInsufficientBalance = totalValueUsd < 5;
   const isRunning =
     progress.isRunning ||
+    runNow.isPending ||
     progress.currentStep === 'complete' ||
     progress.currentStep === 'error';
+  const stepLabel =
+    runNow.isPending && !progress.stepLabel
+      ? 'Starting...'
+      : progress.stepLabel;
 
   const latestEntry = timelineData?.entries?.[0];
 
   return (
-    <Card className={isActive ? 'border-amber-500/20 bg-amber-500/5' : ''}>
+    <Card>
       <CardHeader className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -289,51 +304,106 @@ function YieldStatusSection() {
           </div>
         )}
 
-        <div className="flex w-full items-center gap-3">
-          <Button
-            variant={isActive ? 'outline' : 'default'}
-            size="sm"
-            className="flex-1 gap-1.5"
-            disabled={toggleAgent.isPending}
-            onClick={() => {
-              toggleAgent.mutate(undefined, {
-                onSuccess: () =>
-                  toast.success(
-                    isActive ? 'Agent paused' : 'Agent activated',
-                  ),
-                onError: () => toast.error('Failed to toggle agent'),
-              });
-            }}
-          >
-            {toggleAgent.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : isActive ? (
-              <Pause className="size-4" />
-            ) : (
-              <Play className="size-4" />
-            )}
-            <span>{isActive ? 'Pause' : 'Activate'}</span>
-          </Button>
-          <Button
-            variant={isActive ? 'default' : 'outline'}
-            size="sm"
-            className="flex-1 gap-1.5"
-            disabled={!isActive || progress.isRunning}
-            onClick={() => {
-              runNow.mutate(undefined, {
-                onSuccess: () => toast.success('Run triggered'),
-              });
-            }}
-          >
-            {progress.isRunning ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <RefreshCw className="size-4" />
-            )}
-            <span>
-              {progress.isRunning ? progress.stepLabel : 'Run Now'}
-            </span>
-          </Button>
+        <div className="flex w-full flex-col gap-2">
+          <div className="flex w-full gap-3">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex-1">
+                    <Button
+                      variant="default"
+                      className="flex-1 h-11"
+                    disabled={
+                      !isActive ||
+                      isRunning ||
+                      hasInsufficientBalance ||
+                      !isRegistered8004
+                    }
+                    onClick={() => {
+                      runNow.mutate(undefined, {
+                        onSuccess: () => toast.success('Run triggered'),
+                        onError: (err) => {
+                          const body = (err as { body?: { error?: string } })?.body;
+                          const msg = body?.error ?? err.message;
+                          toast.error(msg);
+                        },
+                      });
+                    }}
+                  >
+                    {isRunning ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Zap className="size-4" />
+                    )}
+                    {isRunning ? stepLabel : 'Run Now'}
+                  </Button>
+                  </span>
+                </TooltipTrigger>
+                {(hasInsufficientBalance || !isRegistered8004) && (
+                  <TooltipContent side="top" className="max-w-xs">
+                    {hasInsufficientBalance
+                      ? 'Add at least $5 to your wallet to run the agent'
+                      : 'Register on 8004 to activate your agent'}
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex-1">
+                    <Button
+                      variant="outline"
+                      className="w-full h-11"
+                    disabled={toggleAgent.isPending || !isRegistered8004}
+                    onClick={() => {
+                      toggleAgent.mutate(undefined, {
+                        onSuccess: () =>
+                          toast.success(
+                            isActive ? 'Agent paused' : 'Agent activated',
+                          ),
+                        onError: () => toast.error('Failed to toggle agent'),
+                      });
+                    }}
+                  >
+                    {toggleAgent.isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : isActive ? (
+                      <>
+                        <Pause className="size-4" />
+                        Pause
+                      </>
+                    ) : (
+                      <>
+                        <Play className="size-4" />
+                        Resume
+                      </>
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!isRegistered8004 && (
+                <TooltipContent>
+                  Register on 8004 to activate your agent
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+          </div>
+
+          {!isRegistered8004 && (
+            <p className="text-center text-xs text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => router.push('/onboarding?agent=yield&step=register')}
+                className="text-primary hover:underline"
+              >
+                Register on ERC-8004
+              </button>{' '}
+              to activate your agent
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -669,6 +739,17 @@ function AgentTab() {
   useEffect(() => {
     if (progress.currentStep === 'error') {
       toast.error(progress.stepMessage || 'Agent run failed');
+    }
+  }, [progress.currentStep, progress.stepMessage]);
+
+  // Show toast for execution failures (stepMessage indicates failure during execute step)
+  useEffect(() => {
+    const msg = progress.stepMessage;
+    const isExecuteStep =
+      progress.currentStep === 'executing_yields' ||
+      progress.currentStep === 'executing_trades';
+    if (isExecuteStep && msg && (msg.startsWith('Failed ') || msg.startsWith('Error executing'))) {
+      toast.error(msg);
     }
   }, [progress.currentStep, progress.stepMessage]);
 

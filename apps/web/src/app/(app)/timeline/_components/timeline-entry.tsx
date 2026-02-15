@@ -199,7 +199,7 @@ function renderDetail(entry: TimelineEntryProps['entry']) {
             </p>
           )}
           {detail.reasoning ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
               {String(detail.reasoning)}
             </p>
           ) : null}
@@ -222,7 +222,7 @@ function renderDetail(entry: TimelineEntryProps['entry']) {
       return (
         <div className="space-y-3">
           {(detail.marketSummary || detail.reasoning) ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
               {String(detail.marketSummary || detail.reasoning)}
             </p>
           ) : null}
@@ -283,7 +283,7 @@ function renderDetail(entry: TimelineEntryProps['entry']) {
       return (
         <div className="space-y-2">
           {detail.message ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
               {String(detail.message)}
             </p>
           ) : null}

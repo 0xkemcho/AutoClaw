@@ -4,6 +4,7 @@ import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import { frequencyToMs, FREQUENCY_MS, DEFAULT_YIELD_GUARDRAILS, type RiskProfile } from '@autoclaw/shared';
 import { runAgentCycle } from '../services/agent-cron';
 import { fetchYieldOpportunities, fetchClaimableRewards } from '../services/merkl-client';
+import { getWalletBalances } from '../services/dune-balances';
 import { executeYieldWithdraw } from '../services/yield-executor';
 import { createAgentWallet } from '../lib/privy-wallet';
 import { registerAgentOnChain } from '../services/agent-registry';
@@ -315,6 +316,31 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
 
       if (!config.server_wallet_address || !config.server_wallet_id) {
         return reply.status(400).send({ error: 'Yield agent wallet not set up' });
+      }
+
+      const MIN_BALANCE_USD = 5;
+      try {
+        const balances = await getWalletBalances(config.server_wallet_address);
+        const liquidValue = balances.reduce((s, b) => s + b.value_usd, 0);
+        const { data: yieldPositions } = await supabaseAdmin
+          .from('yield_positions')
+          .select('deposit_amount_usd')
+          .eq('wallet_address', walletAddress)
+          .gt('lp_shares', 0);
+        const vaultValue = (yieldPositions ?? []).reduce(
+          (s, p) => s + Number(p.deposit_amount_usd ?? 0),
+          0,
+        );
+        const totalValueUsd = liquidValue + vaultValue;
+        if (totalValueUsd < MIN_BALANCE_USD) {
+          return reply.status(400).send({
+            error: 'Minimum balance of $5 required to run the agent',
+            code: 'INSUFFICIENT_BALANCE',
+          });
+        }
+      } catch (balanceErr) {
+        console.error('Failed to check balance for run-now:', balanceErr);
+        return reply.status(500).send({ error: 'Failed to verify wallet balance' });
       }
 
       // Run the cycle in background — respond immediately

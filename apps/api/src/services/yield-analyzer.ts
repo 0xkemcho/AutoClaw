@@ -33,7 +33,8 @@ interface YieldAnalysisInput {
   portfolioValueUsd: number;
   guardrails: YieldGuardrails;
   customPrompt?: string | null;
-  walletAddress?: string;  // For emitting progress events
+  walletAddress?: string;
+  walletBalances?: Array<{ symbol: string; formatted: string; valueUsd: number }>;
 }
 
 export async function analyzeYieldOpportunities(input: YieldAnalysisInput): Promise<YieldAnalysisResult> {
@@ -105,7 +106,7 @@ export async function analyzeYieldOpportunities(input: YieldAnalysisInput): Prom
 }
 
 export function buildYieldSystemPrompt(input: YieldAnalysisInput): string {
-  const { currentPositions, portfolioValueUsd, guardrails, customPrompt } = input;
+  const { currentPositions, portfolioValueUsd, guardrails, customPrompt, walletBalances } = input;
 
   const positionList = currentPositions.length > 0
     ? currentPositions.map(p =>
@@ -113,7 +114,16 @@ export function buildYieldSystemPrompt(input: YieldAnalysisInput): string {
       ).join('\n')
     : '- No current positions';
 
-  // Add warning if wallet is empty
+  const walletBalancesSection = walletBalances && walletBalances.length > 0
+    ? [
+        '',
+        '## Wallet Balances (on-chain)',
+        walletBalances
+          .map((b) => `${b.symbol}: ${b.formatted} ($${b.valueUsd.toFixed(2)})`)
+          .join(', '),
+      ].join('\n')
+    : '';
+
   const walletWarning = portfolioValueUsd === 0
     ? '\n\n⚠️ **IMPORTANT**: User wallet is currently empty ($0.00). Provide analysis and recommendations but DO NOT suggest specific deposit amounts or actions. Inform the user they need to fund their wallet first before any deposits can be executed. Focus on educational insights about the opportunities.'
     : '';
@@ -124,6 +134,7 @@ export function buildYieldSystemPrompt(input: YieldAnalysisInput): string {
     '',
     '## Portfolio',
     `Total portfolio value: $${portfolioValueUsd.toFixed(2)}`,
+    walletBalancesSection,
     '',
     '## Guardrails',
     `- Minimum APR: ${guardrails.minAprThreshold}%`,

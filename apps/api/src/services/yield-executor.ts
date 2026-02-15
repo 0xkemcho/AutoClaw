@@ -1,4 +1,4 @@
-import { type Address, type PublicClient, parseUnits, erc20Abi, encodeFunctionData } from 'viem';
+import { type Address, type PublicClient, parseUnits, formatUnits, erc20Abi, encodeFunctionData } from 'viem';
 import {
   getQuote,
   applySlippage,
@@ -6,9 +6,10 @@ import {
   buildApproveTx,
   BROKER_ADDRESS,
   BIPOOL_MANAGER_ADDRESS,
+  USDM_ADDRESS,
   brokerAbi,
 } from '@autoclaw/contracts';
-import { USDC_CELO_ADDRESS } from '@autoclaw/shared';
+import { USDC_CELO_ADDRESS, USDT_CELO_ADDRESS } from '@autoclaw/shared';
 import type { YieldExecutionResult } from '@autoclaw/shared';
 import { IchiVaultAdapter } from './vault-adapters/ichi';
 import { celoClient } from '../lib/celo-client';
@@ -16,6 +17,13 @@ import { getAgentWalletClient } from '../lib/privy-wallet';
 
 const DEFAULT_SLIPPAGE_PCT = 0.5;
 const ichiAdapter = new IchiVaultAdapter();
+
+// Base stable tokens the wallet might hold, in priority order (mirrors trade-executor)
+const BASE_STABLE_TOKENS: Array<{ symbol: string; address: Address; decimals: number }> = [
+  { symbol: 'USDC', address: USDC_CELO_ADDRESS as Address, decimals: 6 },
+  { symbol: 'USDT', address: USDT_CELO_ADDRESS as Address, decimals: 6 },
+  { symbol: 'USDm', address: USDM_ADDRESS, decimals: 18 },
+];
 
 export async function executeYieldDeposit(params: {
   serverWalletId: string;
@@ -43,39 +51,47 @@ export async function executeYieldDeposit(params: {
     });
 
     if (depositTokenBalance < depositAmount) {
-      // Swap USDC -> deposit token via Mento
-      const usdcAddress = USDC_CELO_ADDRESS as Address;
-      const usdcAmount = parseUnits(amountUsd.toString(), 6); // USDC is 6 decimals
+      // Swap base stable (USDC, USDT, USDm) -> deposit token via Mento
+      let sourceToken: (typeof BASE_STABLE_TOKENS)[number] | null = null;
+      const balanceInfo: Array<{ symbol: string; formatted: string }> = [];
+      for (const base of BASE_STABLE_TOKENS) {
+        const bal = await celoClient.readContract({
+          address: base.address,
+          abi: erc20Abi,
+          functionName: 'balanceOf',
+          args: [walletAddr],
+        });
+        const needed = parseUnits(amountUsd.toString(), base.decimals);
+        balanceInfo.push({ symbol: base.symbol, formatted: formatUnits(bal, base.decimals) });
+        if (bal >= needed) {
+          sourceToken = base;
+          break;
+        }
+      }
 
-      // Check USDC balance
-      const usdcBalance = await celoClient.readContract({
-        address: usdcAddress,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [walletAddr],
-      });
-      if (usdcBalance < usdcAmount) {
+      if (!sourceToken) {
+        const walletStr = balanceInfo.map((b) => `${b.symbol}: $${b.formatted}`).join(', ');
         return {
           success: false,
           action: 'deposit',
-          error: `Insufficient USDC balance: have ${usdcBalance}, need ${usdcAmount}`,
+          error: `Insufficient balance: need $${amountUsd.toFixed(2)}. Wallet: ${walletStr}`,
         };
       }
 
-      // Get quote for USDC -> deposit token swap
+      const amountIn = parseUnits(amountUsd.toString(), sourceToken.decimals);
+
       const quote = await getQuote({
-        tokenIn: usdcAddress,
+        tokenIn: sourceToken.address,
         tokenOut: depositToken,
-        amountIn: usdcAmount,
-        tokenInDecimals: 6,
+        amountIn,
+        tokenInDecimals: sourceToken.decimals,
         tokenOutDecimals: depositDecimals,
         celoClient: celoClient as unknown as PublicClient,
       });
 
       const amountOutMin = applySlippage(quote.amountOut, DEFAULT_SLIPPAGE_PCT);
 
-      // Execute swap hops
-      let currentAmountIn = usdcAmount;
+      let currentAmountIn = amountIn;
       for (let i = 0; i < quote.route.length; i++) {
         const hop = quote.route[i];
         const isLastHop = i === quote.route.length - 1;
@@ -89,7 +105,6 @@ export async function executeYieldDeposit(params: {
             args: [walletAddr],
           });
 
-          // Approve intermediate token
           const intermediateAllowance = await checkAllowance({
             token: hop.tokenIn,
             owner: walletAddr,
@@ -106,15 +121,14 @@ export async function executeYieldDeposit(params: {
             await celoClient.waitForTransactionReceipt({ hash: approveHash });
           }
         } else {
-          // First hop: approve USDC for Broker
           const allowance = await checkAllowance({
-            token: usdcAddress,
+            token: sourceToken.address,
             owner: walletAddr,
             spender: BROKER_ADDRESS,
             celoClient: celoClient as unknown as PublicClient,
           });
-          if (allowance < usdcAmount) {
-            const approveTx = buildApproveTx({ token: usdcAddress, spender: BROKER_ADDRESS });
+          if (allowance < amountIn) {
+            const approveTx = buildApproveTx({ token: sourceToken.address, spender: BROKER_ADDRESS });
             const approveHash = await walletClient.sendTransaction({
               to: approveTx.to,
               data: approveTx.data,
