@@ -37,11 +37,29 @@ interface YieldAnalysisInput {
   walletBalances?: Array<{ symbol: string; formatted: string; valueUsd: number }>;
 }
 
+const STAGE_MESSAGES = [
+  'Fetching vault data...',
+  'Comparing APRs...',
+  'Evaluating risk...',
+  'Generating recommendations...',
+];
+const STAGE_INTERVAL_MS = 3500;
+
+function formatYieldResultForDisplay(strategySummary: string, signals: YieldSignal[]): string {
+  const lines: string[] = [strategySummary];
+  if (signals.length > 0) {
+    lines.push('');
+    lines.push('Recommendations:');
+    for (const s of signals) {
+      const action = s.action.charAt(0).toUpperCase() + s.action.slice(1);
+      lines.push(`- ${s.vaultName}: ${action} $${s.amountUsd.toFixed(2)} (${s.estimatedApr.toFixed(1)}% APR) — ${s.reasoning}`);
+    }
+  }
+  return lines.join('\n');
+}
+
 export async function analyzeYieldOpportunities(input: YieldAnalysisInput): Promise<YieldAnalysisResult> {
   try {
-    let cumulativeReasoning = '';
-
-    // Stream the LLM response to capture reasoning in real-time
     const stream = streamText({
       model: gemini('gemini-2.5-flash'),
       output: Output.object({ schema: YieldAnalysisSchema }),
@@ -49,27 +67,36 @@ export async function analyzeYieldOpportunities(input: YieldAnalysisInput): Prom
       prompt: buildYieldAnalysisPrompt(input),
     });
 
-    // Emit reasoning chunks as they arrive
-    if (input.walletAddress) {
-      for await (const chunk of stream.textStream) {
-        cumulativeReasoning += chunk;
+    // Emit stage messages at intervals during analysis (no raw JSON)
+    let stageIndex = 0;
+    const stageTimer =
+      input.walletAddress
+        ? setInterval(() => {
+            const stage = STAGE_MESSAGES[stageIndex % STAGE_MESSAGES.length];
+            stageIndex += 1;
+            emitProgress(
+              input.walletAddress!,
+              'analyzing_yields',
+              stage,
+              { stage } as ProgressReasoningData,
+              'yield'
+            );
+          }, STAGE_INTERVAL_MS)
+        : null;
 
-        // Emit progress event with reasoning chunk
-        emitProgress(
-          input.walletAddress,
-          'analyzing_yields',
-          'Thinking...',
-          {
-            reasoning_chunk: chunk,
-            cumulative_reasoning: cumulativeReasoning,
-            stage: 'analyzing'
-          } as ProgressReasoningData,
-          'yield'
-        );
+    // Consume stream (do not emit raw JSON)
+    if (input.walletAddress) {
+      for await (const _chunk of stream.textStream) {
+        // Stream consumed; stage timer provides user feedback
+      }
+    } else {
+      for await (const _chunk of stream.textStream) {
+        // Consume without emitting
       }
     }
 
-    // Wait for the final result and extract output
+    if (stageTimer) clearInterval(stageTimer);
+
     const final = await stream;
     const result = await final.output;
 
@@ -89,6 +116,18 @@ export async function analyzeYieldOpportunities(input: YieldAnalysisInput): Prom
       estimatedApr: s.estimatedApr,
       riskLevel: s.riskLevel,
     }));
+
+    // Emit formatted result (human-readable, not JSON)
+    if (input.walletAddress) {
+      const formatted = formatYieldResultForDisplay(result.strategySummary, signals);
+      emitProgress(
+        input.walletAddress,
+        'analyzing_yields',
+        'Analysis complete',
+        { cumulative_reasoning: formatted } as ProgressReasoningData,
+        'yield'
+      );
+    }
 
     return {
       signals,

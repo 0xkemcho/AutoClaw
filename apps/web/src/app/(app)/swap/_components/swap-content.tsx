@@ -20,6 +20,10 @@ import { api, ApiError } from '@/lib/api-client';
 import { usePortfolio, portfolioKeys } from '@/hooks/use-portfolio';
 
 const BASE_TOKENS = ['USDC', 'USDT', 'USDm'] as const;
+
+// On Celo, gas is paid in fee currency (USDC/USDT/USDm). Reserve buffer for approve + swap txs.
+const FEE_CURRENCY_TOKENS = new Set(BASE_TOKENS);
+const GAS_BUFFER_USD = 0.03;
 const MENTO_TOKENS = [
   'EURm', 'BRLm', 'KESm', 'PHPm', 'COPm', 'XOFm',
   'NGNm', 'JPYm', 'CHFm', 'ZARm', 'GBPm', 'AUDm', 'CADm', 'GHSm',
@@ -39,9 +43,15 @@ interface SwapResponse {
   exchangeRate: string;
 }
 
+const AGENT_OPTIONS = [
+  { value: 'fx', label: 'FX Agent' },
+  { value: 'yield', label: 'Yield Agent' },
+] as const;
+
 export function SwapContent() {
   const queryClient = useQueryClient();
-  const { data: portfolio, isLoading: portfolioLoading } = usePortfolio();
+  const [agentType, setAgentType] = useState<'fx' | 'yield'>('fx');
+  const { data: portfolio, isLoading: portfolioLoading } = usePortfolio(agentType);
 
   const [fromToken, setFromToken] = useState('USDC');
   const [toToken, setToToken] = useState('EURm');
@@ -75,7 +85,8 @@ export function SwapContent() {
 
   const toTokens = useMemo((): string[] => {
     if (isFromBase) {
-      return ([...MENTO_TOKENS] as string[]).filter((t) => t !== fromToken);
+      // Can swap to other base tokens (USDC, USDT, USDm) or Mento tokens
+      return ([...BASE_TOKENS, ...MENTO_TOKENS] as string[]).filter((t) => t !== fromToken);
     }
     return ([...BASE_TOKENS] as string[]).filter((t) => t !== fromToken);
   }, [isFromBase, fromToken]);
@@ -123,6 +134,7 @@ export function SwapContent() {
         to: toToken,
         amount,
         slippage,
+        agent_type: agentType,
       }),
     onSuccess: (data) => {
       toast.success('Swap executed', {
@@ -154,9 +166,13 @@ export function SwapContent() {
 
   const handleMax = useCallback(() => {
     if (fromBalance !== null && fromBalance > 0) {
-      setAmount(String(fromBalance));
+      let maxAmount = fromBalance;
+      if (FEE_CURRENCY_TOKENS.has(fromToken)) {
+        maxAmount = Math.max(0, fromBalance - GAS_BUFFER_USD);
+      }
+      setAmount(String(maxAmount));
     }
-  }, [fromBalance]);
+  }, [fromBalance, fromToken]);
 
   const canSwap =
     amount && Number(amount) > 0 && quote && !swapMutation.isPending;
@@ -164,7 +180,24 @@ export function SwapContent() {
   return (
     <div className="flex justify-center pt-4 md:pt-8">
       <div className="w-full max-w-md space-y-4">
-        <h1 className="text-lg font-semibold">Swap</h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-lg font-semibold">Swap</h1>
+          <Select
+            value={agentType}
+            onValueChange={(v) => setAgentType(v as 'fx' | 'yield')}
+          >
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Agent wallet" />
+            </SelectTrigger>
+            <SelectContent>
+              {AGENT_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="rounded-xl border bg-card p-5 space-y-3">
           {/* FROM */}

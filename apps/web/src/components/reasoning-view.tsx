@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from 'motion/react';
 interface ReasoningViewProps {
   reasoning: string;
   isActive?: boolean;
+  /** Shown when reasoning is empty during analysis (e.g. "Comparing APRs...") */
+  stageMessage?: string;
 }
 
 /** Renders reasoning text with basic structure: paragraphs, lists, and line breaks. */
@@ -39,8 +41,8 @@ function FormattedReasoning({ text }: { text: string }) {
   );
 }
 
-export function ReasoningView({ reasoning, isActive = true }: ReasoningViewProps) {
-  if (!reasoning && !isActive) return null;
+export function ReasoningView({ reasoning, isActive = true, stageMessage }: ReasoningViewProps) {
+  if (!reasoning && !isActive && !stageMessage) return null;
 
   return (
     <AnimatePresence>
@@ -84,7 +86,7 @@ export function ReasoningView({ reasoning, isActive = true }: ReasoningViewProps
                   >
                     <Brain className="size-4" />
                   </motion.div>
-                  <span>Analyzing yield opportunities...</span>
+                  <span>{stageMessage || 'Analyzing yield opportunities...'}</span>
                 </div>
               )}
             </div>

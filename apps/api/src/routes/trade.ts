@@ -337,9 +337,10 @@ export async function tradeRoutes(app: FastifyInstance) {
         to?: string;
         amount?: string;
         slippage?: number;
+        agent_type?: 'fx' | 'yield';
       };
 
-      const { from, to, amount, slippage = 0.5 } = body;
+      const { from, to, amount, slippage = 0.5, agent_type: requestedAgentType = 'fx' } = body;
 
       if (!from || !ALL_SWAP_TOKENS.has(from)) {
         return reply.status(400).send({
@@ -358,28 +359,19 @@ export async function tradeRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: "'amount' must be a positive number" });
       }
 
+      const agentType = requestedAgentType === 'yield' ? 'yield' : 'fx';
+
       try {
-        // Look up user's agent config for server wallet (prefer FX, fallback to yield)
-        let { data: agent, error: agentError } = await supabaseAdmin
+        const { data: agent, error: agentError } = await supabaseAdmin
           .from('agent_configs')
           .select('server_wallet_id, server_wallet_address')
           .eq('wallet_address', walletAddress)
-          .eq('agent_type', 'fx')
+          .eq('agent_type', agentType)
           .maybeSingle();
 
         if (agentError || !agent?.server_wallet_id || !agent?.server_wallet_address) {
-          const fallback = await supabaseAdmin
-            .from('agent_configs')
-            .select('server_wallet_id, server_wallet_address')
-            .eq('wallet_address', walletAddress)
-            .eq('agent_type', 'yield')
-            .maybeSingle();
-          agent = fallback.data;
-        }
-
-        if (!agent?.server_wallet_id || !agent?.server_wallet_address) {
           return reply.status(400).send({
-            error: 'Agent wallet not configured. Complete onboarding first.',
+            error: `${agentType === 'yield' ? 'Yield' : 'FX'} agent wallet not configured. Complete onboarding first.`,
           });
         }
 
@@ -392,10 +384,10 @@ export async function tradeRoutes(app: FastifyInstance) {
           slippagePct: slippage,
         });
 
-        // Log to fx_agent_timeline (manual swaps default to FX agent)
         const direction = VALID_FROM_TOKENS.has(from) || from === 'USDm' ? 'buy' : 'sell';
         const currency = direction === 'buy' ? to : from;
-        await supabaseAdmin.from('fx_agent_timeline').insert({
+        const timelineTable = agentType === 'yield' ? 'yield_agent_timeline' : 'fx_agent_timeline';
+        await supabaseAdmin.from(timelineTable).insert({
           wallet_address: walletAddress,
           event_type: 'trade',
           summary: `Manual swap: ${amount} ${from} → ${to}`,

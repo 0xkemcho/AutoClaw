@@ -1,6 +1,7 @@
 import { type Address, type PublicClient, parseUnits, formatUnits, erc20Abi, encodeFunctionData } from 'viem';
 import {
   getQuote,
+  findRoute,
   applySlippage,
   checkAllowance,
   buildApproveTx,
@@ -79,6 +80,19 @@ export async function executeYieldDeposit(params: {
       }
 
       const amountIn = parseUnits(amountUsd.toString(), sourceToken.decimals);
+
+      const route = await findRoute(
+        sourceToken.address,
+        depositToken,
+        celoClient as unknown as PublicClient,
+      );
+      if (!route || route.length === 0) {
+        return {
+          success: false,
+          action: 'deposit',
+          error: `No swap route from ${sourceToken.symbol} to vault deposit token. Fund your wallet with USDC or USDT to deposit into this vault.`,
+        };
+      }
 
       const quote = await getQuote({
         tokenIn: sourceToken.address,
