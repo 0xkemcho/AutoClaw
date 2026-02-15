@@ -33,6 +33,11 @@ interface SendModalProps {
 
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
+// On Celo, gas is paid in the fee currency (USDC/USDT/USDm). When sending one of these,
+// reserve a buffer so the tx doesn't fail with "transfer amount exceeds balance".
+const FEE_CURRENCY_TOKENS = new Set(['USDC', 'USDT', 'USDm']);
+const GAS_BUFFER_USD = 0.02;
+
 export function SendModal({ open, onOpenChange, holdings }: SendModalProps) {
   const queryClient = useQueryClient();
 
@@ -89,7 +94,11 @@ export function SendModal({ open, onOpenChange, holdings }: SendModalProps) {
 
   function handleMax() {
     if (selectedHolding) {
-      setAmount(String(selectedHolding.balance));
+      let maxAmount = selectedHolding.balance;
+      if (FEE_CURRENCY_TOKENS.has(token)) {
+        maxAmount = Math.max(0, selectedHolding.balance - GAS_BUFFER_USD);
+      }
+      setAmount(String(maxAmount));
     }
   }
 

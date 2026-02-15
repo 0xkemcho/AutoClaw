@@ -198,7 +198,7 @@ export function RegisterAgent({
           <Button onClick={handleRegister} className="gap-2">
             <ShieldCheck className="size-4" />
             Register on ERC-8004
-            <Badge variant="outline" className="ml-1 text-[10px]">
+            <Badge variant="outline" className="ml-1 text-[10px] border-primary/40 bg-primary/20 text-primary-foreground">
               Gasless
             </Badge>
           </Button>

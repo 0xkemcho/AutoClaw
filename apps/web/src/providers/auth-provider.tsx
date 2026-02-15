@@ -74,10 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [resetState]);
 
   // Wait for thirdweb wallet status to settle before checking session.
-  // "connecting" = auto-connect in progress; once it resolves to
-  // "connected" or "disconnected" we know the wallet state.
+  // "connecting" = auto-connect in progress; "unknown" = not yet determined (e.g. on refresh).
+  // Once it resolves to "connected" or "disconnected" we know the wallet state.
   useEffect(() => {
-    if (walletStatus === 'connecting') return; // still resolving
+    if (walletStatus === 'connecting' || walletStatus === 'unknown') return; // still resolving
     if (sessionChecked.current) return; // already ran
     sessionChecked.current = true;
 
@@ -116,17 +116,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [resetState, refreshSession]);
 
   // Sync with thirdweb wallet state: if the wallet disconnects after being
-  // connected, clear the auth state. Don't clear during auto-reconnect.
+  // connected, clear the auth state. Debounce to avoid spurious logouts during
+  // transient disconnects (reconnect, network switch, extension refresh).
   const hadAccount = useRef(false);
+  const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const DISCONNECT_DEBOUNCE_MS = 2500;
+
   useEffect(() => {
     if (activeAccount) {
       hadAccount.current = true;
+      if (disconnectTimerRef.current) {
+        clearTimeout(disconnectTimerRef.current);
+        disconnectTimerRef.current = null;
+      }
     } else if (hadAccount.current && isAuthenticated && walletStatus === 'disconnected') {
-      // Only clear if wallet is explicitly disconnected, not during 'connecting' phase
-      hadAccount.current = false;
-      clearToken();
-      resetState();
+      if (disconnectTimerRef.current) return;
+      disconnectTimerRef.current = setTimeout(() => {
+        disconnectTimerRef.current = null;
+        hadAccount.current = false;
+        clearToken();
+        resetState();
+      }, DISCONNECT_DEBOUNCE_MS);
     }
+    return () => {
+      if (disconnectTimerRef.current) {
+        clearTimeout(disconnectTimerRef.current);
+      }
+    };
   }, [activeAccount, isAuthenticated, walletStatus, resetState]);
 
   return (

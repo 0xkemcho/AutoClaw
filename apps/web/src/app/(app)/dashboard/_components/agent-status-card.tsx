@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Play,
   Pause,
@@ -30,9 +31,14 @@ import {
 import { useToggleAgent, useRunNow } from '@/hooks/use-agent';
 import { useAgentReputation } from '@/hooks/use-reputation';
 import { SignalCard } from '@/components/signal-card';
-import { formatCountdown, formatRelativeTime } from '@/lib/format';
+import { formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import {
+  CountdownRing,
+  AgentProgressStepper,
+  RING_SIZE,
+} from './agent-countdown';
 
 const ERC8004_SCAN_BASE = 'https://www.8004scan.io/agents/celo';
 
@@ -81,169 +87,6 @@ interface AgentStatusCardProps {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Progress Stepper                                                   */
-/* ------------------------------------------------------------------ */
-
-const STEPS: ProgressStep[] = [
-  'fetching_news',
-  'analyzing',
-  'checking_signals',
-  'executing_trades',
-];
-
-const STEP_SHORT_LABELS: Record<string, string> = {
-  fetching_news: 'Fetch',
-  analyzing: 'Analyze',
-  checking_signals: 'Signals',
-  executing_trades: 'Trade',
-};
-
-function ProgressStepper({
-  currentStep,
-  stepLabel,
-  stepMessage,
-}: {
-  currentStep: ProgressStep | null;
-  stepLabel: string;
-  stepMessage: string;
-}) {
-  const shouldReduceMotion = useReducedMotion();
-  const currentIdx = currentStep ? STEPS.indexOf(currentStep) : -1;
-  const isComplete = currentStep === 'complete';
-  const isError = currentStep === 'error';
-
-  return (
-    <div className="flex flex-col items-center gap-3" style={{ width: RING_SIZE, minHeight: RING_SIZE }}>
-      {/* Step indicators */}
-      <div className="flex items-center gap-1.5 w-full justify-center">
-        {STEPS.map((step, i) => {
-          const isDone = isComplete || i < currentIdx;
-          const isActive = i === currentIdx && !isComplete && !isError;
-          return (
-            <div key={step} className="flex items-center gap-1.5">
-              <div className="flex flex-col items-center gap-1">
-                <motion.div
-                  className={cn(
-                    'size-6 rounded-full flex items-center justify-center text-[11px] font-medium border transition-colors',
-                    isDone && 'bg-success border-success text-success-foreground',
-                    isActive && 'border-primary bg-primary/10 text-primary',
-                    !isDone && !isActive && 'border-muted-foreground/30 text-muted-foreground/50',
-                  )}
-                  animate={isActive && !shouldReduceMotion ? { scale: [1, 1.1, 1] } : {}}
-                  transition={isActive && !shouldReduceMotion ? { repeat: Infinity, duration: 1.5 } : {}}
-                >
-                  {isDone ? (
-                    <CheckCircle2 className="size-3.5" />
-                  ) : isActive ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    i + 1
-                  )}
-                </motion.div>
-                <span className={cn(
-                  'text-[11px] leading-none',
-                  (isDone || isActive) ? 'text-foreground' : 'text-muted-foreground/50',
-                )}>
-                  {STEP_SHORT_LABELS[step]}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div
-                  className={cn(
-                    'h-px w-3 mb-3',
-                    i < currentIdx || isComplete
-                      ? 'bg-success'
-                      : 'bg-muted-foreground/20',
-                  )}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Status message */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentStep}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          className="text-center"
-        >
-          {isComplete ? (
-            <div className="flex items-center gap-1.5 text-success">
-              <CheckCircle2 className="size-4" />
-              <span className="text-sm font-medium">Done</span>
-            </div>
-          ) : isError ? (
-            <div className="flex items-center gap-1.5 text-destructive">
-              <XCircle className="size-4" />
-              <span className="text-sm font-medium">Failed</span>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">{stepLabel}</p>
-          )}
-          {stepMessage && !isComplete && !isError && (
-            <p className="text-xs text-muted-foreground/70 mt-0.5 line-clamp-1 max-w-[200px]">
-              {stepMessage}
-            </p>
-          )}
-        </motion.div>
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Countdown Ring constants                                           */
-/* ------------------------------------------------------------------ */
-
-const RING_SIZE = 140;
-const RING_STROKE = 6;
-const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-
-/* ------------------------------------------------------------------ */
-/*  useCountdown hook                                                  */
-/* ------------------------------------------------------------------ */
-
-function useCountdown(nextRunAt: string | null, lastRunAt: string | null, frequencyHours: number) {
-  const [timeLeft, setTimeLeft] = useState('--');
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    if (!nextRunAt) {
-      setTimeLeft('--');
-      setProgress(0);
-      return;
-    }
-
-    const nextMs = new Date(nextRunAt).getTime();
-    const lastMs = lastRunAt ? new Date(lastRunAt).getTime() : 0;
-    const fallbackMs = (frequencyHours || 4) * 60 * 60 * 1000;
-    const intervalMs = lastMs > 0 ? nextMs - lastMs : fallbackMs;
-
-    function tick() {
-      const diff = nextMs - Date.now();
-      if (diff <= 0) {
-        setTimeLeft('Now');
-        setProgress(1);
-        return;
-      }
-      setTimeLeft(formatCountdown(nextRunAt!));
-      setProgress(Math.min(1, Math.max(0, 1 - diff / intervalMs)));
-    }
-
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [nextRunAt, lastRunAt, frequencyHours]);
-
-  return { timeLeft, progress };
-}
-
-/* ------------------------------------------------------------------ */
 /*  Direction icon helper                                              */
 /* ------------------------------------------------------------------ */
 
@@ -265,6 +108,7 @@ export function AgentStatusCard({
   latestSignal,
   progress,
 }: AgentStatusCardProps) {
+  const router = useRouter();
   /* ---- mutations ---- */
   const toggleMutation = useToggleAgent();
   const runNowMutation = useRunNow();
@@ -346,9 +190,6 @@ export function AgentStatusCard({
 
   const isCoolingDown = cooldownEnd !== null && cooldownEnd > Date.now();
 
-  /* ---- countdown ---- */
-  const { timeLeft, progress: countdownProgress } = useCountdown(config.nextRunAt, config.lastRunAt, config.frequency);
-
   /* ---- handlers ---- */
   function handleToggle() {
     const previous = isActive;
@@ -391,10 +232,6 @@ export function AgentStatusCard({
       },
     });
   }
-
-  /* ---- derived ---- */
-  const strokeOffset =
-    RING_CIRCUMFERENCE - countdownProgress * RING_CIRCUMFERENCE;
 
   return (
     <Card>
@@ -454,12 +291,13 @@ export function AgentStatusCard({
           ) : isRegistered8004 && reputationQuery.isLoading ? (
             <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
           ) : !isRegistered8004 ? (
-            <a
-              href="/settings"
+            <button
+              type="button"
+              onClick={() => router.push('/onboarding?agent=fx&step=register')}
               className="text-xs text-primary hover:underline"
             >
               Register
-            </a>
+            </button>
           ) : null}
         </div>
       </CardHeader>
@@ -477,10 +315,11 @@ export function AgentStatusCard({
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2 }}
             >
-              <ProgressStepper
+              <AgentProgressStepper
                 currentStep={progress.currentStep}
                 stepLabel={progress.stepLabel}
                 stepMessage={progress.stepMessage}
+                variant="fx"
               />
             </motion.div>
           ) : (
@@ -490,46 +329,12 @@ export function AgentStatusCard({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="relative"
-              style={{ width: RING_SIZE, height: RING_SIZE }}
             >
-              <svg
-                width={RING_SIZE}
-                height={RING_SIZE}
-                className="-rotate-90"
-                aria-hidden="true"
-              >
-                {/* Background circle */}
-                <circle
-                  cx={RING_SIZE / 2}
-                  cy={RING_SIZE / 2}
-                  r={RING_RADIUS}
-                  fill="none"
-                  stroke="var(--border)"
-                  strokeWidth={RING_STROKE}
-                />
-                {/* Progress circle */}
-                <motion.circle
-                  cx={RING_SIZE / 2}
-                  cy={RING_SIZE / 2}
-                  r={RING_RADIUS}
-                  fill="none"
-                  stroke="var(--primary)"
-                  strokeWidth={RING_STROKE}
-                  strokeLinecap="round"
-                  strokeDasharray={RING_CIRCUMFERENCE}
-                  animate={{ strokeDashoffset: strokeOffset }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-                />
-              </svg>
-
-              {/* Center label */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-mono text-2xl tabular-nums font-bold">
-                  {timeLeft}
-                </span>
-                <span className="text-xs text-muted-foreground">next run</span>
-              </div>
+              <CountdownRing
+                nextRunAt={config.nextRunAt}
+                lastRunAt={config.lastRunAt}
+                frequency={config.frequency}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -677,9 +482,13 @@ export function AgentStatusCard({
 
           {!isRegistered8004 && (
             <p className="text-center text-xs text-muted-foreground">
-              <a href="/settings" className="text-primary hover:underline">
+              <button
+                type="button"
+                onClick={() => router.push('/onboarding?agent=fx&step=register')}
+                className="text-primary hover:underline"
+              >
                 Register on ERC-8004
-              </a>{' '}
+              </button>{' '}
               to activate your agent
             </p>
           )}

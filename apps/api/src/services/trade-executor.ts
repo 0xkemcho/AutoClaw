@@ -1,4 +1,4 @@
-import { type Address, type PublicClient, parseUnits, erc20Abi, encodeFunctionData } from 'viem';
+import { type Address, type PublicClient, parseUnits, formatUnits, encodeFunctionData } from 'viem';
 import {
   getQuote,
   applySlippage,
@@ -10,6 +10,7 @@ import {
   USDC_FEE_ADAPTER,
   USDT_FEE_ADAPTER,
   brokerAbi,
+  erc20Abi,
 } from '@autoclaw/contracts';
 import { getTokenAddress, getTokenDecimals, USDC_CELO_ADDRESS, USDT_CELO_ADDRESS } from '@autoclaw/shared';
 import { celoClient } from '../lib/celo-client';
@@ -327,6 +328,216 @@ export async function executeTrade(params: {
     amountOut: quote.amountOut,
     rate: quote.rate,
   };
+}
+
+/**
+ * Execute a manual swap for an arbitrary token pair (e.g. AUDm → USDC).
+ * Uses the same Mento Broker flow as executeTrade but supports any from/to pair.
+ */
+export async function executeSwap(params: {
+  serverWalletId: string;
+  serverWalletAddress: string;
+  from: string;
+  to: string;
+  amount: string;
+  slippagePct?: number;
+}): Promise<TradeResult> {
+  const { serverWalletId, serverWalletAddress, from, to, amount, slippagePct = 0.5 } = params;
+
+  const fromAddress = getTokenAddress(from) as Address | undefined;
+  const toAddress = getTokenAddress(to) as Address | undefined;
+  if (!fromAddress || !toAddress) {
+    throw new Error(`Unknown token: ${from} or ${to}`);
+  }
+
+  const tokenInDecimals = getTokenDecimals(from);
+  const tokenOutDecimals = getTokenDecimals(to);
+  const amountIn = parseUnits(amount, tokenInDecimals);
+
+  const feeCurrency = await selectFeeCurrency(serverWalletAddress as Address);
+  const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
+
+  const quote = await getQuote({
+    tokenIn: fromAddress,
+    tokenOut: toAddress,
+    amountIn,
+    tokenInDecimals,
+    tokenOutDecimals,
+    celoClient: celoClient as unknown as PublicClient,
+  });
+
+  const amountOutMin = applySlippage(quote.amountOut, slippagePct);
+
+  const approvalKey = `${fromAddress}-${serverWalletAddress}`;
+  const cachedAt = approvalCache.get(approvalKey);
+  const isCacheValid = cachedAt && (Date.now() - cachedAt) < APPROVAL_CACHE_TTL_MS;
+
+  if (!isCacheValid) {
+    const allowance = await checkAllowance({
+      token: fromAddress,
+      owner: serverWalletAddress as Address,
+      spender: BROKER_ADDRESS,
+      celoClient: celoClient as unknown as PublicClient,
+    });
+    if (allowance < amountIn) {
+      const approveTx = buildApproveTx({ token: fromAddress, spender: BROKER_ADDRESS });
+      const approveHash = await walletClient.sendTransaction({
+        to: approveTx.to,
+        data: approveTx.data,
+        chain: walletClient.chain,
+        feeCurrency,
+      });
+      await celoClient.waitForTransactionReceipt({ hash: approveHash });
+    }
+    approvalCache.set(approvalKey, Date.now());
+  }
+
+  const walletBalance = await celoClient.readContract({
+    address: fromAddress,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [serverWalletAddress as Address],
+  });
+  if (walletBalance < amountIn) {
+    throw new Error(
+      `Insufficient ${from} balance: have ${formatUnits(walletBalance, tokenInDecimals)}, need ${amount}`,
+    );
+  }
+
+  let lastHash: `0x${string}` = '0x';
+  let currentAmountIn = amountIn;
+
+  for (let i = 0; i < quote.route.length; i++) {
+    const hop = quote.route[i];
+    const isLastHop = i === quote.route.length - 1;
+    const hopMinOut = isLastHop ? amountOutMin : 1n;
+
+    if (i > 0) {
+      currentAmountIn = await celoClient.readContract({
+        address: hop.tokenIn,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [serverWalletAddress as Address],
+      });
+      const intermediateAllowance = await checkAllowance({
+        token: hop.tokenIn,
+        owner: serverWalletAddress as Address,
+        spender: BROKER_ADDRESS,
+        celoClient: celoClient as unknown as PublicClient,
+      });
+      if (intermediateAllowance < currentAmountIn) {
+        const approveTx = buildApproveTx({ token: hop.tokenIn, spender: BROKER_ADDRESS });
+        const approveHash = await walletClient.sendTransaction({
+          to: approveTx.to,
+          data: approveTx.data,
+          chain: walletClient.chain,
+          feeCurrency,
+        });
+        await celoClient.waitForTransactionReceipt({ hash: approveHash });
+      }
+    }
+
+    const data = encodeFunctionData({
+      abi: brokerAbi,
+      functionName: 'swapIn',
+      args: [
+        BIPOOL_MANAGER_ADDRESS,
+        hop.exchangeId,
+        hop.tokenIn,
+        hop.tokenOut,
+        currentAmountIn,
+        hopMinOut,
+      ],
+    });
+
+    try {
+      lastHash = await walletClient.sendTransaction({
+        to: BROKER_ADDRESS,
+        data,
+        chain: walletClient.chain,
+        feeCurrency,
+      });
+    } catch (err) {
+      throw parseTransactionError(err, `Swap ${from} → ${to} failed`);
+    }
+    const receipt = await celoClient.waitForTransactionReceipt({ hash: lastHash });
+    if (receipt.status === 'reverted') {
+      throw new Error(
+        `Swap ${from} → ${to} reverted (tx: ${lastHash}). Likely causes: slippage exceeded or insufficient liquidity.`,
+      );
+    }
+  }
+
+  return {
+    txHash: lastHash,
+    amountIn,
+    amountOut: quote.amountOut,
+    rate: quote.rate,
+  };
+}
+
+const FEE_CURRENCY_TOKEN_SYMBOLS = new Set(['USDC', 'USDT', 'USDm']);
+const GAS_BUFFER_HUMAN = '0.02';
+
+/**
+ * Send tokens from the agent's server wallet to a recipient address.
+ * When sending USDC/USDT/USDm, gas is paid in that token — use MAX to auto-reserve.
+ */
+export async function sendTokens(params: {
+  serverWalletId: string;
+  serverWalletAddress: string;
+  token: string;
+  amount: string;
+  recipient: string;
+}): Promise<{ txHash: string }> {
+  const { serverWalletId, serverWalletAddress, token, amount, recipient } = params;
+
+  const tokenAddress = getTokenAddress(token) as Address | undefined;
+  if (!tokenAddress) {
+    throw new Error(`Unknown token: ${token}`);
+  }
+
+  const decimals = getTokenDecimals(token);
+  const amountWei = parseUnits(amount, decimals);
+
+  const feeCurrency = await selectFeeCurrency(serverWalletAddress as Address);
+  const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
+
+  const balance = await celoClient.readContract({
+    address: tokenAddress,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [serverWalletAddress as Address],
+  });
+  if (balance < amountWei) {
+    const hint =
+      FEE_CURRENCY_TOKEN_SYMBOLS.has(token)
+        ? ` Reserve ~${GAS_BUFFER_HUMAN} ${token} for gas. Use MAX to send the rest.`
+        : '';
+    throw new Error(
+      `Insufficient ${token} balance: have ${formatUnits(balance, decimals)}, need ${amount}.${hint}`,
+    );
+  }
+
+  const data = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: 'transfer',
+    args: [recipient as Address, amountWei],
+  });
+
+  const hash = await walletClient.sendTransaction({
+    to: tokenAddress,
+    data,
+    chain: walletClient.chain,
+    feeCurrency,
+  });
+
+  const receipt = await celoClient.waitForTransactionReceipt({ hash });
+  if (receipt.status === 'reverted') {
+    throw new Error(`Transfer reverted (tx: ${hash})`);
+  }
+
+  return { txHash: hash };
 }
 
 /** Clear the approval cache (useful for testing) */

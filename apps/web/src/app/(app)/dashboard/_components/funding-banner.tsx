@@ -8,24 +8,30 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { useMotionSafe } from '@/lib/motion';
 
-const DISMISS_KEY = 'autoclaw_funding_banner_dismissed';
+const DEFAULT_DISMISS_KEY = 'autoclaw_funding_banner_dismissed';
+const DEFAULT_MESSAGE = 'Fund your agent to start trading.';
 
 interface FundingBannerProps {
   serverWalletAddress: string;
+  message?: string;
+  dismissKey?: string;
 }
 
-export function FundingBanner({ serverWalletAddress }: FundingBannerProps) {
+export function FundingBanner({
+  serverWalletAddress,
+  message = DEFAULT_MESSAGE,
+  dismissKey = DEFAULT_DISMISS_KEY,
+}: FundingBannerProps) {
   const m = useMotionSafe();
   const [dismissed, setDismissed] = useState(() => {
-    // Check localStorage during initialization
     if (typeof window === 'undefined') return false;
-    return localStorage.getItem(DISMISS_KEY) === 'true';
+    return localStorage.getItem(dismissKey) === 'true';
   });
   const [copied, setCopied] = useState(false);
 
   function handleDismiss() {
     setDismissed(true);
-    localStorage.setItem(DISMISS_KEY, 'true');
+    localStorage.setItem(dismissKey, 'true');
   }
 
   async function handleCopy() {
@@ -45,9 +51,7 @@ export function FundingBanner({ serverWalletAddress }: FundingBannerProps) {
           className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3"
         >
           <Coins className="size-5 text-primary shrink-0" aria-hidden="true" />
-          <p className="text-sm">
-            Fund your agent to start trading.
-          </p>
+          <p className="text-sm flex-1">{message}</p>
           <Button
             variant="ghost"
             size="xs"

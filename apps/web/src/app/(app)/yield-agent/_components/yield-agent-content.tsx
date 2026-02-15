@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useMotionSafe } from '@/lib/motion';
 import {
   Sprout,
@@ -13,16 +13,10 @@ import {
   Pause,
   Settings,
   ArrowDownToLine,
-  ArrowUpRight,
-  ArrowDownLeft,
   ExternalLink,
   Loader2,
   Ban,
   Info,
-  Copy,
-  Check,
-  Wallet,
-  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -69,13 +63,20 @@ import {
   useUpdateYieldSettings,
   useWithdrawAll,
 } from '@/hooks/use-yield-agent';
+import { usePortfolio } from '@/hooks/use-portfolio';
+import { useMarketTokens } from '@/hooks/use-market';
 import type { YieldTimelineFilters } from '@/hooks/use-yield-agent';
 import { useAgentProgress } from '@/hooks/use-agent-progress';
-import { formatUsd, formatRelativeTime, formatCountdown, shortenAddress } from '@/lib/format';
+import { formatUsd, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { ReceiveModal } from '@/app/(app)/dashboard/_components/receive-modal';
-import { SendModal } from '@/app/(app)/dashboard/_components/send-modal';
+import { PortfolioCard } from '@/app/(app)/dashboard/_components/portfolio-card';
+import { FundingBanner } from '@/app/(app)/dashboard/_components/funding-banner';
+import {
+  CountdownRing,
+  AgentProgressStepper,
+} from '@/app/(app)/dashboard/_components/agent-countdown';
 import { ReasoningView } from '@/components/reasoning-view';
+import { EmptyState } from '@/components/empty-state';
 
 const EXPLORER_BASE =
   process.env.NEXT_PUBLIC_CELO_EXPLORER_URL || 'https://celoscan.io';
@@ -99,112 +100,12 @@ function eventBadgeClass(eventType: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Agent Tab: Wallet Section                                          */
-/* ------------------------------------------------------------------ */
-
-function YieldWalletSection() {
-  const { data, isLoading } = useYieldAgentStatus();
-  const [copied, setCopied] = useState(false);
-  const [receiveOpen, setReceiveOpen] = useState(false);
-  const [sendOpen, setSendOpen] = useState(false);
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-32" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-4 w-48" />
-          <div className="flex gap-2">
-            <Skeleton className="h-9 flex-1" />
-            <Skeleton className="h-9 flex-1" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const serverWalletAddress = data?.config.serverWalletAddress;
-  if (!serverWalletAddress) return null;
-
-  async function handleCopy() {
-    if (!serverWalletAddress) return;
-    await navigator.clipboard.writeText(serverWalletAddress);
-    toast('Address copied!');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Wallet className="size-4 text-amber-500" />
-          <CardTitle className="text-base">Agent Wallet</CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center gap-2">
-          <code className="flex-1 truncate font-mono text-sm text-muted-foreground">
-            {shortenAddress(serverWalletAddress, 6)}
-          </code>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 shrink-0"
-            onClick={handleCopy}
-          >
-            {copied ? (
-              <Check className="size-3.5 text-emerald-400" />
-            ) : (
-              <Copy className="size-3.5" />
-            )}
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 gap-1.5"
-            onClick={() => setReceiveOpen(true)}
-          >
-            <ArrowDownLeft className="size-4" />
-            Receive
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 gap-1.5"
-            onClick={() => setSendOpen(true)}
-          >
-            <ArrowUpRight className="size-4" />
-            Send
-          </Button>
-        </div>
-
-        <ReceiveModal
-          open={receiveOpen}
-          onOpenChange={setReceiveOpen}
-          walletAddress={serverWalletAddress}
-        />
-        <SendModal
-          open={sendOpen}
-          onOpenChange={setSendOpen}
-          holdings={[]}
-        />
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Agent Tab: Status Section                                          */
 /* ------------------------------------------------------------------ */
 
 function YieldStatusSection() {
   const { data, isLoading } = useYieldAgentStatus();
+  const { data: timelineData } = useYieldTimeline({ limit: 5 });
   const toggleAgent = useToggleYieldAgent();
   const runNow = useRunYieldNow();
   const progress = useAgentProgress();
@@ -234,36 +135,105 @@ function YieldStatusSection() {
 
   const { config, positionCount, tradesToday } = data;
   const isActive = config.active;
+  const isRunning =
+    progress.isRunning ||
+    progress.currentStep === 'complete' ||
+    progress.currentStep === 'error';
+
+  const latestEntry = timelineData?.entries?.[0];
 
   return (
     <Card className={isActive ? 'border-amber-500/20 bg-amber-500/5' : ''}>
-      <CardHeader>
+      <CardHeader className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sprout className="size-5 text-amber-500" />
-            <CardTitle className="text-base">Yield Agent</CardTitle>
+            <span
+              className={cn(
+                'inline-block size-2.5 rounded-full',
+                isActive ? 'bg-success' : 'bg-muted-foreground',
+              )}
+            />
+            <CardTitle className="text-lg">
+              {isActive ? 'Active' : 'Paused'}
+            </CardTitle>
           </div>
-          <Badge
-            variant="outline"
-            className={cn(
-              'text-xs',
-              isActive
-                ? 'border-emerald-500/40 text-emerald-400'
-                : 'border-muted-foreground/40 text-muted-foreground',
-            )}
-          >
-            {isActive ? 'Active' : 'Paused'}
-          </Badge>
+          <Badge variant="secondary">{config.frequency}h</Badge>
         </div>
         <CardDescription>
           Automated yield optimization across Celo DeFi protocols
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center gap-3">
+      <CardContent className="flex flex-col items-center gap-6">
+        <AnimatePresence mode="wait">
+          {isRunning ? (
+            <motion.div
+              key="stepper"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+            >
+              <AgentProgressStepper
+                currentStep={progress.currentStep}
+                stepLabel={progress.stepLabel}
+                stepMessage={progress.stepMessage}
+                variant="yield"
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="countdown"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+            >
+              <CountdownRing
+                nextRunAt={config.nextRunAt}
+                lastRunAt={config.lastRunAt}
+                frequency={config.frequency}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex w-full items-center justify-around border-y py-4">
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="font-mono text-xl tabular-nums font-semibold">
+              {tradesToday}
+            </span>
+            <span className="text-xs text-muted-foreground">trades today</span>
+          </div>
+          <div className="h-8 w-px bg-border" />
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="font-mono text-lg tabular-nums font-semibold">
+              {positionCount}
+            </span>
+            <span className="text-xs text-muted-foreground">positions</span>
+          </div>
+        </div>
+
+        {latestEntry && (
+          <div className="w-full rounded-lg bg-muted/50 p-3">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                  Latest Action
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {formatRelativeTime(latestEntry.createdAt)}
+                </span>
+              </div>
+              <p className="text-sm line-clamp-2">{latestEntry.summary}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex w-full items-center gap-3">
           <Button
             variant={isActive ? 'outline' : 'default'}
             size="sm"
+            className="flex-1 gap-1.5"
             disabled={toggleAgent.isPending}
             onClick={() => {
               toggleAgent.mutate(undefined, {
@@ -282,14 +252,12 @@ function YieldStatusSection() {
             ) : (
               <Play className="size-4" />
             )}
-            <span className="ml-1.5">
-              {isActive ? 'Pause' : 'Activate'}
-            </span>
+            <span>{isActive ? 'Pause' : 'Activate'}</span>
           </Button>
-
           <Button
-            variant="outline"
+            variant={isActive ? 'default' : 'outline'}
             size="sm"
+            className="flex-1 gap-1.5"
             disabled={!isActive || progress.isRunning}
             onClick={() => {
               runNow.mutate(undefined, {
@@ -302,37 +270,10 @@ function YieldStatusSection() {
             ) : (
               <RefreshCw className="size-4" />
             )}
-            <span className="ml-1.5">
+            <span>
               {progress.isRunning ? progress.stepLabel : 'Run Now'}
             </span>
           </Button>
-        </div>
-
-        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-          <div>
-            <span className="text-muted-foreground">Positions: </span>
-            <span className="font-medium">{positionCount}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Trades today: </span>
-            <span className="font-medium">{tradesToday}</span>
-          </div>
-          {config.nextRunAt && (
-            <div>
-              <span className="text-muted-foreground">Next run: </span>
-              <span className="font-mono text-amber-500">
-                {formatCountdown(config.nextRunAt)}
-              </span>
-            </div>
-          )}
-          {config.lastRunAt && (
-            <div>
-              <span className="text-muted-foreground">Last run: </span>
-              <span className="text-xs text-muted-foreground">
-                {formatRelativeTime(config.lastRunAt)}
-              </span>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
@@ -372,15 +313,12 @@ function YieldPositionsSection() {
       <div>
         <h3 className="mb-3 text-sm font-semibold">Active Positions</h3>
         <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-            <ArrowDownToLine className="mb-3 size-8 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">
-              No active vault positions yet
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground/70">
-              The agent will deposit into vaults when it finds suitable
-              opportunities.
-            </p>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={ArrowDownToLine}
+              title="No active vault positions yet"
+              description="The agent will deposit into vaults when it finds suitable opportunities."
+            />
           </CardContent>
         </Card>
       </div>
@@ -663,11 +601,8 @@ function YieldRewardsSection() {
 function AgentTab() {
   const progress = useAgentProgress();
   const { data: statusData } = useYieldAgentStatus();
-  const { data: positionsData } = useYieldPositions();
-  const [fundingBannerDismissed, setFundingBannerDismissed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('autoclaw_yield_funding_banner_dismissed') === 'true';
-  });
+  const portfolioQuery = usePortfolio('yield');
+  const marketQuery = useMarketTokens();
 
   // Show error toast when progress enters error state
   useEffect(() => {
@@ -676,44 +611,33 @@ function AgentTab() {
     }
   }, [progress.currentStep, progress.stepMessage]);
 
-  // Calculate portfolio value from positions
-  const portfolioValueUsd = (positionsData?.positions ?? []).reduce(
-    (sum, pos) => sum + pos.depositAmountUsd,
-    0
-  );
-  const serverWalletAddress = statusData?.config?.serverWalletAddress;
-  const showFundingBanner = portfolioValueUsd === 0 && !fundingBannerDismissed && serverWalletAddress;
-
-  const handleDismissFundingBanner = () => {
-    setFundingBannerDismissed(true);
-    localStorage.setItem('autoclaw_yield_funding_banner_dismissed', 'true');
-  };
+  const totalValueUsd = portfolioQuery.data?.totalValueUsd ?? 0;
+  const serverWalletAddress = statusData?.config?.serverWalletAddress ?? null;
+  const showFundingBanner = totalValueUsd === 0 && serverWalletAddress;
 
   return (
     <div className="space-y-6">
-      {/* Agent and Wallet side-by-side */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      {/* Agent and Portfolio side-by-side (matches FX layout) */}
+      <div className="grid gap-7 lg:grid-cols-[1fr_1fr]">
         <YieldStatusSection />
-        <YieldWalletSection />
+        <PortfolioCard
+          totalValueUsd={portfolioQuery.data?.totalValueUsd ?? 0}
+          totalPnl={portfolioQuery.data?.totalPnl ?? null}
+          totalPnlPct={portfolioQuery.data?.totalPnlPct ?? null}
+          holdings={portfolioQuery.data?.holdings ?? []}
+          isLoading={portfolioQuery.isLoading}
+          serverWalletAddress={serverWalletAddress}
+          marketTokens={marketQuery.data?.tokens}
+        />
       </div>
 
       {/* Empty wallet funding banner */}
-      {showFundingBanner && (
-        <div className="flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-          <Coins className="size-5 text-amber-500 shrink-0" />
-          <p className="flex-1 text-sm">
-            <span className="font-medium">Add funds to your wallet</span> to start investing in yield opportunities. Your agent will explore and analyze opportunities, but needs funds to execute deposits.
-          </p>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className="shrink-0"
-            onClick={handleDismissFundingBanner}
-          >
-            <X className="size-4" />
-            <span className="sr-only">Dismiss</span>
-          </Button>
-        </div>
+      {showFundingBanner && serverWalletAddress && (
+        <FundingBanner
+          serverWalletAddress={serverWalletAddress}
+          message="Add funds to your wallet to start investing in yield opportunities. Your agent will explore and analyze opportunities, but needs funds to execute deposits."
+          dismissKey="autoclaw_yield_funding_banner_dismissed"
+        />
       )}
 
       {/* Real-time reasoning display during analysis */}
@@ -1201,8 +1125,8 @@ function YieldHero() {
       className="space-y-8"
     >
       <div className="text-center">
-        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 ring-1 ring-amber-500/20">
-          <Sprout className="size-7 text-amber-500" />
+        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+          <Sprout className="size-7 text-primary" />
         </div>
         <h1 className="text-2xl font-bold">Yield Farming Agent</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground leading-relaxed">
@@ -1215,7 +1139,7 @@ function YieldHero() {
         {features.map((f) => (
           <Card key={f.title}>
             <CardContent className="flex flex-col items-center p-5 text-center">
-              <f.icon className="mb-3 size-6 text-amber-500" />
+              <f.icon className="mb-3 size-6 text-primary" />
               <p className="text-sm font-semibold">{f.title}</p>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 {f.desc}
@@ -1238,6 +1162,7 @@ function YieldHero() {
     </motion.div>
   );
 }
+
 
 /* ------------------------------------------------------------------ */
 /*  Main: Tabbed layout (or hero if no agent registered)               */
@@ -1310,11 +1235,11 @@ function YieldAgentTabs() {
       </div>
 
       {!data.config.agent8004Id && (
-        <div className="flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-          <Info className="size-4 shrink-0 text-amber-500" />
+        <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+          <Info className="size-4 shrink-0 text-primary" />
           <p className="flex-1 text-sm text-muted-foreground">
             Your agent isn&apos;t registered on ERC-8004 yet.{' '}
-            <span className="text-amber-500">Registration is free (gasless).</span>
+            <span className="text-primary">Registration is free (gasless).</span>
           </p>
           <Button
             variant="outline"
