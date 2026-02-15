@@ -1,24 +1,21 @@
 import { ArrowUpRight } from 'lucide-react';
+import { TokenLogo } from '@/components/token-logo';
+import { TOKEN_METADATA } from '@autoclaw/shared';
 
-const tokens = [
-  { name: 'USDm', price: '$1.0002', change: '+0.02%', up: true, color: 'bg-amber-500' },
-  { name: 'EURm', price: '$1.0845', change: '+0.12%', up: true, color: 'bg-blue-500' },
-  { name: 'BRLm', price: '$0.1932', change: '-0.45%', up: false, color: 'bg-green-500' },
-  { name: 'KESm', price: '$0.0077', change: '+0.31%', up: true, color: 'bg-red-500' },
-  { name: 'PHPm', price: '$0.0175', change: '+0.18%', up: true, color: 'bg-purple-500' },
-  { name: 'COPm', price: '$0.00024', change: '-0.22%', up: false, color: 'bg-yellow-500' },
-  { name: 'XOFm', price: '$0.0016', change: '+0.08%', up: true, color: 'bg-teal-500' },
-  { name: 'NGNm', price: '$0.00065', change: '+1.24%', up: true, color: 'bg-orange-500' },
-  { name: 'GBPm', price: '$1.2615', change: '+0.15%', up: true, color: 'bg-indigo-500' },
-  { name: 'JPYm', price: '$0.0067', change: '-0.33%', up: false, color: 'bg-pink-500' },
-];
+const tokens = Object.entries(TOKEN_METADATA).map(([symbol, meta]) => ({
+  symbol,
+  name: meta.name,
+  // Mock data for price/change since we don't have it in metadata yet
+  price: '$1.00',
+  change: '+0.00%',
+  up: true,
+  color: 'bg-neutral-800'
+}));
 
-function TokenPill({ token }: { token: (typeof tokens)[0] }) {
+function TokenPill({ token }: { token: typeof tokens[0] }) {
   return (
-    <div className="flex shrink-0 items-center gap-3 rounded-full px-4 py-2">
-      <div className={`h-7 w-7 rounded-full ${token.color} flex items-center justify-center text-[10px] font-bold text-white`}>
-        {token.name.charAt(0)}
-      </div>
+    <div className="flex shrink-0 items-center gap-3 rounded-full border border-white/5 bg-white/5 px-4 py-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] backdrop-blur-sm">
+      <TokenLogo symbol={token.symbol} size={28} className="rounded-full" />
       <div className="flex flex-col">
         <span className="text-sm font-medium">{token.name}</span>
         <span className="text-xs text-muted-foreground">{token.price}</span>
@@ -44,7 +41,7 @@ function MarqueeRow({ reverse = false }: { reverse?: boolean }) {
         }`}
       >
         {items.map((token, i) => (
-          <TokenPill key={`${token.name}-${i}`} token={token} />
+          <TokenPill key={`${token.symbol}-${i}`} token={token} />
         ))}
       </div>
       <div
@@ -54,7 +51,7 @@ function MarqueeRow({ reverse = false }: { reverse?: boolean }) {
         aria-hidden
       >
         {items.map((token, i) => (
-          <TokenPill key={`dup-${token.name}-${i}`} token={token} />
+          <TokenPill key={`dup-${token.symbol}-${i}`} token={token} />
         ))}
       </div>
     </div>
@@ -64,14 +61,14 @@ function MarqueeRow({ reverse = false }: { reverse?: boolean }) {
 export function CryptosSection() {
   return (
     <section
-      className="border-y border-neutral-700 py-24"
+      className="border-b border-neutral-800"
       id="cryptos"
     >
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="grid items-start gap-12 lg:grid-cols-2">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              All Currencies,
+      <div className="mx-auto max-w-7xl border-x border-neutral-800">
+        <div className="grid items-stretch lg:grid-cols-2">
+          <div className="flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-neutral-800 p-8 lg:p-16">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-white">
+              All Cestos,
               <br />
               One Platform
             </h2>
@@ -81,14 +78,14 @@ export function CryptosSection() {
             </p>
             <a
               href="#get-started"
-              className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+              className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-emerald-500 transition-colors hover:text-emerald-400"
             >
-              Start trading now
+              AutoClaw for Web
               <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
           </div>
 
-          <div className="space-y-3 overflow-hidden">
+          <div className="flex flex-col justify-center space-y-3 overflow-hidden p-8 lg:p-16">
             <MarqueeRow />
             <MarqueeRow reverse />
             <MarqueeRow />

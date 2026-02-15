@@ -52,7 +52,11 @@ export function ConnectCTA({ children, ...buttonProps }: ConnectCTAProps) {
   };
 
   return (
-    <Button onClick={handleClick} {...buttonProps}>
+    <Button
+      onClick={handleClick}
+      {...buttonProps}
+      className={buttonProps.className}
+    >
       {children}
     </Button>
   );

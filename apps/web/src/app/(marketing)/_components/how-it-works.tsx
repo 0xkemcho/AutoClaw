@@ -103,45 +103,53 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <section className="border-y border-neutral-700 py-24" id="how-it-works">
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+    <section className="border-b border-neutral-800" id="how-it-works">
+      <div className="mx-auto max-w-7xl border-x border-neutral-800">
+        {/* Header Grid */}
+        <div className="grid grid-cols-1 border-b border-neutral-800 lg:grid-cols-3">
+          <div className="col-span-2 border-b lg:border-b-0 lg:border-r border-neutral-800 p-8 lg:p-12">
+            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
               How It Works
             </h2>
-            <p className="mt-3 max-w-md text-muted-foreground">
+            <p className="mt-4 max-w-md text-muted-foreground">
               A simple, fast, and secure platform to manage your stablecoins in
               just a few steps.
             </p>
           </div>
-          <a
-            href="#get-started"
-            className="flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-          >
-            Create account now
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </a>
+          <div className="flex items-center lg:items-end justify-start lg:justify-end p-8 lg:p-12">
+            <a
+              href="#get-started"
+              className="flex items-center gap-1 text-sm font-medium text-emerald-500 transition-colors hover:text-emerald-400"
+            >
+              AutoClaw for Web
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </div>
 
-        <div className="mt-16 grid gap-4 md:grid-cols-3">
-          {steps.map((step) => (
+        {/* Steps Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3">
+          {steps.map((step, index) => (
             <div
               key={step.number}
-              className="group relative overflow-hidden"
+              className={`group relative flex flex-col p-8 lg:p-12 transition-colors hover:bg-white/[0.02] ${
+                index !== 2 ? 'lg:border-r border-neutral-800' : ''
+              } border-b lg:border-b-0 border-neutral-800 last:border-b-0`}
             >
               {/* Step number */}
-              <div className="absolute left-5 top-5 text-lg font-normal text-muted-foreground">
+              <div className="mb-8 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-medium text-white">
                 {step.number}
               </div>
 
               {/* Mock UI */}
-              <div className="px-5 pt-14 pb-5">{step.mock}</div>
+              <div className="mb-8 flex-1 opacity-80 transition-opacity group-hover:opacity-100">
+                {step.mock}
+              </div>
 
               {/* Label */}
-              <div className="px-5 py-4">
-                <h3 className="text-base font-semibold">{step.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
+              <div>
+                <h3 className="text-lg font-medium text-white">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {step.description}
                 </p>
               </div>

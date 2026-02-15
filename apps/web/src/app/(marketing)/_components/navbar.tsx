@@ -8,8 +8,10 @@ import { Menu, ArrowUpRight } from 'lucide-react';
 import { ConnectCTA } from './connect-cta';
 
 const navLinks = [
-  { label: 'Features', href: '#features' },
+  { label: 'Cryptos', href: '#cryptos' },
   { label: 'How it works', href: '#how-it-works' },
+  { label: 'Testimonials', href: '#testimonials' },
+  { label: 'Pricing', href: '#pricing' },
   { label: 'FAQ', href: '#faq' },
 ];
 
@@ -23,7 +25,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-neutral-700 bg-background/60 backdrop-blur-xl">
+    <header className="fixed top-0 z-50 w-full border-b border-neutral-800 bg-background/60 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <div className="flex items-center gap-10">
           <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
@@ -47,7 +49,12 @@ export function Navbar() {
 
         {/* Desktop CTA */}
         <div className="hidden md:block">
-          <ConnectCTA size="sm" className="rounded-full px-5">
+          <ConnectCTA
+              // @ts-ignore
+              variant="brand"
+              size="sm"
+              className="rounded-full h-10 px-5 font-semibold"
+          >
             Get Started
           </ConnectCTA>
         </div>

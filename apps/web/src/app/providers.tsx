@@ -7,6 +7,7 @@ import { ThirdwebProvider, AutoConnect } from 'thirdweb/react';
 import { celo } from 'thirdweb/chains';
 import { client, wallets } from '@/lib/thirdweb';
 import { AuthProvider } from '@/providers/auth-provider';
+import { SmoothScroll } from '@/components/smooth-scroll';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -38,7 +39,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             />
           )}
           <AuthProvider>
-            {children}
+            <SmoothScroll>{children}</SmoothScroll>
           </AuthProvider>
         </ThirdwebProvider>
       </QueryClientProvider>

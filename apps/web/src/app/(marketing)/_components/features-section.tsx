@@ -29,28 +29,32 @@ const features = [
 
 export function FeaturesSection() {
   return (
-    <section className="border-y border-neutral-700 py-24" id="features">
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Why Choose AutoClaw?
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            Benefits designed to provide a seamless, secure, and accessible
-            experience for all users.
-          </p>
+    <section className="border-b border-neutral-800" id="features">
+      <div className="mx-auto max-w-7xl border-x border-neutral-800">
+        <div className="border-b border-neutral-800 py-16 px-6 text-center">
+          <div className="mx-auto max-w-2xl">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-white">
+              Why Choose AutoClaw?
+            </h2>
+            <p className="mt-4 text-muted-foreground">
+              Benefits designed to provide a seamless, secure, and accessible
+              experience for all users.
+            </p>
+          </div>
         </div>
 
-        <div className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {features.map((feature) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          {features.map((feature, index) => (
             <div
               key={feature.title}
-              className="group relative overflow-hidden p-6"
+              className={`group relative flex flex-col p-8 transition-colors hover:bg-white/[0.02] border-b lg:border-b-0 border-neutral-800 ${
+                index < 3 ? 'lg:border-r' : ''
+              } ${index % 2 === 0 ? 'sm:border-r' : ''}`}
             >
-              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full">
-                <feature.icon className="h-6 w-6 text-muted-foreground" />
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5">
+                <feature.icon className="h-5 w-5 text-white" />
               </div>
-              <h3 className="text-base font-semibold">{feature.title}</h3>
+              <h3 className="text-lg font-medium text-white">{feature.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 {feature.description}
               </p>

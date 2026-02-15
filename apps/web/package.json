@@ -16,6 +16,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.x",
     "date-fns": "^4.x",
+    "lenis": "^1.3.17",
     "lucide-react": "^0.474.0",
     "motion": "^12.x",
     "next": "^15.x",

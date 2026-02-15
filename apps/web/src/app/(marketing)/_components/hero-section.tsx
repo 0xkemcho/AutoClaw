@@ -27,10 +27,12 @@ export function HeroSection() {
 
         <div className="mt-10">
           <ConnectCTA
+            // @ts-ignore
+            variant="brand"
             size="lg"
-            className="rounded-full px-10 py-6 text-base shadow-[0_0_40px_oklch(0.78_0.16_75/0.3)]"
+            className="rounded-full px-8 py-6 text-base font-semibold"
           >
-            Get started now
+            Get Started
             <ArrowUpRight className="ml-1.5 h-4 w-4" />
           </ConnectCTA>
         </div>

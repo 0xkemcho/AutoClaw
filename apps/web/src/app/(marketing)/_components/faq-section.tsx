@@ -43,14 +43,14 @@ function FaqItem({ faq }: { faq: (typeof faqs)[0] }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="border-b border-neutral-700">
+    <div className="border-b border-neutral-800 px-8 transition-colors hover:bg-neutral-900/50 cursor-pointer">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between py-5 text-left"
+        className="flex w-full items-center justify-between py-6 text-left"
       >
-        <span className="text-sm font-medium pr-4">{faq.q}</span>
+        <span className="text-sm font-medium pr-4 text-white">{faq.q}</span>
         <Plus
-          className={`h-4 w-4 shrink-0 text-primary transition-transform duration-200 ${
+          className={`h-4 w-4 shrink-0 text-emerald-500 transition-transform duration-200 ${
             open ? 'rotate-45' : ''
           }`}
         />
@@ -64,7 +64,7 @@ function FaqItem({ faq }: { faq: (typeof faqs)[0] }) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <p className="pb-5 text-sm leading-relaxed text-muted-foreground">
+            <p className="pb-6 text-sm leading-relaxed text-muted-foreground">
               {faq.a}
             </p>
           </motion.div>
@@ -80,38 +80,39 @@ export function FaqSection() {
 
   return (
     <section
-      className="border-y border-neutral-700 py-24"
+      className="border-b border-neutral-800"
       id="faq"
     >
-      <div className="mx-auto max-w-7xl px-6">
-        {/* Header */}
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+      <div className="mx-auto max-w-7xl border-x border-neutral-800">
+        {/* Header Grid */}
+        <div className="grid grid-cols-1 border-b border-neutral-800 lg:grid-cols-2">
+          <div className="border-b lg:border-b-0 lg:border-r border-neutral-800 p-8 lg:p-12">
+            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
               Your Questions, Answered
             </h2>
-            <p className="mt-3 max-w-lg text-muted-foreground">
+            <p className="mt-4 max-w-lg text-muted-foreground">
               Find everything you need to know about AutoClaw, from security to
               supported assets.
             </p>
           </div>
-          <a
-            href="#get-started"
-            className="flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-          >
-            Create account now
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </a>
+          <div className="flex items-center lg:items-end justify-start lg:justify-end p-8 lg:p-12">
+            <a
+              href="#get-started"
+              className="flex items-center gap-1 text-sm font-medium text-emerald-500 transition-colors hover:text-emerald-400"
+            >
+              AutoClaw for Web
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </div>
 
         {/* FAQ grid */}
-        <div className="mt-12 grid gap-x-8 md:grid-cols-[1fr_1px_1fr]">
-          <div>
+        <div className="grid grid-cols-1 lg:grid-cols-2">
+          <div className="lg:border-r border-neutral-800">
             {leftFaqs.map((faq) => (
               <FaqItem key={faq.q} faq={faq} />
             ))}
           </div>
-          <div className="hidden bg-neutral-700 md:block" />
           <div>
             {rightFaqs.map((faq) => (
               <FaqItem key={faq.q} faq={faq} />
