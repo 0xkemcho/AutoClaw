@@ -10,6 +10,11 @@
     "test": "turbo test",
     "clean": "turbo clean"
   },
+  "pnpm": {
+    "overrides": {
+      "viem": "2.39.0"
+    }
+  },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.18",
     "prettier": "^3.x",
