@@ -1,5 +1,5 @@
 import type { GuardrailCheck } from '@autoclaw/shared';
-import { MENTO_TOKENS } from '@autoclaw/shared';
+import { MENTO_TOKENS, DEFAULT_GUARDRAILS } from '@autoclaw/shared';
 import { fetchFxNews } from '../news-fetcher';
 import { analyzeFxNews } from '../llm-analyzer';
 import { executeTrade } from '../trade-executor';
@@ -116,13 +116,14 @@ export class FxStrategy implements AgentStrategy {
         ? MENTO_TOKENS.filter((t) => t !== 'USDm')
         : rawAllowed;
 
+    const defaults = DEFAULT_GUARDRAILS.moderate;
     return checkGuardrails({
       signal: { currency: s.currency, direction: s.direction as 'buy' | 'sell', confidence: s.confidence, reasoning: s.reasoning },
       config: {
-        maxTradeSizeUsd: config.max_trade_size_usd,
-        maxAllocationPct: config.max_allocation_pct,
-        stopLossPct: config.stop_loss_pct,
-        dailyTradeLimit: config.daily_trade_limit,
+        maxTradeSizeUsd: config.max_trade_size_usd ?? defaults.maxTradeSizeUsd,
+        maxAllocationPct: config.max_allocation_pct ?? defaults.maxAllocationPct,
+        stopLossPct: config.stop_loss_pct ?? defaults.stopLossPct,
+        dailyTradeLimit: config.daily_trade_limit ?? defaults.dailyTradeLimit,
         allowedCurrencies,
         blockedCurrencies: (config.blocked_currencies ?? []) as string[],
       },

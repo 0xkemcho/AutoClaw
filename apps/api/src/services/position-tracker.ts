@@ -46,7 +46,7 @@ export async function calculatePortfolioValue(
       .maybeSingle();
 
     const priceUsd = (snapshot as { price_usd: number } | null)?.price_usd ?? 1;
-    total += pos.balance * priceUsd;
+    total += (pos.balance ?? 0) * priceUsd;
   }
   return total;
 }

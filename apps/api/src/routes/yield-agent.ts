@@ -207,7 +207,7 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
           wallet_address: walletAddress,
           agent_type: 'yield',
           active: false,
-          frequency: body.frequency,
+          frequency: String(body.frequency),
           server_wallet_id: walletResult.walletId,
           server_wallet_address: walletResult.address,
           strategy_params: strategyParams,
