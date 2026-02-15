@@ -141,7 +141,10 @@ export function PortfolioCard({
   const [sendOpen, setSendOpen] = useState(false);
 
   const sortedHoldings = useMemo(
-    () => [...holdings].sort((a, b) => b.valueUsd - a.valueUsd),
+    () =>
+      [...holdings]
+        .filter((h) => h.valueUsd >= 0.01)
+        .sort((a, b) => b.valueUsd - a.valueUsd),
     [holdings],
   );
 

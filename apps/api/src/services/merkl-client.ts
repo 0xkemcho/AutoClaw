@@ -44,22 +44,33 @@ export async function fetchYieldOpportunities(): Promise<YieldOpportunity[]> {
   const raw = await res.json();
   const rawItems = Array.isArray(raw) ? raw : [];
 
-  const opportunities: YieldOpportunity[] = rawItems.map((item: any) => ({
-    id: item.identifier ?? item.id ?? '',
-    name: item.name ?? '',
-    vaultAddress: item.identifier ?? '',
-    protocol: typeof item.protocol === 'object' ? (item.protocol?.name ?? '') : String(item.protocol ?? ''),
-    status: item.status ?? 'LIVE',
-    apr: Number(item.apr ?? 0),
-    tvl: Number(item.tvl ?? 0),
-    dailyRewards: Number(item.dailyRewards ?? 0),
-    tokens: (item.tokens ?? []).map((t: any) => ({
-      symbol: t.symbol ?? '',
-      address: t.address ?? '',
-      decimals: t.decimals ?? 18,
-    })),
-    depositUrl: item.depositUrl,
-  }));
+  const MERKL_APP_BASE = 'https://app.merkl.xyz/opportunities/celo';
+  const opportunities: YieldOpportunity[] = rawItems.map((item: any) => {
+    const identifier = item.identifier ?? item.id ?? '';
+    const type = item.type ?? '';
+    const merklUrl =
+      identifier && type
+        ? `${MERKL_APP_BASE}/${type}/${identifier}`
+        : undefined;
+    return {
+      id: identifier,
+      name: item.name ?? '',
+      vaultAddress: identifier,
+      protocol: typeof item.protocol === 'object' ? (item.protocol?.name ?? '') : String(item.protocol ?? ''),
+      status: item.status ?? 'LIVE',
+      apr: Number(item.apr ?? 0),
+      tvl: Number(item.tvl ?? 0),
+      dailyRewards: Number(item.dailyRewards ?? 0),
+      tokens: (item.tokens ?? []).map((t: any) => ({
+        symbol: t.symbol ?? '',
+        address: t.address ?? '',
+        decimals: t.decimals ?? 18,
+      })),
+      depositUrl: item.depositUrl,
+      type,
+      merklUrl,
+    };
+  });
 
   // Sort by APR descending
   opportunities.sort((a, b) => b.apr - a.apr);

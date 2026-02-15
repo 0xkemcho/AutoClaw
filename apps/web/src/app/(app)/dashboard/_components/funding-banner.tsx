@@ -48,10 +48,10 @@ export function FundingBanner({
           initial={m.fadeIn.initial}
           animate={m.fadeIn.animate}
           exit={{ opacity: 0, y: -8 }}
-          className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3"
+          className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2"
         >
-          <Coins className="size-5 text-primary shrink-0" aria-hidden="true" />
-          <p className="text-sm flex-1">{message}</p>
+          <Coins className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+          <p className="text-xs flex-1 text-muted-foreground">{message}</p>
           <Button
             variant="ghost"
             size="xs"

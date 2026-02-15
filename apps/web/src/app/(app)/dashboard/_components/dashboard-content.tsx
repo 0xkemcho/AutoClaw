@@ -36,11 +36,22 @@ export function DashboardContent() {
   );
 
   const latestSignal = useMemo(() => {
-    // Prefer 'analysis' entries — they contain the full set of signals from a run.
-    // Trade entries are per-token and would only show the last traded currency.
+    // Exclude manual swaps, funding, guardrail — only show AI-generated signals
+    const isValidSignal = (e: (typeof dashboardEntries)[0]) => {
+      if (e.eventType === 'funding' || e.eventType === 'guardrail') return false;
+      if (
+        e.eventType === 'trade' &&
+        ((e.detail as { source?: string })?.source === 'manual_swap' ||
+          e.summary?.startsWith?.('Manual swap:'))
+      )
+        return false;
+      return true;
+    };
+    const validEntries = dashboardEntries.filter(isValidSignal);
+    // Prefer 'analysis' entries — they contain the full set of signals from a run
     const entry =
-      dashboardEntries.find((e) => e.eventType === 'analysis') ??
-      dashboardEntries.find((e) => e.eventType === 'trade');
+      validEntries.find((e) => e.eventType === 'analysis') ??
+      validEntries.find((e) => e.eventType === 'trade');
     if (!entry) return null;
     return {
       summary: entry.summary,

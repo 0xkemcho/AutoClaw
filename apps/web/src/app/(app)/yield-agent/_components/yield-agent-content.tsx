@@ -17,6 +17,9 @@ import {
   Loader2,
   Ban,
   Info,
+  ShieldCheck,
+  ShieldAlert,
+  Star,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -30,17 +33,9 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogClose,
@@ -67,8 +62,11 @@ import { usePortfolio } from '@/hooks/use-portfolio';
 import { useMarketTokens } from '@/hooks/use-market';
 import type { YieldTimelineFilters } from '@/hooks/use-yield-agent';
 import { useAgentProgress } from '@/hooks/use-agent-progress';
+import { useAgentReputation } from '@/hooks/use-reputation';
+import { formatFrequency } from '@autoclaw/shared';
 import { formatUsd, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { SliderField } from '@/components/slider-field';
 import { PortfolioCard } from '@/app/(app)/dashboard/_components/portfolio-card';
 import { FundingBanner } from '@/app/(app)/dashboard/_components/funding-banner';
 import {
@@ -80,6 +78,7 @@ import { EmptyState } from '@/components/empty-state';
 
 const EXPLORER_BASE =
   process.env.NEXT_PUBLIC_CELO_EXPLORER_URL || 'https://celoscan.io';
+const ERC8004_SCAN_BASE = 'https://www.8004scan.io/agents/celo';
 
 const DEFAULT_TAB = 'agent';
 const TIMELINE_LIMIT = 20;
@@ -104,11 +103,20 @@ function eventBadgeClass(eventType: string): string {
 /* ------------------------------------------------------------------ */
 
 function YieldStatusSection() {
+  const router = useRouter();
   const { data, isLoading } = useYieldAgentStatus();
   const { data: timelineData } = useYieldTimeline({ limit: 5 });
   const toggleAgent = useToggleYieldAgent();
   const runNow = useRunYieldNow();
   const progress = useAgentProgress();
+  const agent8004Id = data?.config?.agent8004Id ?? null;
+  const isRegistered8004 = agent8004Id !== null;
+  const reputationQuery = useAgentReputation(agent8004Id);
+  const reputation = reputationQuery.data ?? null;
+  const reputationScore =
+    reputation !== null
+      ? reputation.summaryValue / Math.pow(10, reputation.summaryDecimals)
+      : null;
 
   if (isLoading) {
     return (
@@ -159,9 +167,55 @@ function YieldStatusSection() {
           </div>
           <Badge variant="secondary">{config.frequency}h</Badge>
         </div>
-        <CardDescription>
-          Automated yield optimization across Celo DeFi protocols
-        </CardDescription>
+
+        {/* ERC-8004 Identity Badge */}
+        <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+          {isRegistered8004 ? (
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="size-4 text-primary" />
+              <a
+                href={`${ERC8004_SCAN_BASE}/${agent8004Id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+              >
+                8004 #{agent8004Id}
+                <ExternalLink className="size-3" />
+              </a>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="size-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                Not registered on 8004
+              </span>
+            </div>
+          )}
+          {isRegistered8004 && reputation !== null ? (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Star className="size-3.5 fill-primary text-primary" />
+              <span className="font-mono tabular-nums font-medium text-foreground">
+                {reputationScore?.toFixed(1)}
+              </span>
+              <span className="text-xs">
+                | {reputation.feedbackCount}{' '}
+                {reputation.feedbackCount === 1 ? 'review' : 'reviews'}
+              </span>
+            </div>
+          ) : isRegistered8004 && reputationQuery.isLoading ? (
+            <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+          ) : !isRegistered8004 ? (
+            <button
+              type="button"
+              onClick={() =>
+                router.push('/onboarding?agent=yield&step=register')
+              }
+              className="text-xs text-primary hover:underline"
+            >
+              Register
+            </button>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-6">
         <AnimatePresence mode="wait">
@@ -454,15 +508,16 @@ function YieldOpportunitiesSection() {
                 key={opp.id}
                 className={cn(
                   "flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30",
-                  opp.depositUrl && "cursor-pointer"
+                  (opp.merklUrl ?? opp.depositUrl) && "cursor-pointer"
                 )}
                 onClick={() => {
-                  if (opp.depositUrl) {
-                    window.open(opp.depositUrl, '_blank', 'noopener,noreferrer');
+                  const url = opp.merklUrl ?? opp.depositUrl;
+                  if (url) {
+                    window.open(url, '_blank', 'noopener,noreferrer');
                   }
                 }}
-                role={opp.depositUrl ? "button" : undefined}
-                tabIndex={opp.depositUrl ? 0 : undefined}
+                role={opp.merklUrl ?? opp.depositUrl ? "button" : undefined}
+                tabIndex={opp.merklUrl ?? opp.depositUrl ? 0 : undefined}
               >
                 {/* Rank */}
                 <span className="w-8 text-center text-sm text-muted-foreground font-mono">
@@ -635,7 +690,7 @@ function AgentTab() {
       {showFundingBanner && serverWalletAddress && (
         <FundingBanner
           serverWalletAddress={serverWalletAddress}
-          message="Add funds to your wallet to start investing in yield opportunities. Your agent will explore and analyze opportunities, but needs funds to execute deposits."
+          message="Add funds to start investing."
           dismissKey="autoclaw_yield_funding_banner_dismissed"
         />
       )}
@@ -803,25 +858,25 @@ function SettingsTab() {
   const config = statusData?.config;
   const params = config?.strategyParams;
 
-  const [frequency, setFrequency] = useState<string>('');
-  const [minAprThreshold, setMinAprThreshold] = useState('');
-  const [maxSingleVaultPct, setMaxSingleVaultPct] = useState('');
-  const [minHoldPeriodDays, setMinHoldPeriodDays] = useState('');
-  const [maxVaultCount, setMaxVaultCount] = useState('');
-  const [minTvlUsd, setMinTvlUsd] = useState('');
+  const [frequency, setFrequency] = useState(4);
+  const [minAprThreshold, setMinAprThreshold] = useState(5);
+  const [maxSingleVaultPct, setMaxSingleVaultPct] = useState(40);
+  const [minHoldPeriodDays, setMinHoldPeriodDays] = useState(3);
+  const [maxVaultCount, setMaxVaultCount] = useState(5);
+  const [minTvlUsd, setMinTvlUsd] = useState(50_000);
   const [autoCompound, setAutoCompound] = useState(false);
 
   // Sync form state when data loads
   useEffect(() => {
     if (!config) return;
-    setFrequency(String(config.frequency));
+    setFrequency(config.frequency);
 
     if (params) {
-      setMinAprThreshold(String(params.minAprThreshold));
-      setMaxSingleVaultPct(String(params.maxSingleVaultPct));
-      setMinHoldPeriodDays(String(params.minHoldPeriodDays));
-      setMaxVaultCount(String(params.maxVaultCount));
-      setMinTvlUsd(String(params.minTvlUsd));
+      setMinAprThreshold(params.minAprThreshold);
+      setMaxSingleVaultPct(params.maxSingleVaultPct);
+      setMinHoldPeriodDays(params.minHoldPeriodDays);
+      setMaxVaultCount(params.maxVaultCount);
+      setMinTvlUsd(params.minTvlUsd);
       setAutoCompound(params.autoCompound);
     }
   }, [config, params]);
@@ -829,13 +884,13 @@ function SettingsTab() {
   const handleSave = () => {
     updateSettings.mutate(
       {
-        frequency: Number(frequency),
+        frequency,
         strategyParams: {
-          minAprThreshold: Number(minAprThreshold),
-          maxSingleVaultPct: Number(maxSingleVaultPct),
-          minHoldPeriodDays: Number(minHoldPeriodDays),
-          maxVaultCount: Number(maxVaultCount),
-          minTvlUsd: Number(minTvlUsd),
+          minAprThreshold,
+          maxSingleVaultPct,
+          minHoldPeriodDays,
+          maxVaultCount,
+          minTvlUsd,
           autoCompound,
         },
       },
@@ -902,111 +957,71 @@ function SettingsTab() {
             Configure how the yield agent selects and manages vault positions.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          {/* Frequency */}
-          <div className="space-y-2">
-            <Label htmlFor="frequency">Run Frequency (hours)</Label>
-            <Select value={frequency} onValueChange={setFrequency}>
-              <SelectTrigger id="frequency">
-                <SelectValue placeholder="Select frequency" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
-                  <SelectItem key={h} value={String(h)}>
-                    Every {h} hour{h > 1 ? 's' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <CardContent className="space-y-6">
+          <SliderField
+            label="Run Frequency"
+            tooltip="How many hours between each agent run. Lower values mean more frequent yield optimization."
+            value={frequency}
+            onChange={setFrequency}
+            min={1}
+            max={24}
+            step={1}
+            formatValue={formatFrequency}
+          />
 
-          {/* Min APR Threshold */}
-          <div className="space-y-2">
-            <Label htmlFor="minAprThreshold">Min APR Threshold (%)</Label>
-            <Input
-              id="minAprThreshold"
-              type="number"
-              min="0"
-              step="0.1"
-              value={minAprThreshold}
-              onChange={(e) => setMinAprThreshold(e.target.value)}
-              placeholder="e.g. 5.0"
-            />
-            <p className="text-xs text-muted-foreground">
-              Only enter vaults with APR above this threshold.
-            </p>
-          </div>
+          <SliderField
+            label="Min APR Threshold"
+            tooltip="Only enter vaults with APR above this threshold."
+            value={minAprThreshold}
+            onChange={setMinAprThreshold}
+            min={0}
+            max={50}
+            step={0.5}
+            suffix="%"
+          />
 
-          {/* Max Single Vault % */}
-          <div className="space-y-2">
-            <Label htmlFor="maxSingleVaultPct">
-              Max Single Vault Allocation (%)
-            </Label>
-            <Input
-              id="maxSingleVaultPct"
-              type="number"
-              min="1"
-              max="100"
-              step="1"
-              value={maxSingleVaultPct}
-              onChange={(e) => setMaxSingleVaultPct(e.target.value)}
-              placeholder="e.g. 50"
-            />
-            <p className="text-xs text-muted-foreground">
-              Maximum percentage of portfolio in a single vault.
-            </p>
-          </div>
+          <SliderField
+            label="Max Single Vault Allocation"
+            tooltip="Maximum percentage of portfolio in a single vault."
+            value={maxSingleVaultPct}
+            onChange={setMaxSingleVaultPct}
+            min={1}
+            max={100}
+            step={1}
+            suffix="%"
+          />
 
-          {/* Min Hold Period */}
-          <div className="space-y-2">
-            <Label htmlFor="minHoldPeriodDays">Min Hold Period (days)</Label>
-            <Input
-              id="minHoldPeriodDays"
-              type="number"
-              min="0"
-              step="1"
-              value={minHoldPeriodDays}
-              onChange={(e) => setMinHoldPeriodDays(e.target.value)}
-              placeholder="e.g. 7"
-            />
-            <p className="text-xs text-muted-foreground">
-              Minimum days to hold a vault position before rotating.
-            </p>
-          </div>
+          <SliderField
+            label="Min Hold Period"
+            tooltip="Minimum days to hold a vault position before rotating."
+            value={minHoldPeriodDays}
+            onChange={setMinHoldPeriodDays}
+            min={0}
+            max={30}
+            step={1}
+            suffix=" days"
+          />
 
-          {/* Max Vault Count */}
-          <div className="space-y-2">
-            <Label htmlFor="maxVaultCount">Max Vault Count</Label>
-            <Input
-              id="maxVaultCount"
-              type="number"
-              min="1"
-              step="1"
-              value={maxVaultCount}
-              onChange={(e) => setMaxVaultCount(e.target.value)}
-              placeholder="e.g. 5"
-            />
-            <p className="text-xs text-muted-foreground">
-              Maximum number of vaults to hold positions in simultaneously.
-            </p>
-          </div>
+          <SliderField
+            label="Max Vault Count"
+            tooltip="Maximum number of vaults to hold positions in simultaneously."
+            value={maxVaultCount}
+            onChange={setMaxVaultCount}
+            min={1}
+            max={10}
+            step={1}
+          />
 
-          {/* Min TVL */}
-          <div className="space-y-2">
-            <Label htmlFor="minTvlUsd">Min TVL (USD)</Label>
-            <Input
-              id="minTvlUsd"
-              type="number"
-              min="0"
-              step="1000"
-              value={minTvlUsd}
-              onChange={(e) => setMinTvlUsd(e.target.value)}
-              placeholder="e.g. 100000"
-            />
-            <p className="text-xs text-muted-foreground">
-              Only consider vaults with TVL above this amount.
-            </p>
-          </div>
+          <SliderField
+            label="Min TVL (USD)"
+            tooltip="Only consider vaults with TVL above this amount."
+            value={minTvlUsd}
+            onChange={setMinTvlUsd}
+            min={0}
+            max={500_000}
+            step={10_000}
+            formatValue={(v) => `$${v.toLocaleString()}`}
+          />
 
           {/* Auto Compound */}
           <div className="flex items-center justify-between rounded-lg border p-4">
@@ -1229,9 +1244,6 @@ function YieldAgentTabs() {
     >
       <div className="text-center">
         <h1 className="text-2xl font-bold">Yield Farming Agent</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Automated yield optimization across Celo DeFi protocols
-        </p>
       </div>
 
       {!data.config.agent8004Id && (
