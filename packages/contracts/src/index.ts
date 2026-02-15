@@ -29,7 +29,7 @@ export type { ExchangeRoute } from './exchanges';
 export { getQuote } from './quote';
 export type { QuoteResult } from './quote';
 
-export { checkAllowance, buildApproveTx } from './allowance';
+export { checkAllowance, buildApproveTx, getErc20Balance } from './allowance';
 
 export { buildSwapInTx, buildSwapInTxs, applySlippage } from './swap';
 export type { SwapTxData } from './swap';

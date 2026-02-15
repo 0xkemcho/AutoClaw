@@ -9,6 +9,7 @@ import {
   buildApproveTx,
   buildSwapInTxs,
   applySlippage,
+  getErc20Balance,
   BROKER_ADDRESS,
   erc20Abi,
 } from '@autoclaw/contracts';
@@ -462,14 +463,10 @@ export async function tradeRoutes(app: FastifyInstance) {
       }
 
       const decimals = getTokenDecimals(token);
-      // Type assertion: Celo client has cacheTime/Client type conflicts with viem in Vercel builds
-      const balance = await (
-        celoClient as { readContract: (p: { address: Address; abi: unknown; functionName: string; args: [Address] }) => Promise<bigint> }
-      ).readContract({
-        address: tokenAddress as Address,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [agent.server_wallet_address as Address],
+      const balance = await getErc20Balance({
+        token: tokenAddress as Address,
+        account: agent.server_wallet_address as Address,
+        client: celoClient,
       });
 
       const balanceHuman = Number(formatUnits(balance, decimals));
