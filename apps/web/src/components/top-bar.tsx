@@ -44,7 +44,7 @@ export function TopBar() {
       <header className="sticky top-0 z-40 flex h-14 items-center bg-background/80 backdrop-blur-xl px-6">
         <div className="mx-auto flex w-full max-w-6xl items-center">
           <Link href="/fx-agent" aria-label="AutoClaw home">
-            <Logo size="sm" showWordmark={false} />
+            <Logo size="sm" showWordmark className="text-white" />
           </Link>
 
           {/* Desktop pill nav — hidden below md */}

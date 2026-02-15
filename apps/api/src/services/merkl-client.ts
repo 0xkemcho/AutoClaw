@@ -62,9 +62,10 @@ export async function fetchYieldOpportunities(): Promise<YieldOpportunity[]> {
       tvl: Number(item.tvl ?? 0),
       dailyRewards: Number(item.dailyRewards ?? 0),
       tokens: (item.tokens ?? []).map((t: any) => ({
-        symbol: t.symbol ?? '',
+        symbol: t.symbol ?? t.displaySymbol ?? '',
         address: t.address ?? '',
         decimals: t.decimals ?? 18,
+        icon: t.icon ?? undefined,
       })),
       depositUrl: item.depositUrl,
       type,

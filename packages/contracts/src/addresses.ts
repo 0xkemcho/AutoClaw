@@ -38,3 +38,9 @@ export const MERKL_DISTRIBUTOR_ADDRESS: Address =
 
 export const ICHI_USDT_WETH_VAULT: Address =
   '0x46689E56aF9b3c9f7D88F2a987264D07C0815e14';
+
+// Uniswap V3 on Celo (https://docs.uniswap.org/contracts/v3/reference/deployments/celo-deployments)
+export const UNISWAP_QUOTER_V2: Address =
+  '0x82825d0554fA07f7FC52Ab63c961F330fdEFa8E8';
+export const UNISWAP_SWAP_ROUTER_02: Address =
+  '0x5615CDAb10dc425a742d643d949a7F474C01abc4';

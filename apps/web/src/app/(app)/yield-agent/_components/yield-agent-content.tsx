@@ -8,11 +8,11 @@ import {
   Sprout,
   TrendingUp,
   Coins,
-  RefreshCw,
   Play,
   Pause,
   Settings,
   ArrowDownToLine,
+  ArrowRightLeft,
   ExternalLink,
   Loader2,
   Ban,
@@ -33,6 +33,7 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
+import { CardSpotlight } from '@/components/ui/card-spotlight';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -65,17 +66,20 @@ import {
   useRunYieldNow,
   useUpdateYieldSettings,
   useWithdrawAll,
+  useConvertToUsdc,
+  useSyncYieldPositions,
 } from '@/hooks/use-yield-agent';
 import { usePortfolio } from '@/hooks/use-portfolio';
 import { useMarketTokens } from '@/hooks/use-market';
 import type { YieldTimelineFilters } from '@/hooks/use-yield-agent';
 import { useAgentProgress } from '@/hooks/use-agent-progress';
 import { useAgentReputation } from '@/hooks/use-reputation';
-import { formatFrequency } from '@autoclaw/shared';
-import { formatUsd, formatRelativeTime } from '@/lib/format';
+import { formatFrequency, TOKEN_METADATA } from '@autoclaw/shared';
+import { formatUsd, formatUsdCompact, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { SliderField } from '@/components/slider-field';
 import { PortfolioCard } from '@/app/(app)/dashboard/_components/portfolio-card';
+import { TokenLogo } from '@/components/token-logo';
 import { FundingBanner } from '@/app/(app)/dashboard/_components/funding-banner';
 import {
   CountdownRing,
@@ -306,13 +310,14 @@ function YieldStatusSection() {
 
         <div className="flex w-full flex-col gap-2">
           <div className="flex w-full gap-3">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="flex-1">
-                    <Button
-                      variant="default"
-                      className="flex-1 h-11"
+            <div className="flex-1 min-w-0">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="block w-full">
+                      <Button
+                        variant="default"
+                        className="w-full h-11"
                     disabled={
                       !isActive ||
                       isRunning ||
@@ -348,14 +353,16 @@ function YieldStatusSection() {
                 )}
               </Tooltip>
             </TooltipProvider>
+            </div>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="flex-1">
-                    <Button
-                      variant="outline"
-                      className="w-full h-11"
+            <div className="flex-1 min-w-0">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="block w-full">
+                      <Button
+                        variant="outline"
+                        className="w-full h-11"
                     disabled={toggleAgent.isPending || !isRegistered8004}
                     onClick={() => {
                       toggleAgent.mutate(undefined, {
@@ -390,6 +397,7 @@ function YieldStatusSection() {
               )}
             </Tooltip>
           </TooltipProvider>
+            </div>
           </div>
 
           {!isRegistered8004 && (
@@ -411,11 +419,174 @@ function YieldStatusSection() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Protocol logo map (shared by Positions and Opportunities)        */
+/* ------------------------------------------------------------------ */
+
+const PROTOCOL_LOGOS: Record<string, string> = {
+  uniswap: '/protocols/uniswap.png',
+  ichi: '/protocols/ichi.avif',
+  steer: '/protocols/steer.webp',
+  merkl: '/protocols/merkl.svg',
+};
+
+function getProtocolLogo(protocol: string): string | undefined {
+  if (!protocol) return undefined;
+  const key = protocol.toLowerCase().trim();
+  return PROTOCOL_LOGOS[key] ?? PROTOCOL_LOGOS[protocol];
+}
+
+/* ------------------------------------------------------------------ */
 /*  Agent Tab: Positions Section                                       */
 /* ------------------------------------------------------------------ */
 
+type YieldPositionResponse = NonNullable<
+  ReturnType<typeof useYieldPositions>['data']
+>['positions'][number];
+type YieldOpportunityResponse = NonNullable<
+  ReturnType<typeof useYieldOpportunities>['data']
+>['opportunities'][number];
+
+function YieldPositionCard({
+  position,
+  opportunity,
+}: {
+  position: YieldPositionResponse;
+  opportunity: YieldOpportunityResponse | null;
+}) {
+  const logo = getProtocolLogo(position.protocol);
+  const name = opportunity?.name ?? position.depositToken;
+  const apr = opportunity?.apr ?? position.currentApr ?? null;
+  const tvl = opportunity?.tvl;
+  const dailyRewards = opportunity?.dailyRewards;
+  const tokens = opportunity?.tokens ?? [];
+
+  return (
+    <div className="relative overflow-hidden rounded-xl border bg-card transition-all hover:shadow-md">
+      {/* Header */}
+      <div className="flex items-start justify-between p-5 pb-4">
+        <div className="flex items-center gap-3">
+          {logo ? (
+            <img
+              src={logo}
+              alt={position.protocol}
+              className="size-10 shrink-0 rounded-full object-contain bg-muted/20 p-1"
+            />
+          ) : (
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+              {position.protocol.slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <div className="flex flex-col">
+            <h4 className="font-semibold text-base leading-tight">{name}</h4>
+            <div className="flex items-center gap-2 mt-1.5">
+              <Badge
+                variant="secondary"
+                className="text-[10px] px-1.5 py-0 h-5 font-medium bg-muted text-muted-foreground hover:bg-muted"
+              >
+                {position.protocol}
+              </Badge>
+              {tokens.filter((t) => !t.symbol.includes('VAULT') && !t.symbol.includes('UNIV3')).length > 0 && (
+                <div className="flex -space-x-1.5">
+                  {tokens
+                    .filter((t) => !t.symbol.includes('VAULT') && !t.symbol.includes('UNIV3'))
+                    .slice(0, 3)
+                    .map((t) => {
+                    const logoUrl = (t.icon && t.icon.trim()) || TOKEN_METADATA[t.symbol]?.logo;
+                    const flag = TOKEN_METADATA[t.symbol]?.flag;
+                    return (
+                      <div
+                        key={t.address}
+                        className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-card bg-muted ring-2 ring-card"
+                        title={t.symbol}
+                      >
+                        {logoUrl ? (
+                          <img
+                            src={logoUrl}
+                            alt={t.symbol}
+                            className="size-full object-cover"
+                          />
+                        ) : flag ? (
+                          <TokenLogo symbol={t.symbol} size={14} />
+                        ) : (
+                          <span className="text-[9px] font-medium text-muted-foreground">
+                            {t.symbol.slice(0, 1)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {apr !== null && (
+          <div className="flex flex-col items-end">
+            <span className="text-xs text-muted-foreground font-medium mb-0.5">APR</span>
+            <span className="text-lg font-bold text-amber-500 tabular-nums leading-none">
+              {apr.toFixed(1)}%
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-2 gap-px bg-border/50 border-y border-border/50">
+        <div className="bg-card p-4 flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground font-medium">Deposited</span>
+          <span className="text-sm font-mono font-medium tabular-nums">
+            {formatUsd(position.depositAmountUsd)}
+          </span>
+        </div>
+        <div className="bg-card p-4 flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground font-medium">Daily Rewards</span>
+          <span className="text-sm font-mono font-medium tabular-nums">
+            {dailyRewards ? formatUsd(dailyRewards) : '-'}
+          </span>
+        </div>
+        <div className="bg-card p-4 flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground font-medium">TVL</span>
+          <span className="text-sm font-mono font-medium tabular-nums text-muted-foreground">
+            {tvl ? formatUsdCompact(tvl) : '-'}
+          </span>
+        </div>
+        <div className="bg-card p-4 flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground font-medium">Time Held</span>
+          <span className="text-sm font-mono font-medium tabular-nums text-muted-foreground">
+            {position.depositedAt
+              ? formatRelativeTime(position.depositedAt).replace(' ago', '')
+              : '-'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function YieldPositionsSection() {
-  const { data, isLoading } = useYieldPositions();
+  const { data: positionsData, isLoading: positionsLoading } =
+    useYieldPositions();
+  const { data: opportunitiesData, isLoading: opportunitiesLoading } =
+    useYieldOpportunities();
+
+  const enrichedPositions = useMemo(() => {
+    const positions = positionsData?.positions ?? [];
+    const opportunities = opportunitiesData?.opportunities ?? [];
+    const oppByVault = new Map<string, YieldOpportunityResponse>();
+    for (const opp of opportunities) {
+      const key = (opp.vaultAddress ?? opp.id ?? '').toLowerCase();
+      if (key) oppByVault.set(key, opp);
+    }
+    return positions.map((pos) => {
+      const vaultKey = (pos.vaultAddress ?? '').toLowerCase();
+      const opportunity = oppByVault.get(vaultKey) ?? null;
+      return { position: pos, opportunity };
+    });
+  }, [positionsData?.positions, opportunitiesData?.opportunities]);
+
+  const isLoading = positionsLoading;
+  const positions = positionsData?.positions ?? [];
 
   if (isLoading) {
     return (
@@ -423,20 +594,19 @@ function YieldPositionsSection() {
         <h3 className="mb-3 text-sm font-semibold">Active Positions</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           {Array.from({ length: 2 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="space-y-2 p-4">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-                <Skeleton className="h-3 w-2/3" />
-              </CardContent>
-            </Card>
+            <div
+              key={i}
+              className="rounded-xl border bg-card p-4 min-h-[100px] flex flex-col justify-between"
+            >
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2 mt-2" />
+              <Skeleton className="h-3 w-2/3 mt-3" />
+            </div>
           ))}
         </div>
       </div>
     );
   }
-
-  const positions = data?.positions ?? [];
 
   if (positions.length === 0) {
     return (
@@ -464,36 +634,12 @@ function YieldPositionsSection() {
         </Badge>
       </h3>
       <div className="grid gap-3 sm:grid-cols-2">
-        {positions.map((pos) => (
-          <Card key={pos.id}>
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {pos.depositToken}
-                  </p>
-                  <Badge
-                    variant="outline"
-                    className="mt-1 text-[11px] border-blue-500/30 text-blue-400"
-                  >
-                    {pos.protocol}
-                  </Badge>
-                </div>
-                {pos.currentApr !== null && (
-                  <span className="text-sm font-semibold text-amber-500">
-                    {pos.currentApr.toFixed(1)}% APR
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                <span>Deposited: {formatUsd(pos.depositAmountUsd)}</span>
-                {pos.depositedAt && (
-                  <span>{formatRelativeTime(pos.depositedAt)}</span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        {enrichedPositions.map(({ position, opportunity }) => (
+          <YieldPositionCard
+            key={position.id}
+            position={position}
+            opportunity={opportunity}
+          />
         ))}
       </div>
     </div>
@@ -503,14 +649,6 @@ function YieldPositionsSection() {
 /* ------------------------------------------------------------------ */
 /*  Agent Tab: Opportunities Section                                   */
 /* ------------------------------------------------------------------ */
-
-// Protocol logo map
-const PROTOCOL_LOGOS: Record<string, string> = {
-  Uniswap: '/protocols/uniswap.png',
-  Ichi: '/protocols/ichi.avif',
-  Steer: '/protocols/steer.webp',
-  Merkl: '/protocols/merkl.svg',
-};
 
 function YieldOpportunitiesSection() {
   const { data, isLoading } = useYieldOpportunities();
@@ -608,23 +746,31 @@ function YieldOpportunitiesSection() {
                       variant="outline"
                       className="text-[11px] border-blue-500/30 text-blue-400 flex items-center gap-1.5"
                     >
-                      {PROTOCOL_LOGOS[opp.protocol] && (
-                        <img
-                          src={PROTOCOL_LOGOS[opp.protocol]}
-                          alt={opp.protocol}
-                          className="size-3 object-contain"
-                        />
-                      )}
+                      {(() => {
+                        const logo = getProtocolLogo(opp.protocol);
+                        return logo ? (
+                          <img src={logo} alt={opp.protocol} className="size-3 object-contain" />
+                        ) : null;
+                      })()}
                       {opp.protocol}
                     </Badge>
-                    {opp.tokens.slice(0, 3).map((t) => (
-                      <span
-                        key={t.address}
-                        className="inline-flex items-center rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground"
-                      >
-                        {t.symbol}
-                      </span>
-                    ))}
+                    {opp.tokens
+                      .filter((t) => !t.symbol.includes('VAULT') && !t.symbol.includes('UNIV3'))
+                      .slice(0, 3)
+                      .map((t) => {
+                        const logoUrl = (t.icon && t.icon.trim()) || TOKEN_METADATA[t.symbol]?.logo;
+                        return (
+                          <span
+                            key={t.address}
+                            className="inline-flex items-center gap-1 rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+                          >
+                            {logoUrl ? (
+                              <img src={logoUrl} alt={t.symbol} className="size-3 rounded-full object-cover" />
+                            ) : null}
+                            {t.symbol}
+                          </span>
+                        );
+                      })}
                   </div>
                 </div>
 
@@ -1078,7 +1224,9 @@ function SettingsTab() {
     useYieldAgentStatus();
   const updateSettings = useUpdateYieldSettings();
   const withdrawAll = useWithdrawAll();
+  const convertToUsdc = useConvertToUsdc();
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
 
   const config = statusData?.config;
   const params = config?.strategyParams;
@@ -1128,11 +1276,70 @@ function SettingsTab() {
 
   const handleWithdraw = () => {
     withdrawAll.mutate(undefined, {
-      onSuccess: () => {
-        toast.success('Withdrawal initiated');
+      onSuccess: (data) => {
         setWithdrawOpen(false);
+        const results = data?.results ?? [];
+        const convertResult = data?.convertResult;
+        const succeeded = results.filter((r) => r.success).length;
+        const failed = results.filter((r) => !r.success && !r.skipped);
+        const total = results.length;
+
+        if (total === 0) {
+          toast.info('No active positions to withdraw');
+        } else if (failed.length === 0) {
+          let convertMsg = '';
+          if (convertResult) {
+            if (convertResult.swapped.length > 0) {
+              convertMsg =
+                convertResult.skipped.length > 0
+                  ? ` Converted to USDC. ${convertResult.skipped.length} token(s) skipped.`
+                  : ' Converted to USDC.';
+            } else if (convertResult.skipped.length > 0) {
+              convertMsg = ` Could not convert: ${convertResult.skipped.map((s) => `${s.symbol}: ${s.reason}`).join('; ')}`;
+            }
+          }
+          toast.success(
+            (total === 1 ? 'Position withdrawn' : `${succeeded}/${total} positions withdrawn`) +
+              convertMsg,
+          );
+        } else {
+          const errMsg = failed[0]?.error ?? 'Unknown error';
+          toast.error(
+            `${succeeded}/${total} withdrawn. ${failed.length} failed: ${errMsg}`,
+          );
+        }
       },
       onError: () => toast.error('Failed to withdraw'),
+    });
+  };
+
+  const handleConvertToUsdc = () => {
+    convertToUsdc.mutate(undefined, {
+      onSuccess: (data) => {
+        setConvertOpen(false);
+        const swapped = data?.swapped ?? [];
+        const skipped = data?.skipped ?? [];
+
+        if (swapped.length === 0 && skipped.length === 0) {
+          toast.info('No convertible tokens');
+        } else if (swapped.length > 0 && skipped.length === 0) {
+          toast.success(
+            swapped.length === 1
+              ? `Converted ${swapped[0].symbol} to USDC`
+              : `Converted ${swapped.length} tokens to USDC`,
+          );
+        } else if (swapped.length > 0 && skipped.length > 0) {
+          const skipList = skipped.map((s) => `${s.symbol}: ${s.reason}`).join('; ');
+          toast.success(
+            `Converted ${swapped.length} tokens to USDC`,
+            { description: `Skipped: ${skipList}` },
+          );
+        } else {
+          const skipList = skipped.map((s) => `${s.symbol}: ${s.reason}`).join('; ');
+          toast.warning('No tokens converted', { description: skipList });
+        }
+      },
+      onError: () => toast.error('Failed to convert to USDC'),
     });
   };
 
@@ -1278,6 +1485,53 @@ function SettingsTab() {
         </CardContent>
       </Card>
 
+      {/* Convert to USDC */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ArrowRightLeft className="size-4 text-amber-500" />
+            Convert to USDC
+          </CardTitle>
+          <CardDescription>
+            Swap all wallet tokens to USDC. Only tokens with a Mento swap route
+            are converted.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full">
+                <ArrowRightLeft className="size-4 mr-2" />
+                Convert to USDC
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Convert to USDC</DialogTitle>
+                <DialogDescription>
+                  This will swap all convertible tokens (USDT, USDm, EURm, etc.)
+                  to USDC. Tokens without a swap route will be skipped. Continue?
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button
+                  disabled={convertToUsdc.isPending}
+                  onClick={handleConvertToUsdc}
+                >
+                  {convertToUsdc.isPending ? (
+                    <Loader2 className="size-4 animate-spin mr-2" />
+                  ) : null}
+                  Convert
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardContent>
+      </Card>
+
       {/* Withdraw All */}
       <Card className="border-destructive/30">
         <CardHeader>
@@ -1300,9 +1554,9 @@ function SettingsTab() {
               <DialogHeader>
                 <DialogTitle>Withdraw All Positions</DialogTitle>
                 <DialogDescription>
-                  This will withdraw all funds from every active vault
-                  position. Pending rewards will be claimed before withdrawal.
-                  This action cannot be undone.
+                  This will withdraw all funds from every active vault position
+                  and convert them to USDC. Claim any pending rewards separately
+                  before withdrawing if needed. This action cannot be undone.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
@@ -1342,19 +1596,19 @@ function YieldHero() {
 
   const features = [
     {
-      icon: TrendingUp,
       title: 'High-Yield Vaults',
       desc: 'Automatically finds the best Merkl-incentivized vaults on Celo — Ichi, Uniswap, Steer & more.',
+      tags: ['Ichi', 'Uniswap', 'Steer'],
     },
     {
-      icon: RefreshCw,
       title: 'Auto-Rebalancing',
       desc: 'Continuously monitors APRs and rotates into higher-yielding positions.',
+      tags: ['APR', '24/7', 'AUTO'],
     },
     {
-      icon: Coins,
       title: 'Reward Claiming',
       desc: 'Claims Merkl rewards and optionally auto-compounds them back into vaults.',
+      tags: ['Merkl', 'Compound'],
     },
   ];
 
@@ -1375,20 +1629,6 @@ function YieldHero() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {features.map((f) => (
-          <Card key={f.title}>
-            <CardContent className="flex flex-col items-center p-5 text-center">
-              <f.icon className="mb-3 size-6 text-primary" />
-              <p className="text-sm font-semibold">{f.title}</p>
-              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                {f.desc}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
       <div className="flex justify-center">
         <Button
           size="lg"
@@ -1398,6 +1638,33 @@ function YieldHero() {
           <Sprout className="size-4" />
           Create Yield Agent
         </Button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        {features.map((f) => (
+          <CardSpotlight
+            key={f.title}
+            color="rgba(251, 191, 36, 0.12)"
+            radius={280}
+          >
+            <div className="flex flex-col items-center p-6 text-center">
+              <p className="text-sm font-semibold">{f.title}</p>
+              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                {f.desc}
+              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {f.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-border/60 bg-muted/50 px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </CardSpotlight>
+        ))}
       </div>
     </motion.div>
   );
@@ -1515,6 +1782,18 @@ function YieldAgentTabs() {
 }
 
 export function YieldAgentContent() {
+  const syncPositions = useSyncYieldPositions();
+
+  // Sync positions from chain once per visit (backfills for pre-tracking deposits)
+  useEffect(() => {
+    syncPositions.mutate(undefined, {
+      onError: () => {
+        // Ignore 404 (yield agent not configured) and other errors
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
+
   return (
     <Suspense>
       <YieldAgentTabs />

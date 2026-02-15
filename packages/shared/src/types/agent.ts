@@ -10,6 +10,22 @@ export function frequencyToMs(hours: AgentFrequency): number {
   return h * 60 * 60 * 1000;
 }
 
+/**
+ * Parse frequency from DB (may be number or string like "4", "4h", "hourly")
+ * and return milliseconds. Used by run-now, toggle, and agent cron.
+ */
+export function parseFrequencyToMs(raw: unknown): number {
+  if (typeof raw === 'number' && !isNaN(raw)) {
+    return frequencyToMs(raw);
+  }
+  const str = String(raw ?? '');
+  const fromMap = FREQUENCY_MS[str];
+  if (fromMap != null) return fromMap;
+  const parsed = parseFloat(str);
+  if (!isNaN(parsed)) return frequencyToMs(parsed);
+  return frequencyToMs(24);
+}
+
 /** Format a frequency (hours) as a human-readable label */
 export function formatFrequency(hours: AgentFrequency): string {
   if (hours === 1) return 'Every hour';

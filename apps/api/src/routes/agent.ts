@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../middleware/auth';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
-import { frequencyToMs, FREQUENCY_MS, type AgentFrequency, MENTO_TOKENS, COMMODITY_TOKENS } from '@autoclaw/shared';
+import { frequencyToMs, parseFrequencyToMs, type AgentFrequency, MENTO_TOKENS, COMMODITY_TOKENS } from '@autoclaw/shared';
 import { runAgentCycle } from '../services/agent-cron';
 import { getWalletBalances } from '../services/dune-balances';
 import { prepareAgentWalletLink, getAgentReputation, registerAgentOnChain } from '../services/agent-registry';
@@ -119,10 +119,7 @@ export async function agentRoutes(app: FastifyInstance) {
         const hasValidFutureRun = existingNextRun > Date.now();
 
         if (!hasValidFutureRun) {
-          const rawFreq = config.frequency;
-          const freqMs = typeof rawFreq === 'number'
-            ? frequencyToMs(rawFreq)
-            : (FREQUENCY_MS[String(rawFreq)] ?? frequencyToMs(24));
+          const freqMs = parseFrequencyToMs(config.frequency);
           updates.next_run_at = new Date(Date.now() + freqMs).toISOString();
         }
       }
@@ -170,10 +167,7 @@ export async function agentRoutes(app: FastifyInstance) {
       });
 
       // Update last_run_at and next_run_at
-      const rawFreq = config.frequency;
-      const freqMs = typeof rawFreq === 'number'
-        ? frequencyToMs(rawFreq)
-        : (FREQUENCY_MS[String(rawFreq)] ?? frequencyToMs(24));
+      const freqMs = parseFrequencyToMs(config.frequency);
       const nextRun = new Date(Date.now() + freqMs).toISOString();
 
       await supabaseAdmin

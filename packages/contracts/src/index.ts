@@ -1,6 +1,7 @@
 export { brokerAbi } from './abis/broker';
 export { biPoolManagerAbi } from './abis/bipool-manager';
 export { erc20Abi } from './abis/erc20';
+export { quoterV2Abi, swapRouter02Abi } from './abis/uniswap';
 export { identityRegistryAbi } from './abis/identity-registry';
 export { reputationRegistryAbi } from './abis/reputation-registry';
 export { ichiVaultAbi } from './abis/ichi-vault';
@@ -18,6 +19,8 @@ export {
   REPUTATION_REGISTRY_ADDRESS,
   MERKL_DISTRIBUTOR_ADDRESS,
   ICHI_USDT_WETH_VAULT,
+  UNISWAP_QUOTER_V2,
+  UNISWAP_SWAP_ROUTER_02,
 } from './addresses';
 
 export { getRoutes, findRoute, clearRouteCache } from './exchanges';

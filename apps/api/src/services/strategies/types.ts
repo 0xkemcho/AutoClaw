@@ -27,6 +27,7 @@ export interface ExecutionResult {
   success: boolean;
   txHash?: string;
   amountUsd?: number;
+  vaultAddress?: string;
   error?: string;
 }
 

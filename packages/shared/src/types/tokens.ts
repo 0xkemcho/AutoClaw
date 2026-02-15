@@ -64,6 +64,12 @@ export const USDT_CELO_ADDRESS = '0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e';
 // WARNING: XAUT is NOT tradeable — excluded from TARGET_TOKENS and ALL_TOKEN_ADDRESSES until a real Celo address is available
 export const XAUT_CELO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
+// Non-Mento tokens (for convert-to-USDC and yield flows)
+export const CELO_NATIVE_ADDRESS = '0x471EcE3750Da237f93B8E339c536989b8978a438';
+export const WETH_CELO_ADDRESS = '0xD221812de1BD094f35587EE8E174B07B6167D9Af';
+export const WBTC_CELO_ADDRESS = '0x8aC2901Dd8A1F17a1A4768A6bA4C3751e3995B2D';
+export const stCELO_CELO_ADDRESS = '0xC668583dcbDc9ae6FA3CE46462758188adfdfC24';
+
 export const BASE_TOKEN_ADDRESSES: Record<BaseToken, string> = {
   USDC: USDC_CELO_ADDRESS,
   USDT: USDT_CELO_ADDRESS,
@@ -73,6 +79,10 @@ export const ALL_TOKEN_ADDRESSES: Record<string, string> = {
   ...MENTO_TOKEN_ADDRESSES,
   USDC: USDC_CELO_ADDRESS,
   USDT: USDT_CELO_ADDRESS,
+  CELO: CELO_NATIVE_ADDRESS,
+  WETH: WETH_CELO_ADDRESS,
+  WBTC: WBTC_CELO_ADDRESS,
+  stCELO: stCELO_CELO_ADDRESS,
 };
 
 export const TOKEN_METADATA: Record<
@@ -97,6 +107,10 @@ export const TOKEN_METADATA: Record<
   USDC: { name: 'USD Coin', flag: '🇺🇸', decimals: 6 },
   USDT: { name: 'Tether USD', flag: '🇺🇸', decimals: 6 },
   XAUT: { name: 'Tether Gold', flag: '🥇', decimals: 6 },
+  CELO: { name: 'Celo', flag: '🌐', decimals: 18 },
+  WETH: { name: 'Wrapped Ether', flag: 'Ξ', decimals: 18 },
+  WBTC: { name: 'Wrapped Bitcoin', flag: '₿', decimals: 8 },
+  stCELO: { name: 'Staked CELO', flag: '🌐', decimals: 18 },
 };
 
 /** Get the number of decimals for a token symbol. */
