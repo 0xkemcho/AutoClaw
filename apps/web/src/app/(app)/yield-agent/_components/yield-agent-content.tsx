@@ -1737,7 +1737,8 @@ function YieldAgentTabs() {
       <div className="text-center">
         <h1 className="text-2xl font-bold">Yield Farming Agent</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Autonomous FX stablecoin trading on Celo
+          Autonomous yield farming on Celo — deposits into vaults and manages
+          positions 24/7.
         </p>
       </div>
 

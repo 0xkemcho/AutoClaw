@@ -13,10 +13,10 @@
   "dependencies": {
     "@autoclaw/shared": "workspace:*",
     "@tanstack/react-query": "^5.x",
-    "class-variance-authority": "^0.7.x",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.x",
     "date-fns": "^4.x",
-    "lucide-react": "^0.x",
+    "lucide-react": "^0.474.0",
     "motion": "^12.x",
     "next": "^15.x",
     "next-themes": "^0.4.6",
