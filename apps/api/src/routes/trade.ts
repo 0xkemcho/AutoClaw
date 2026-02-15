@@ -462,7 +462,8 @@ export async function tradeRoutes(app: FastifyInstance) {
       }
 
       const decimals = getTokenDecimals(token);
-      const balance = await celoClient.readContract({
+      const publicClient = celoClient as unknown as PublicClient;
+      const balance = await publicClient.readContract({
         address: tokenAddress as Address,
         abi: erc20Abi,
         functionName: 'balanceOf',
