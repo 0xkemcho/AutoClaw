@@ -55,6 +55,10 @@ export interface YieldOpportunity {
   dailyRewards: number;
   tokens: Array<{ symbol: string; address: string; decimals: number }>;
   depositUrl?: string;
+  /** Merkl opportunity type (CLAMM, ERC20LOGPROCESSOR, UNISWAP_V4) */
+  type?: string;
+  /** Merkl app page URL for this opportunity */
+  merklUrl?: string;
 }
 
 export interface YieldPosition {

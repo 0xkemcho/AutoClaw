@@ -49,7 +49,9 @@ interface YieldOpportunityResponse {
   tvl: number;
   dailyRewards: number;
   tokens: Array<{ symbol: string; address: string; decimals: number }>;
-  depositUrl?: string;  // Merkl deposit page URL
+  depositUrl?: string; // Merkl deposit page URL
+  type?: string; // CLAMM, ERC20LOGPROCESSOR, UNISWAP_V4
+  merklUrl?: string; // https://app.merkl.xyz/opportunities/celo/{type}/{identifier}
   status?: string;
 }
 
