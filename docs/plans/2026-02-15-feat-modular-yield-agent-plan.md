@@ -77,7 +77,7 @@ CREATE INDEX idx_yield_positions_vault ON yield_positions(vault_address);
 ```
 
 - [x] Create migration file
-- [ ] Update `packages/db` generated types (run `supabase gen types`)
+- [x] Update `packages/db` generated types (run `supabase gen types`)
 - [ ] Verify RLS policies work
 
 #### 1.2 Shared Types
@@ -524,8 +524,8 @@ export class YieldStrategy implements AgentStrategy {
 }
 ```
 
-- [ ] Implement YieldStrategy class
-- [ ] Register in strategy index
+- [x] Implement YieldStrategy class
+- [x] Register in strategy index
 - [ ] Wire up position tracking (update `yield_positions` table after each deposit/withdraw)
 
 ### Phase 3: Contracts Package Extension
@@ -534,8 +534,8 @@ export class YieldStrategy implements AgentStrategy {
 
 **File:** `packages/contracts/src/ichi-vault.ts` (NEW)
 
-- [ ] Export `ichiVaultAbi` (from PoC `config.ts`)
-- [ ] Export `merklDistributorAbi`
+- [x] Export `ichiVaultAbi` (from PoC `config.ts`)
+- [x] Export `merklDistributorAbi`
 - [ ] Export vault addresses constant map:
 
 ```typescript
@@ -546,7 +546,7 @@ export const ICHI_VAULTS: Record<string, { address: Address; token0: string; tok
 export const MERKL_DISTRIBUTOR: Address = '0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae';
 ```
 
-- [ ] Export from `packages/contracts/src/index.ts`
+- [x] Export from `packages/contracts/src/index.ts`
 
 ### Phase 4: API Routes
 
@@ -568,11 +568,11 @@ POST /api/yield-agent/register-8004  → register yield agent on-chain identity
 GET  /api/yield-agent/timeline       → yield-specific timeline events
 ```
 
-- [ ] Create route file following existing `routes/agent.ts` patterns
-- [ ] All routes protected by auth middleware
-- [ ] `register` creates new Privy server wallet (separate from FX wallet)
-- [ ] `withdraw-all` calls `executeFullWithdrawal()` → returns tx hashes
-- [ ] Register routes in `apps/api/src/index.ts`
+- [x] Create route file following existing `routes/agent.ts` patterns
+- [x] All routes protected by auth middleware
+- [x] `register` creates new Privy server wallet (separate from FX wallet)
+- [x] `withdraw-all` calls `executeFullWithdrawal()` → returns tx hashes
+- [x] Register routes in `apps/api/src/index.ts`
 
 ### Phase 5: Frontend — Onboarding
 
@@ -580,9 +580,9 @@ GET  /api/yield-agent/timeline       → yield-specific timeline events
 
 **File:** `apps/web/src/app/(auth)/onboarding/_components/agent-select.tsx`
 
-- [ ] Enable "DeFi Yield Agent" card (currently shows "Coming Soon")
-- [ ] On select, set phase to `'yield-questionnaire'` (new phase)
-- [ ] Pass `agentType` through onboarding flow
+- [x] Enable "DeFi Yield Agent" card (currently shows "Coming Soon")
+- [x] On select, set phase to `'yield-questionnaire'` (new phase)
+- [x] Pass `agentType` through onboarding flow
 
 #### 5.2 Yield Questionnaire
 
@@ -594,18 +594,18 @@ Questions:
 3. Auto-compound preference (yes/no)
 4. Rebalance frequency (every 4h / 12h / 24h)
 
-- [ ] Follow existing `questionnaire.tsx` patterns (multi-step, motion animations)
-- [ ] Return `YieldAnswers` object on completion
-- [ ] Wire into onboarding `page.tsx` state machine
+- [x] Follow existing `questionnaire.tsx` patterns (multi-step, motion animations)
+- [x] Return `YieldAnswers` object on completion
+- [x] Wire into onboarding `page.tsx` state machine
 
 #### 5.3 Yield Agent Registration
 
 **File:** `apps/web/src/app/(auth)/onboarding/_components/register-yield-agent.tsx` (NEW)
 
-- [ ] Call `POST /api/yield-agent/register` with questionnaire answers
-- [ ] Show wallet address for funding (separate from FX wallet)
-- [ ] Optionally register ERC-8004 identity (non-blocking)
-- [ ] Redirect to `/yield-agent` on success
+- [x] Call `POST /api/yield-agent/register` with questionnaire answers
+- [x] Show wallet address for funding (separate from FX wallet)
+- [x] Optionally register ERC-8004 identity (non-blocking)
+- [x] Redirect to `/yield-agent` on success
 
 ### Phase 6: Frontend — Yield Dashboard
 
@@ -631,13 +631,13 @@ Questions:
 - Frequency selector
 - Withdraw All button (with confirmation modal)
 
-- [ ] Replace placeholder page with tab structure
-- [ ] Create `_components/yield-status-card.tsx`
-- [ ] Create `_components/yield-positions-card.tsx`
-- [ ] Create `_components/yield-rewards-card.tsx`
-- [ ] Create `_components/live-yield-run-card.tsx`
-- [ ] Create `_components/yield-settings.tsx`
-- [ ] Create `_components/withdraw-all-modal.tsx`
+- [x] Replace placeholder page with tab structure
+- [x] Create `_components/yield-status-card.tsx`
+- [x] Create `_components/yield-positions-card.tsx`
+- [x] Create `_components/yield-rewards-card.tsx`
+- [x] Create `_components/live-yield-run-card.tsx`
+- [x] Create `_components/yield-settings.tsx`
+- [x] Create `_components/withdraw-all-modal.tsx`
 
 #### 6.2 Yield Hooks
 
@@ -655,15 +655,15 @@ export function useWithdrawAll()          // POST /api/yield-agent/withdraw-all
 export function useUpdateYieldSettings()  // POST /api/yield-agent/settings
 ```
 
-- [ ] Follow existing hook patterns from `use-agent.ts`
-- [ ] TanStack Query with proper query keys
-- [ ] Mutation hooks invalidate relevant queries on success
+- [x] Follow existing hook patterns from `use-agent.ts`
+- [x] TanStack Query with proper query keys
+- [x] Mutation hooks invalidate relevant queries on success
 
 #### 6.3 Yield Agent Progress
 
-- [ ] Extend `useAgentProgress` hook to handle yield progress steps
-- [ ] Or create `useYieldAgentProgress` if the step types are too different
-- [ ] Same WebSocket connection (`/api/ws`), different step names
+- [x] Extend `useAgentProgress` hook to handle yield progress steps
+- [x] Or create `useYieldAgentProgress` if the step types are too different
+- [x] Same WebSocket connection (`/api/ws`), different step names
 
 ### Phase 7: Testing
 
