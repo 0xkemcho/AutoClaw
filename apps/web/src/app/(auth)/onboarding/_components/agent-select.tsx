@@ -2,14 +2,16 @@
 
 import { motion } from 'motion/react';
 import { TrendingUp, Sprout } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useMotionSafe } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 interface AgentSelectProps {
   onSelect: (type: 'fx' | 'yield') => void;
+  onSkip?: () => void;
 }
 
-export function AgentSelect({ onSelect }: AgentSelectProps) {
+export function AgentSelect({ onSelect, onSkip }: AgentSelectProps) {
   const m = useMotionSafe();
 
   return (
@@ -94,6 +96,12 @@ export function AgentSelect({ onSelect }: AgentSelectProps) {
           </div>
         </button>
       </div>
+
+      {onSkip && (
+        <Button variant="ghost" onClick={onSkip}>
+          Skip for now
+        </Button>
+      )}
     </motion.div>
   );
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { Copy, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,7 +23,6 @@ export function FundWallet({
   onContinue,
 }: FundWalletProps) {
   const m = useMotionSafe();
-  const router = useRouter();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -60,7 +58,7 @@ export function FundWallet({
           <Button onClick={onRetry} disabled={isRetrying}>
             {isRetrying ? 'Retrying...' : 'Retry Setup'}
           </Button>
-          <Button variant="ghost" onClick={() => router.push('/dashboard')}>
+          <Button variant="ghost" onClick={() => onContinue?.()}>
             Skip for now
           </Button>
         </div>
@@ -106,10 +104,10 @@ export function FundWallet({
       </p>
 
       <div className="flex w-full flex-col gap-3">
-        <Button onClick={onContinue ?? (() => router.push('/dashboard'))}>
+        <Button onClick={() => onContinue?.()}>
           Continue
         </Button>
-        <Button variant="ghost" onClick={() => router.push('/dashboard')}>
+        <Button variant="ghost" onClick={() => onContinue?.()}>
           Skip for now
         </Button>
       </div>
