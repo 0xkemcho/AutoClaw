@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Star,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -75,6 +76,11 @@ import {
 } from '@/app/(app)/dashboard/_components/agent-countdown';
 import { ReasoningView } from '@/components/reasoning-view';
 import { EmptyState } from '@/components/empty-state';
+import {
+  TimelineEntry,
+  TimelineNode,
+  GROUP_NODE_CONFIG,
+} from '@/app/(app)/timeline/_components/timeline-entry';
 
 const EXPLORER_BASE =
   process.env.NEXT_PUBLIC_CELO_EXPLORER_URL || 'https://celoscan.io';
@@ -711,6 +717,162 @@ function AgentTab() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Timeline: run grouping (like FX)                                    */
+/* ------------------------------------------------------------------ */
+
+type YieldEntry = NonNullable<
+  ReturnType<typeof useYieldTimeline>['data']
+>['entries'][number];
+
+interface YieldRunGroup {
+  runId: string;
+  entries: YieldEntry[];
+  createdAt: string;
+  summary: string;
+}
+
+type YieldGroupedItem = YieldRunGroup | YieldEntry;
+
+function groupYieldByRun(entries: YieldEntry[]): YieldGroupedItem[] {
+  const groups = new Map<string, YieldEntry[]>();
+  const result: YieldGroupedItem[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of entries) {
+    if (entry.runId) {
+      if (!groups.has(entry.runId)) {
+        groups.set(entry.runId, []);
+      }
+      groups.get(entry.runId)!.push(entry);
+    }
+  }
+
+  for (const entry of entries) {
+    if (entry.runId && groups.has(entry.runId) && !seen.has(entry.runId)) {
+      seen.add(entry.runId);
+      const groupEntries = groups.get(entry.runId)!;
+      if (groupEntries.length === 1) {
+        result.push(groupEntries[0]);
+      } else {
+        const analysis = groupEntries.find((e) => e.eventType === 'analysis');
+        const deposits = groupEntries.filter(
+          (e) => e.eventType === 'trade' || e.eventType === 'deposit',
+        );
+        let summary = analysis?.summary ?? 'YIELD agent run';
+        if (deposits.length > 0) {
+          summary += ` — ${deposits.length} action${deposits.length > 1 ? 's' : ''}`;
+        }
+        result.push({
+          runId: entry.runId,
+          entries: groupEntries,
+          createdAt: groupEntries[0].createdAt,
+          summary,
+        });
+      }
+    } else if (!entry.runId) {
+      result.push(entry);
+    }
+  }
+
+  return result;
+}
+
+function isYieldRunGroup(item: YieldGroupedItem): item is YieldRunGroup {
+  return (
+    'entries' in item &&
+    Array.isArray(item.entries) &&
+    'runId' in item &&
+    !('eventType' in item)
+  );
+}
+
+function YieldRunGroupCard({ group }: { group: YieldRunGroup }) {
+  const m = useMotionSafe();
+  const [expanded, setExpanded] = useState(false);
+
+  const card = (
+    <div
+      className="rounded-xl border border-primary/20 bg-primary/5 cursor-pointer transition-colors"
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
+      onClick={() => setExpanded(!expanded)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setExpanded(!expanded);
+        }
+      }}
+    >
+      <div className="flex items-start gap-3 p-4">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm leading-snug line-clamp-1 font-medium">
+            {group.summary}
+          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {formatRelativeTime(group.createdAt)}
+            </span>
+            <Badge
+              className="text-[11px] px-1.5 py-0 bg-primary/15 text-primary border-primary/30"
+              variant="outline"
+            >
+              {group.entries.length} events
+            </Badge>
+          </div>
+        </div>
+        <ChevronDown
+          className={cn(
+            'size-4 text-muted-foreground transition-transform shrink-0 mt-1',
+            expanded && 'rotate-180',
+          )}
+        />
+      </div>
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: m.duration.fast }}
+            className="overflow-hidden"
+          >
+            <div
+              className="px-4 pb-4 border-t border-primary/10 pt-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="timeline-spine timeline-spine--compact">
+                {group.entries.map((entry) => (
+                  <TimelineEntry
+                    key={entry.id}
+                    entry={{
+                      ...entry,
+                      detail: entry.detail ?? {},
+                      citations: entry.citations ?? [],
+                    }}
+                    compact
+                  />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
+  return (
+    <div className="timeline-item">
+      <div className="timeline-node-col">
+        <TimelineNode config={GROUP_NODE_CONFIG} />
+      </div>
+      <div className="timeline-card-col">{card}</div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Timeline Tab                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -746,10 +908,17 @@ function TimelineTab() {
     setOffset((prev) => prev + TIMELINE_LIMIT);
   }, []);
 
+  const grouped = useMemo(
+    () => groupYieldByRun(allEntries),
+    [allEntries],
+  );
+
+  const total = data?.total ?? 0;
+
   return (
     <motion.div {...m.fadeIn} transition={{ duration: m.duration.normal }}>
       <div className="mb-4 text-sm text-muted-foreground font-mono tabular-nums">
-        {data?.total ?? 0} events
+        {total} events
       </div>
 
       {isLoading && allEntries.length === 0 ? (
@@ -774,53 +943,21 @@ function TimelineTab() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {allEntries.map((entry) => (
-            <Card key={entry.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'text-[11px] px-1.5 py-0',
-                          eventBadgeClass(entry.eventType),
-                        )}
-                      >
-                        {entry.eventType}
-                      </Badge>
-                      {entry.currency && (
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {entry.currency}
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1.5 text-sm leading-snug">
-                      {entry.summary}
-                    </p>
-                    <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>{formatRelativeTime(entry.createdAt)}</span>
-                      {entry.amountUsd !== null && (
-                        <span>{formatUsd(entry.amountUsd)}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {entry.txHash && (
-                    <a
-                      href={`${EXPLORER_BASE}/tx/${entry.txHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 text-muted-foreground hover:text-amber-500 transition-colors"
-                    >
-                      <ExternalLink className="size-4" />
-                    </a>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="timeline-spine">
+          {grouped.map((item) =>
+            isYieldRunGroup(item) ? (
+              <YieldRunGroupCard key={item.runId} group={item} />
+            ) : (
+              <TimelineEntry
+                key={item.id}
+                entry={{
+                  ...item,
+                  detail: item.detail ?? {},
+                  citations: item.citations ?? [],
+                }}
+              />
+            ),
+          )}
         </div>
       )}
 
@@ -1244,6 +1381,9 @@ function YieldAgentTabs() {
     >
       <div className="text-center">
         <h1 className="text-2xl font-bold">Yield Farming Agent</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Autonomous FX stablecoin trading on Celo
+        </p>
       </div>
 
       {!data.config.agent8004Id && (
