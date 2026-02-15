@@ -517,11 +517,14 @@ export async function agentRoutes(app: FastifyInstance) {
           registerTxHash: result.registerTxHash,
           linkTxHash: result.linkTxHash,
         };
-      } catch (err: any) {
-        console.error('[8004] Sponsored registration failed:', err);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        const stack = err instanceof Error ? err.stack : undefined;
+        console.error('[8004] Sponsored registration failed:', message);
+        if (stack) console.error('[8004] Stack:', stack);
         return reply.status(500).send({
           error: 'Registration failed. Please try again.',
-          detail: err?.message,
+          detail: message,
         });
       }
     },
