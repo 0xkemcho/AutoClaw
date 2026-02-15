@@ -384,8 +384,8 @@ export async function tradeRoutes(app: FastifyInstance) {
           amountUsd: parseFloat(amount),
         });
 
-        // Log to agent_timeline
-        await supabaseAdmin.from('agent_timeline').insert({
+        // Log to fx_agent_timeline (manual swaps default to FX agent)
+        await supabaseAdmin.from('fx_agent_timeline').insert({
           wallet_address: walletAddress,
           event_type: 'trade',
           summary: `Manual swap: ${amount} ${from} → ${to}`,

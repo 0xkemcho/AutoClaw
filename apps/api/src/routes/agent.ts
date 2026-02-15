@@ -41,7 +41,7 @@ export async function agentRoutes(app: FastifyInstance) {
       todayStart.setHours(0, 0, 0, 0);
 
       const { count: tradesToday } = await supabaseAdmin
-        .from('agent_timeline')
+        .from('fx_agent_timeline')
         .select('*', { count: 'exact', head: true })
         .eq('wallet_address', walletAddress)
         .eq('event_type', 'trade' as AgentTimelineRow['event_type'])
@@ -205,7 +205,7 @@ export async function agentRoutes(app: FastifyInstance) {
       const offset = Math.max(0, parseInt(query.offset || '0', 10));
 
       let dbQuery = supabaseAdmin
-        .from('agent_timeline')
+        .from('fx_agent_timeline')
         .select('*', { count: 'exact' })
         .eq('wallet_address', walletAddress)
         .order('created_at', { ascending: false })
@@ -238,7 +238,7 @@ export async function agentRoutes(app: FastifyInstance) {
       const { id } = request.params as { id: string };
 
       const { data, error } = await supabaseAdmin
-        .from('agent_timeline')
+        .from('fx_agent_timeline')
         .select('*')
         .eq('id', id)
         .eq('wallet_address', walletAddress)
