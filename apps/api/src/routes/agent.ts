@@ -4,7 +4,7 @@ import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import { frequencyToMs, FREQUENCY_MS, type AgentFrequency, MENTO_TOKENS, COMMODITY_TOKENS } from '@autoclaw/shared';
 import { runAgentCycle } from '../services/agent-cron';
 import { getWalletBalances } from '../services/dune-balances';
-import { prepareAgentWalletLink, getAgentReputation } from '../services/agent-registry';
+import { prepareAgentWalletLink, getAgentReputation, registerAgentOnChain } from '../services/agent-registry';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 type AgentTimelineRow = Database['public']['Tables']['agent_timeline']['Row'];
@@ -27,6 +27,7 @@ export async function agentRoutes(app: FastifyInstance) {
         .from('agent_configs')
         .select('*')
         .eq('wallet_address', walletAddress)
+        .eq('agent_type', 'fx')
         .single();
 
       const config = data as AgentConfigRow | null;
@@ -88,6 +89,7 @@ export async function agentRoutes(app: FastifyInstance) {
         .from('agent_configs')
         .select('id, active, frequency, next_run_at, agent_8004_id')
         .eq('wallet_address', walletAddress)
+        .eq('agent_type', 'fx')
         .single();
 
       const config = configData as Pick<AgentConfigRow, 'id' | 'active' | 'frequency' | 'next_run_at' | 'agent_8004_id'> | null;
@@ -149,6 +151,7 @@ export async function agentRoutes(app: FastifyInstance) {
         .from('agent_configs')
         .select('*')
         .eq('wallet_address', walletAddress)
+        .eq('agent_type', 'fx')
         .single();
 
       const config = configData as AgentConfigRow | null;
@@ -317,6 +320,7 @@ export async function agentRoutes(app: FastifyInstance) {
         .from('agent_configs')
         .update(updates)
         .eq('wallet_address', walletAddress)
+        .eq('agent_type', 'fx')
         .select()
         .single();
 
@@ -373,6 +377,7 @@ export async function agentRoutes(app: FastifyInstance) {
         .from('agent_configs')
         .select('server_wallet_address')
         .eq('wallet_address', walletAddress)
+        .eq('agent_type', 'fx')
         .single();
 
       if (configError || !configData?.server_wallet_address) {
@@ -436,6 +441,75 @@ export async function agentRoutes(app: FastifyInstance) {
     },
   );
 
+  // POST /api/agent/register-8004 — sponsored on-chain registration (backend pays gas)
+  app.post(
+    '/api/agent/register-8004',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const { agent_type = 'fx' } = (request.body ?? {}) as { agent_type?: 'fx' | 'yield' };
+
+      // Check if already registered
+      const { data: configData, error: fetchError } = await supabaseAdmin
+        .from('agent_configs')
+        .select('server_wallet_id, server_wallet_address, agent_8004_id')
+        .eq('wallet_address', walletAddress)
+        .eq('agent_type', agent_type)
+        .single();
+
+      const config = configData as Pick<AgentConfigRow, 'server_wallet_id' | 'server_wallet_address' | 'agent_8004_id'> | null;
+
+      if (fetchError || !config) {
+        return reply.status(404).send({ error: 'Agent not configured. Complete onboarding first.' });
+      }
+
+      if (config.agent_8004_id != null) {
+        return reply.status(409).send({ error: 'Agent is already registered on ERC-8004', agentId: config.agent_8004_id });
+      }
+
+      if (!config.server_wallet_id || !config.server_wallet_address) {
+        return reply.status(400).send({ error: 'Server wallet not set up' });
+      }
+
+      const port = process.env.PORT || '4000';
+      const apiBase = process.env.API_PUBLIC_URL || `http://localhost:${port}`;
+      const metadataUrl = `${apiBase}/api/agent/${walletAddress}/8004-metadata`;
+
+      try {
+        const result = await registerAgentOnChain({
+          userWalletAddress: walletAddress,
+          serverWalletId: config.server_wallet_id,
+          serverWalletAddress: config.server_wallet_address,
+          metadataUrl,
+        });
+
+        // Save to DB
+        await supabaseAdmin
+          .from('agent_configs')
+          .update({
+            agent_8004_id: Number(result.agentId),
+            agent_8004_tx_hash: result.registerTxHash,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('wallet_address', walletAddress)
+          .eq('agent_type', agent_type);
+
+        return {
+          success: true,
+          agentId: Number(result.agentId),
+          registerTxHash: result.registerTxHash,
+          linkTxHash: result.linkTxHash,
+        };
+      } catch (err: any) {
+        console.error('[8004] Sponsored registration failed:', err);
+        return reply.status(500).send({
+          error: 'Registration failed. Please try again.',
+          detail: err?.message,
+        });
+      }
+    },
+  );
+
   // POST /api/agent/prepare-8004-link
   app.post(
     '/api/agent/prepare-8004-link',
@@ -452,6 +526,7 @@ export async function agentRoutes(app: FastifyInstance) {
         .from('agent_configs')
         .select('server_wallet_id, server_wallet_address')
         .eq('wallet_address', walletAddress)
+        .eq('agent_type', 'fx')
         .single();
 
       const config = configData as Pick<AgentConfigRow, 'server_wallet_id' | 'server_wallet_address'> | null;
@@ -486,7 +561,7 @@ export async function agentRoutes(app: FastifyInstance) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       const walletAddress = request.user!.walletAddress;
-      const { agentId, txHash } = request.body as { agentId: number; txHash: string };
+      const { agentId, txHash, agent_type = 'fx' } = request.body as { agentId: number; txHash: string; agent_type?: 'fx' | 'yield' };
 
       if (agentId == null || typeof agentId !== 'number') {
         return reply.status(400).send({ error: 'agentId is required and must be a number' });
@@ -502,7 +577,8 @@ export async function agentRoutes(app: FastifyInstance) {
           agent_8004_tx_hash: txHash,
           updated_at: new Date().toISOString(),
         })
-        .eq('wallet_address', walletAddress);
+        .eq('wallet_address', walletAddress)
+        .eq('agent_type', agent_type);
 
       if (error) {
         console.error('Failed to confirm 8004 registration:', error);
@@ -524,6 +600,7 @@ export async function agentRoutes(app: FastifyInstance) {
         .from('agent_configs')
         .select('agent_8004_id')
         .eq('wallet_address', walletAddress)
+        .eq('agent_type', 'fx')
         .single();
 
       if (fetchError || !configData) {
@@ -551,6 +628,8 @@ export async function agentRoutes(app: FastifyInstance) {
     '/api/agent/:walletAddress/8004-metadata',
     async (request, reply) => {
       const { walletAddress } = request.params as { walletAddress: string };
+      const query = request.query as { agent_type?: string };
+      const agentType = query.agent_type === 'yield' ? 'yield' : 'fx';
 
       const [profileResult, configResult] = await Promise.all([
         supabaseAdmin
@@ -560,8 +639,9 @@ export async function agentRoutes(app: FastifyInstance) {
           .single(),
         supabaseAdmin
           .from('agent_configs')
-          .select('active')
+          .select('active, agent_type')
           .eq('wallet_address', walletAddress)
+          .eq('agent_type', agentType)
           .single(),
       ]);
 
@@ -570,14 +650,26 @@ export async function agentRoutes(app: FastifyInstance) {
       }
 
       const displayName = profileResult.data?.display_name ?? walletAddress.slice(0, 8);
-      const agentConfig = configResult.data as Pick<AgentConfigRow, 'active'>;
+      const agentConfig = configResult.data as Pick<AgentConfigRow, 'active' | 'agent_type'>;
+
+      const agentLabel = agentType === 'yield' ? 'Yield' : 'FX';
+      const agentDesc = agentType === 'yield'
+        ? 'AutoClaw Yield Agent autonomously allocates funds across Ichi vaults on Celo to earn Merkl-incentivized APR. ' +
+          'It scans opportunities, manages positions, claims rewards, and rebalances — all with configurable guardrails.'
+        : 'AutoClaw is an autonomous FX trading agent powered by AI on the Celo blockchain. ' +
+          'It monitors global FX news in real-time, generates trade signals using Gemini LLM analysis, ' +
+          'and executes stablecoin swaps via the Mento protocol — all with configurable risk guardrails. ' +
+          'Supports 15+ Mento stablecoins (USDm, EURm, BRLm, JPYm, and more).';
 
       return {
         type: 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',
-        name: `AutoClaw FX Agent — ${displayName}`,
-        description: 'Autonomous FX trading agent on Celo/Mento. Analyzes global FX news and executes stablecoin swaps based on AI-driven signals with configurable risk guardrails.',
-        image: 'https://autoclaw.xyz/agent-avatar.png',
-        services: [{ name: 'web', endpoint: 'https://autoclaw.xyz' }],
+        name: `AutoClaw ${agentLabel} Agent — ${displayName}`,
+        description: agentDesc + ' Built for the Celo hackathon with ERC-8004 on-chain agent identity and reputation.',
+        image: 'https://autoclaw.xyz/autoclaw.webp',
+        services: [
+          { name: 'web', endpoint: 'https://autoclaw.xyz', description: 'Website' },
+          { name: 'github', endpoint: 'https://github.com/0xkemcho/AutoClaw', description: 'Source Code' },
+        ],
         x402Support: false,
         active: agentConfig.active,
       };

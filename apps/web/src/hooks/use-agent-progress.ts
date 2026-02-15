@@ -19,6 +19,8 @@ const STEP_LABELS: Record<ProgressStep, string> = {
   checking_yield_guardrails: 'Checking guardrails...',
   executing_yields: 'Executing yields...',
   claiming_rewards: 'Claiming rewards...',
+  registering_8004: 'Registering on ERC-8004...',
+  linking_wallet: 'Linking server wallet...',
   complete: 'Done',
   error: 'Failed',
 };

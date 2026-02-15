@@ -19,12 +19,27 @@ export async function userRoutes(app: FastifyInstance) {
       const walletAddress = request.user!.walletAddress;
       const answers = request.body as RiskAnswers;
 
-      const score = computeRiskScore({
-        experience: answers.experience,
-        horizon: answers.horizon,
-        volatility: answers.volatility,
-        investmentAmount: answers.investmentAmount,
-      });
+      // Validate required fields
+      if (!answers || typeof answers !== 'object') {
+        return reply.status(400).send({ error: 'Request body is required' });
+      }
+      if (!answers.name || typeof answers.name !== 'string') {
+        return reply.status(400).send({ error: 'name is required and must be a string' });
+      }
+      if (!answers.experience || !['beginner', 'some_experience', 'advanced'].includes(answers.experience)) {
+        return reply.status(400).send({ error: 'experience must be one of: beginner, some_experience, advanced' });
+      }
+      if (!answers.horizon || !['short', 'medium', 'long'].includes(answers.horizon)) {
+        return reply.status(400).send({ error: 'horizon must be one of: short, medium, long' });
+      }
+      if (!answers.volatility || !['sell', 'hold', 'buy'].includes(answers.volatility)) {
+        return reply.status(400).send({ error: 'volatility must be one of: sell, hold, buy' });
+      }
+      if (!answers.investmentAmount || !['under_100', '100_1000', '1000_10000', 'over_10000'].includes(answers.investmentAmount)) {
+        return reply.status(400).send({ error: 'investmentAmount must be one of: under_100, 100_1000, 1000_10000, over_10000' });
+      }
+
+      const score = computeRiskScore(answers);
       const profile = scoreToProfile(score);
 
       const { data, error } = await supabaseAdmin
@@ -36,7 +51,8 @@ export async function userRoutes(app: FastifyInstance) {
             risk_profile: profile,
             risk_answers: answers as unknown as Record<string, unknown>,
             preferred_currencies: answers.currencies,
-            onboarding_completed: true,
+            // Don't set onboarding_completed here — wait until the full flow finishes
+            // (funding + registration steps). Use POST /api/user/complete-onboarding.
           },
           { onConflict: 'wallet_address' },
         )
@@ -51,14 +67,15 @@ export async function userRoutes(app: FastifyInstance) {
       // Create server wallet and agent config
       let serverWalletAddress: string | null = null;
       try {
-        // Check if agent config already exists
+        // Check existing FX agent config (idempotency guard)
         const { data: existingConfig } = await supabaseAdmin
           .from('agent_configs')
-          .select('server_wallet_address')
+          .select('server_wallet_id, server_wallet_address')
           .eq('wallet_address', walletAddress)
+          .eq('agent_type', 'fx')
           .single();
 
-        if (existingConfig?.server_wallet_address) {
+        if (existingConfig?.server_wallet_id && existingConfig?.server_wallet_address) {
           serverWalletAddress = existingConfig.server_wallet_address;
         } else {
           // Create new Privy server wallet
@@ -71,6 +88,7 @@ export async function userRoutes(app: FastifyInstance) {
           await supabaseAdmin.from('agent_configs').upsert(
             {
               wallet_address: walletAddress,
+              agent_type: 'fx',
               server_wallet_address: wallet.address,
               server_wallet_id: wallet.walletId,
               active: false,
@@ -81,7 +99,7 @@ export async function userRoutes(app: FastifyInstance) {
               daily_trade_limit: defaults.dailyTradeLimit,
               allowed_currencies: answers.currencies.length > 0 ? answers.currencies : undefined,
             },
-            { onConflict: 'wallet_address' },
+            { onConflict: 'wallet_address,agent_type' },
           );
         }
       } catch (walletErr) {
@@ -95,6 +113,40 @@ export async function userRoutes(app: FastifyInstance) {
         score,
         serverWalletAddress,
       };
+    },
+  );
+
+  // Mark onboarding as complete (called at end of full flow: questionnaire + funding + registration)
+  app.post(
+    '/api/user/complete-onboarding',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+
+      const { error } = await supabaseAdmin
+        .from('user_profiles')
+        .update({ onboarding_completed: true })
+        .eq('wallet_address', walletAddress);
+
+      if (error) {
+        return reply.status(500).send({ error: 'Failed to complete onboarding' });
+      }
+
+      return { success: true };
+    },
+  );
+
+  // GET /api/user/agents — returns which agent types the user has configured
+  app.get(
+    '/api/user/agents',
+    { preHandler: authMiddleware },
+    async (request) => {
+      const walletAddress = request.user!.walletAddress;
+      const { data } = await supabaseAdmin
+        .from('agent_configs')
+        .select('agent_type, active, agent_8004_id')
+        .eq('wallet_address', walletAddress);
+      return { agents: data ?? [] };
     },
   );
 
