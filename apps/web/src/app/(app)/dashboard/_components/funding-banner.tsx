@@ -16,13 +16,12 @@ interface FundingBannerProps {
 
 export function FundingBanner({ serverWalletAddress }: FundingBannerProps) {
   const m = useMotionSafe();
-  const [dismissed, setDismissed] = useState(true);
+  const [dismissed, setDismissed] = useState(() => {
+    // Check localStorage during initialization
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(DISMISS_KEY) === 'true';
+  });
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(DISMISS_KEY);
-    setDismissed(stored === 'true');
-  }, []);
 
   function handleDismiss() {
     setDismissed(true);
