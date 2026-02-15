@@ -26,7 +26,7 @@ export interface CreateServerWalletResult {
 export async function createServerWallet(
   identifier: string,
 ): Promise<CreateServerWalletResult> {
-  const res = await fetch(`${THIRDWEB_API_BASE}/v1/wallets/server`, {
+  const res: any = await fetch(`${THIRDWEB_API_BASE}/v1/wallets/server`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -95,7 +95,7 @@ export async function sendSponsoredTransaction(
     })),
   };
 
-  const res = await fetch(`${THIRDWEB_API_BASE}/v1/transactions`, {
+  const res: any = await fetch(`${THIRDWEB_API_BASE}/v1/transactions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
