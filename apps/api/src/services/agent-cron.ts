@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { type Address, erc20Abi, formatUnits } from 'viem';
+import { type Address, formatUnits } from 'viem';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import { parseFrequencyToMs, type AgentFrequency, type ProgressStep, ALL_TOKEN_ADDRESSES, TOKEN_METADATA } from '@autoclaw/shared';
+import { getErc20Balance } from '@autoclaw/contracts';
 import { getPositions, calculatePortfolioValue, updatePositionAfterTrade } from './position-tracker';
 import {
   upsertYieldPositionAfterDeposit,
@@ -429,11 +430,10 @@ async function getOnChainBalances(serverWalletAddress: string): Promise<WalletBa
   const results: WalletBalance[] = [];
   for (const [symbol, address] of tokensToCheck) {
     try {
-      const raw = await celoClient.readContract({
-        address: address as Address,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [serverWalletAddress as Address],
+      const raw = await getErc20Balance({
+        token: address as Address,
+        account: serverWalletAddress as Address,
+        client: celoClient,
       });
       const decimals = TOKEN_METADATA[symbol]?.decimals ?? 18;
       const formatted = formatUnits(raw, decimals);
