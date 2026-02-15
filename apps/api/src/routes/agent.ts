@@ -721,6 +721,7 @@ export async function agentRoutes(app: FastifyInstance) {
 
       // Snapshots are ordered ascending by time, so later entries overwrite earlier ones
       for (const snap of snapshots) {
+        if (!snap.snapshot_at) continue;
         const day = snap.snapshot_at.split('T')[0];
         lastPricePerDayToken.set(`${day}|${snap.token_symbol}`, snap.price_usd);
       }

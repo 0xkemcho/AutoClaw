@@ -280,8 +280,9 @@ export async function tradeRoutes(app: FastifyInstance) {
           );
         }
 
-        if (query.status) {
-          dbQuery = dbQuery.eq('status', query.status as Database['public']['Tables']['transactions']['Row']['status']);
+        if (query.status != null && query.status !== '') {
+          const status = query.status as string;
+          dbQuery = dbQuery.eq('status', status);
         }
 
         const { data, error, count } = await dbQuery;

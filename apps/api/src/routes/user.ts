@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../middleware/auth';
-import { createSupabaseAdmin } from '@autoclaw/db';
+import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import { computeRiskScore, scoreToProfile } from '../lib/risk-scoring';
 import { createAgentWallet } from '../lib/privy-wallet';
 import { DEFAULT_GUARDRAILS, type RiskAnswers, type RiskProfile } from '@autoclaw/shared';
@@ -49,7 +49,7 @@ export async function userRoutes(app: FastifyInstance) {
             wallet_address: walletAddress,
             display_name: answers.name,
             risk_profile: profile,
-            risk_answers: answers as unknown as Record<string, unknown>,
+            risk_answers: answers as unknown as Database['public']['Tables']['user_profiles']['Insert']['risk_answers'],
             preferred_currencies: answers.currencies,
             // Don't set onboarding_completed here — wait until the full flow finishes
             // (funding + registration steps). Use POST /api/user/complete-onboarding.
@@ -92,7 +92,7 @@ export async function userRoutes(app: FastifyInstance) {
               server_wallet_address: wallet.address,
               server_wallet_id: wallet.walletId,
               active: false,
-              frequency: defaults.frequency,
+              frequency: String(defaults.frequency),
               max_trade_size_usd: defaults.maxTradeSizeUsd,
               max_allocation_pct: defaults.maxAllocationPct,
               stop_loss_pct: defaults.stopLossPct,
