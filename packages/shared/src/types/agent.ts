@@ -134,6 +134,8 @@ export type ProgressStep =
   | 'checking_yield_guardrails'
   | 'executing_yields'
   | 'claiming_rewards'
+  | 'registering_8004'
+  | 'linking_wallet'
   | 'complete'
   | 'error';
 
@@ -207,6 +209,11 @@ export interface ProgressRewardClaimData {
   compounded: boolean;
 }
 
+export interface ProgressRegistrationData {
+  agentId?: number;
+  txHash?: string;
+}
+
 export type ProgressData =
   | ProgressNewsData
   | ProgressSignalsData
@@ -217,7 +224,8 @@ export type ProgressData =
   | ProgressYieldScanData
   | ProgressYieldSignalData
   | ProgressYieldDepositData
-  | ProgressRewardClaimData;
+  | ProgressRewardClaimData
+  | ProgressRegistrationData;
 
 export interface AgentStatus {
   config: AgentConfig;

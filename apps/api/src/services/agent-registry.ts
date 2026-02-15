@@ -1,4 +1,6 @@
-import { type Address, encodeFunctionData } from 'viem';
+import { type Address, encodeFunctionData, createWalletClient, http, parseEventLogs } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { celo } from 'viem/chains';
 import {
   identityRegistryAbi,
   reputationRegistryAbi,
@@ -8,8 +10,120 @@ import {
 } from '@autoclaw/contracts';
 import { celoClient } from '../lib/celo-client';
 import { getAgentWalletClient } from '../lib/privy-wallet';
+import { emitProgress } from './agent-events';
 
 const ZERO_BYTES32 = ('0x' + '0'.repeat(64)) as `0x${string}`;
+
+/**
+ * Get a viem WalletClient backed by the thirdweb admin private key.
+ * Used for sponsored transactions where the platform pays gas fees.
+ */
+function getAdminWalletClient() {
+  const adminKey = process.env.THIRDWEB_ADMIN_PRIVATE_KEY;
+  if (!adminKey) throw new Error('THIRDWEB_ADMIN_PRIVATE_KEY is required');
+
+  const account = privateKeyToAccount(adminKey as `0x${string}`);
+  return createWalletClient({
+    account,
+    chain: celo,
+    transport: http(process.env.CELO_RPC_URL || 'https://forno.celo.org'),
+  });
+}
+
+/**
+ * Register an agent on ERC-8004 fully server-side (sponsored).
+ * The admin wallet pays gas for both register() and setAgentWallet().
+ *
+ * Steps:
+ * 1. Call register(agentURI) from the admin wallet
+ * 2. Parse Registered event to get the agentId
+ * 3. Get EIP-712 signature from the server (Privy) wallet
+ * 4. Call setAgentWallet(agentId, serverWallet, deadline, sig) from admin wallet
+ *
+ * Returns the agentId and tx hashes.
+ */
+export async function registerAgentOnChain(params: {
+  userWalletAddress: string;
+  serverWalletId: string;
+  serverWalletAddress: string;
+  metadataUrl: string;
+}): Promise<{ agentId: bigint; registerTxHash: string; linkTxHash: string }> {
+  const { userWalletAddress, serverWalletId, serverWalletAddress, metadataUrl } = params;
+  const adminClient = getAdminWalletClient();
+
+  // Step 1: register(agentURI) — admin wallet is the tx sender (and NFT owner)
+  emitProgress(userWalletAddress, 'registering_8004', 'Submitting registration transaction...', { agentId: undefined, txHash: undefined });
+  console.log(`[8004] Registering agent for ${userWalletAddress} with URI: ${metadataUrl}`);
+  const registerData = encodeFunctionData({
+    abi: identityRegistryAbi,
+    functionName: 'register',
+    args: [metadataUrl],
+  });
+
+  const registerHash = await adminClient.sendTransaction({
+    to: IDENTITY_REGISTRY_ADDRESS,
+    data: registerData,
+  });
+
+  emitProgress(userWalletAddress, 'registering_8004', 'Waiting for registration confirmation...', { txHash: registerHash });
+
+  const registerReceipt = await celoClient.waitForTransactionReceipt({ hash: registerHash });
+  if (registerReceipt.status === 'reverted') {
+    emitProgress(userWalletAddress, 'error', `Registration transaction reverted (tx: ${registerHash})`);
+    throw new Error(`register() reverted (tx: ${registerHash})`);
+  }
+
+  // Step 2: Parse Registered event to get agentId
+  const logs = parseEventLogs({
+    abi: identityRegistryAbi,
+    logs: registerReceipt.logs,
+    eventName: 'Registered',
+  });
+
+  if (logs.length === 0) {
+    emitProgress(userWalletAddress, 'error', 'No registration event found');
+    throw new Error(`No Registered event found in tx ${registerHash}`);
+  }
+
+  const agentId = (logs[0] as any).args.agentId as bigint;
+  console.log(`[8004] Agent registered: id=${agentId}, tx=${registerHash}`);
+
+  // Step 3: Get EIP-712 signature from server wallet for setAgentWallet
+  emitProgress(userWalletAddress, 'linking_wallet', `Agent #${agentId} registered! Linking server wallet...`, { agentId: Number(agentId), txHash: registerHash });
+
+  const ownerAddress = adminClient.account.address;
+  const { signature, deadline } = await prepareAgentWalletLink(
+    serverWalletId,
+    serverWalletAddress,
+    agentId,
+    ownerAddress,
+  );
+
+  // Step 4: setAgentWallet(agentId, serverWallet, deadline, signature)
+  console.log(`[8004] Linking server wallet ${serverWalletAddress} to agent ${agentId}`);
+  const linkData = encodeFunctionData({
+    abi: identityRegistryAbi,
+    functionName: 'setAgentWallet',
+    args: [agentId, serverWalletAddress as Address, deadline, signature],
+  });
+
+  const linkHash = await adminClient.sendTransaction({
+    to: IDENTITY_REGISTRY_ADDRESS,
+    data: linkData,
+  });
+
+  emitProgress(userWalletAddress, 'linking_wallet', 'Waiting for wallet link confirmation...', { agentId: Number(agentId), txHash: linkHash });
+
+  const linkReceipt = await celoClient.waitForTransactionReceipt({ hash: linkHash });
+  if (linkReceipt.status === 'reverted') {
+    emitProgress(userWalletAddress, 'error', `Wallet linking reverted (tx: ${linkHash})`);
+    throw new Error(`setAgentWallet() reverted (tx: ${linkHash})`);
+  }
+
+  emitProgress(userWalletAddress, 'complete', `Agent #${agentId} registered and wallet linked!`, { agentId: Number(agentId), txHash: linkHash });
+  console.log(`[8004] Server wallet linked: tx=${linkHash}`);
+  return { agentId, registerTxHash: registerHash, linkTxHash: linkHash };
+}
 
 /**
  * Sign EIP-712 typed data with the server wallet to authorize linking
@@ -63,28 +177,29 @@ export async function submitTradeFeedback(params: {
   serverWalletId: string;
   serverWalletAddress: string;
   agentId: bigint;
-  confidence: number;
+  reasoning: string;
   currency: string;
   direction: string;
   tradeTxHash: string;
 }): Promise<string> {
-  const { serverWalletId, serverWalletAddress, agentId, confidence, currency, direction, tradeTxHash } = params;
+  const { serverWalletId, serverWalletAddress, agentId, reasoning, currency, direction, tradeTxHash } = params;
 
   const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
 
-  console.log(`[8004] Submitting reputation feedback: agent=${agentId}, confidence=${confidence}, ${currency} ${direction}`);
+  const feedbackURI = `reasoning: ${reasoning} | tx: ${tradeTxHash}`;
+  console.log(`[8004] Submitting reputation feedback: agent=${agentId}, score=100, ${currency} ${direction}`);
 
   const data = encodeFunctionData({
     abi: reputationRegistryAbi,
     functionName: 'giveFeedback',
     args: [
       agentId,
-      BigInt(confidence),
+      BigInt(100),
       0,
       currency,
       direction,
       'https://autoclaw.xyz',
-      tradeTxHash,
+      feedbackURI,
       ZERO_BYTES32,
     ],
   });
