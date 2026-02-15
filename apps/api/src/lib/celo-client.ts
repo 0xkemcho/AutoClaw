@@ -1,7 +1,7 @@
-import { createPublicClient, http, type PublicClient } from 'viem';
+import { createPublicClient, http } from 'viem';
 import { celo } from 'viem/chains';
 
-export const celoClient: PublicClient = createPublicClient({
+export const celoClient = createPublicClient({
   chain: celo,
   transport: http(process.env.CELO_RPC_URL || 'https://forno.celo.org'),
 });
