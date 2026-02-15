@@ -114,7 +114,7 @@ export async function tradeRoutes(app: FastifyInstance) {
           amountIn,
           tokenInDecimals: fromDecimals,
           tokenOutDecimals: toDecimals,
-          celoClient,
+          celoClient: celoClient as any,
         });
 
         const amountOutMin = applySlippage(quote.amountOut, slippage);
@@ -125,7 +125,7 @@ export async function tradeRoutes(app: FastifyInstance) {
           token: fromAddress,
           owner: walletAddress as Address,
           spender: BROKER_ADDRESS,
-          celoClient,
+          celoClient: celoClient as any,
         });
 
         const needsApproval = currentAllowance < amountIn;
@@ -469,7 +469,7 @@ export async function tradeRoutes(app: FastifyInstance) {
       const balance = await getErc20Balance({
         token: tokenAddress as Address,
         account: agent.server_wallet_address as Address,
-        client: celoClient,
+        client: celoClient as any,
       });
 
       const balanceHuman = Number(formatUnits(balance, decimals));
