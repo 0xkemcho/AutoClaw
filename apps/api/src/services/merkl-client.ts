@@ -50,7 +50,7 @@ export async function fetchYieldOpportunities(
     id: item.identifier ?? item.id ?? '',
     name: item.name ?? '',
     vaultAddress: item.identifier ?? '',
-    protocol: item.protocol ?? '',
+    protocol: typeof item.protocol === 'object' ? (item.protocol?.name ?? '') : String(item.protocol ?? ''),
     status: item.status ?? 'LIVE',
     apr: Number(item.apr ?? 0),
     tvl: Number(item.tvl ?? 0),
