@@ -107,6 +107,7 @@ export async function tradeRoutes(app: FastifyInstance) {
         const amountIn = parseUnits(amount, fromDecimals);
 
         // Get quote from Mento Broker
+        // @ts-ignore - Multiple viem installations cause type conflicts
         const quote = await getQuote({
           tokenIn: fromAddress,
           tokenOut: toAddress,
@@ -119,6 +120,7 @@ export async function tradeRoutes(app: FastifyInstance) {
         const amountOutMin = applySlippage(quote.amountOut, slippage);
 
         // Check existing allowance
+        // @ts-ignore - Multiple viem installations cause type conflicts
         const currentAllowance = await checkAllowance({
           token: fromAddress,
           owner: walletAddress as Address,
