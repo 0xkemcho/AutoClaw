@@ -30,9 +30,26 @@ const FEE_CURRENCY_MAP: Record<string, Address> = {
   USDm: USDM_ADDRESS,
 };
 
+// Map fee currency address -> underlying token address (for conflict check)
+const FEE_CURRENCY_TO_TOKEN: Record<string, Address> = {
+  [USDC_FEE_ADAPTER]: USDC_CELO_ADDRESS as Address,
+  [USDT_FEE_ADAPTER]: USDT_CELO_ADDRESS as Address,
+  [USDM_ADDRESS]: USDM_ADDRESS,
+};
+
 const DEFAULT_SLIPPAGE_PCT = 0.5;
 const approvalCache = new Map<string, number>(); // key -> timestamp
 const APPROVAL_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// #region agent log
+function _dbg(id: string, msg: string, data: Record<string, unknown>) {
+  fetch('http://127.0.0.1:7242/ingest/7d2e188d-ef20-4305-8eeb-fbcbfd7a4be1', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ location: 'trade-executor.ts', message: msg, data, timestamp: Date.now(), hypothesisId: id }),
+  }).catch(() => {});
+}
+// #endregion
 
 export interface TradeResult {
   txHash: string;
@@ -344,6 +361,10 @@ export async function executeSwap(params: {
 }): Promise<TradeResult> {
   const { serverWalletId, serverWalletAddress, from, to, amount, slippagePct = 0.5 } = params;
 
+  // #region agent log
+  _dbg('H3', 'executeSwap entry', { from, to, amount, slippagePct });
+  // #endregion
+
   const fromAddress = getTokenAddress(from) as Address | undefined;
   const toAddress = getTokenAddress(to) as Address | undefined;
   if (!fromAddress || !toAddress) {
@@ -355,6 +376,12 @@ export async function executeSwap(params: {
   const amountIn = parseUnits(amount, tokenInDecimals);
 
   const feeCurrency = await selectFeeCurrency(serverWalletAddress as Address);
+  // When swapping FROM the same token we'd use for gas, feeCurrency causes SafeERC20 with Mento Broker.
+  // Use native CELO only in that conflict case; otherwise use fee currency (USDm/USDC/USDT).
+  const tokenUsedForGas = FEE_CURRENCY_TO_TOKEN[feeCurrency];
+  const gasConflict = tokenUsedForGas && fromAddress.toLowerCase() === tokenUsedForGas.toLowerCase();
+  const txFeeCurrency = gasConflict ? undefined : feeCurrency;
+
   const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
 
   const quote = await getQuote({
@@ -368,6 +395,17 @@ export async function executeSwap(params: {
 
   const amountOutMin = applySlippage(quote.amountOut, slippagePct);
 
+  // #region agent log
+  _dbg('H1', 'quote and slippage', {
+    runId: 'post-fix',
+    amountInHuman: formatUnits(amountIn, tokenInDecimals),
+    amountOutHuman: formatUnits(quote.amountOut, tokenOutDecimals),
+    amountOutMinHuman: formatUnits(amountOutMin, tokenOutDecimals),
+    routeHops: quote.route.length,
+    gasCurrency: gasConflict ? 'CELO (native, conflict avoided)' : 'feeCurrency',
+  });
+  // #endregion
+
   const approvalKey = `${fromAddress}-${serverWalletAddress}`;
   const cachedAt = approvalCache.get(approvalKey);
   const isCacheValid = cachedAt && (Date.now() - cachedAt) < APPROVAL_CACHE_TTL_MS;
@@ -380,12 +418,15 @@ export async function executeSwap(params: {
       celoClient: celoClient as unknown as PublicClient,
     });
     if (allowance < amountIn) {
+      // #region agent log
+      _dbg('H4', 'executing approve (will spend gas in fee currency)', { from });
+      // #endregion
       const approveTx = buildApproveTx({ token: fromAddress, spender: BROKER_ADDRESS });
       const approveHash = await walletClient.sendTransaction({
         to: approveTx.to,
         data: approveTx.data,
         chain: walletClient.chain,
-        feeCurrency,
+        ...(txFeeCurrency && { feeCurrency: txFeeCurrency }),
       });
       await celoClient.waitForTransactionReceipt({ hash: approveHash });
     }
@@ -398,6 +439,15 @@ export async function executeSwap(params: {
     functionName: 'balanceOf',
     args: [serverWalletAddress as Address],
   });
+
+  // #region agent log
+  _dbg('H4', 'balance before swap', {
+    walletBalanceHuman: formatUnits(walletBalance, tokenInDecimals),
+    amountInHuman: formatUnits(amountIn, tokenInDecimals),
+    needsApprove: !isCacheValid,
+  });
+  // #endregion
+
   if (walletBalance < amountIn) {
     throw new Error(
       `Insufficient ${from} balance: have ${formatUnits(walletBalance, tokenInDecimals)}, need ${amount}`,
@@ -411,6 +461,15 @@ export async function executeSwap(params: {
     const hop = quote.route[i];
     const isLastHop = i === quote.route.length - 1;
     const hopMinOut = isLastHop ? amountOutMin : 1n;
+
+    // #region agent log
+    _dbg('H2', `hop ${i}`, {
+      hopIndex: i,
+      isLastHop,
+      currentAmountInRaw: currentAmountIn.toString(),
+      hopMinOutRaw: hopMinOut.toString(),
+    });
+    // #endregion
 
     if (i > 0) {
       currentAmountIn = await celoClient.readContract({
@@ -431,7 +490,7 @@ export async function executeSwap(params: {
           to: approveTx.to,
           data: approveTx.data,
           chain: walletClient.chain,
-          feeCurrency,
+          ...(txFeeCurrency && { feeCurrency: txFeeCurrency }),
         });
         await celoClient.waitForTransactionReceipt({ hash: approveHash });
       }
@@ -455,18 +514,35 @@ export async function executeSwap(params: {
         to: BROKER_ADDRESS,
         data,
         chain: walletClient.chain,
-        feeCurrency,
+        ...(txFeeCurrency && { feeCurrency: txFeeCurrency }),
       });
     } catch (err) {
+      // #region agent log
+      _dbg('H1', 'sendTransaction threw', {
+        hopIndex: i,
+        errMsg: err instanceof Error ? err.message : String(err),
+      });
+      // #endregion
       throw parseTransactionError(err, `Swap ${from} → ${to} failed`);
     }
     const receipt = await celoClient.waitForTransactionReceipt({ hash: lastHash });
     if (receipt.status === 'reverted') {
+      // #region agent log
+      _dbg('H1', 'swap reverted', {
+        hopIndex: i,
+        txHash: lastHash,
+        gasUsed: receipt.gasUsed?.toString(),
+      });
+      // #endregion
       throw new Error(
         `Swap ${from} → ${to} reverted (tx: ${lastHash}). Likely causes: slippage exceeded or insufficient liquidity.`,
       );
     }
   }
+
+  // #region agent log
+  _dbg('H6', 'swap success', { runId: 'post-fix', txHash: lastHash });
+  // #endregion
 
   return {
     txHash: lastHash,

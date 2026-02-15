@@ -1,7 +1,74 @@
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { TokenLogo } from '@/components/token-logo';
 import { cn } from '@/lib/utils';
+
+/* ------------------------------------------------------------------ */
+/*  YieldSignalCard — for yield agent analysis signals                */
+/* ------------------------------------------------------------------ */
+
+interface YieldSignalCardProps {
+  vaultName: string;
+  action: string;
+  amountUsd: number;
+  estimatedApr: number;
+  confidence: number;
+  reasoning?: string;
+}
+
+const YIELD_ACTION_CONFIG: Record<string, { label: string; color: string; icon: typeof ArrowDownToLine }> = {
+  deposit: { label: 'Deposit', color: 'text-success', icon: ArrowDownToLine },
+  withdraw: { label: 'Withdraw', color: 'text-destructive', icon: ArrowUpFromLine },
+  hold: { label: 'Hold', color: 'text-muted-foreground', icon: Minus },
+};
+
+export function YieldSignalCard({
+  vaultName,
+  action,
+  amountUsd,
+  estimatedApr,
+  confidence,
+  reasoning,
+}: YieldSignalCardProps) {
+  const config = YIELD_ACTION_CONFIG[action] ?? YIELD_ACTION_CONFIG.hold;
+  const Icon = config.icon;
+
+  return (
+    <div className="flex items-start gap-2 rounded-lg border bg-muted/30 px-3 py-2">
+      <Icon className={cn('mt-0.5 size-3.5 shrink-0', config.color)} />
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium truncate">{vaultName}</span>
+          <Badge
+            variant={action === 'deposit' ? 'default' : action === 'withdraw' ? 'destructive' : 'secondary'}
+            className="text-[11px] px-1.5 py-0"
+          >
+            {config.label}
+          </Badge>
+          <span className="text-xs font-mono tabular-nums text-muted-foreground">
+            ${amountUsd.toFixed(2)}
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            {estimatedApr.toFixed(1)}% APR
+          </span>
+          <span
+            className="text-xs font-mono tabular-nums"
+            style={{ opacity: 0.4 + (confidence / 100) * 0.6 }}
+          >
+            {confidence}%
+          </span>
+        </div>
+        {reasoning && (
+          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{reasoning}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  SignalCard — for FX agent analysis signals                        */
+/* ------------------------------------------------------------------ */
 
 interface SignalCardProps {
   currency: string;

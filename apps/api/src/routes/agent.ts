@@ -407,7 +407,21 @@ export async function agentRoutes(app: FastifyInstance) {
           }
         }
 
-        let totalValueUsd = 0;
+        // Yield: include vault positions in total (matches run-now eligibility check)
+        let vaultValueUsd = 0;
+        if (validType === 'yield') {
+          const { data: yieldPositions } = await supabaseAdmin
+            .from('yield_positions')
+            .select('deposit_amount_usd')
+            .eq('wallet_address', walletAddress)
+            .gt('lp_shares', 0);
+          vaultValueUsd = (yieldPositions ?? []).reduce(
+            (s, p) => s + Number(p.deposit_amount_usd ?? 0),
+            0,
+          );
+        }
+
+        let totalValueUsd = vaultValueUsd;
         let totalPnl = 0;
         let hasAnyTrackedPosition = false;
         const holdings = balances.map((b) => {

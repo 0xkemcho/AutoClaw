@@ -29,10 +29,11 @@ export function checkYieldGuardrails(input: YieldGuardrailInput): GuardrailCheck
       .filter(p => p.vaultAddress === signal.vaultAddress)
       .reduce((sum, p) => sum + p.depositAmountUsd, 0);
     const postDepositPct = ((existingInVault + signal.amountUsd) / portfolioValueUsd) * 100;
-    if (postDepositPct > guardrails.maxSingleVaultPct) {
+    const roundedPct = Math.round(postDepositPct * 10) / 10;
+    if (roundedPct > guardrails.maxSingleVaultPct) {
       return {
         passed: false,
-        blockedReason: `Post-deposit vault allocation ${postDepositPct.toFixed(1)}% exceeds max ${guardrails.maxSingleVaultPct}%`,
+        blockedReason: `Post-deposit vault allocation ${roundedPct.toFixed(1)}% exceeds max ${guardrails.maxSingleVaultPct}%`,
         ruleName: 'max_single_vault',
       };
     }

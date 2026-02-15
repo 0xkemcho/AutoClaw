@@ -783,10 +783,16 @@ function AgentTab() {
       )}
 
       {/* Real-time reasoning display during analysis */}
-      {progress.isRunning && progress.reasoning && (
+      {progress.isRunning &&
+        (progress.reasoning || progress.currentStep === 'analyzing_yields') && (
         <ReasoningView
           reasoning={progress.reasoning}
           isActive={progress.currentStep === 'analyzing_yields'}
+          stageMessage={
+            !progress.reasoning && progress.currentStep === 'analyzing_yields'
+              ? progress.stepMessage
+              : undefined
+          }
         />
       )}
 

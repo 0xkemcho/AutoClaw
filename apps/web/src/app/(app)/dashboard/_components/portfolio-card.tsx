@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { Copy, Check, Wallet, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Copy, Check, Wallet, ArrowUpRight, ArrowDownLeft, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -146,6 +147,15 @@ export function PortfolioCard({
         .filter((h) => h.valueUsd >= 0.01)
         .sort((a, b) => b.valueUsd - a.valueUsd),
     [holdings],
+  );
+
+  // Show banner when user holds USDm or USDT instead of USDC (preferred for yield agent)
+  const nonUsdcStables = useMemo(
+    () =>
+      sortedHoldings.filter(
+        (h) => (h.tokenSymbol === 'USDm' || h.tokenSymbol === 'USDT') && h.valueUsd >= 0.01,
+      ),
+    [sortedHoldings],
   );
 
   // Build a lookup map from market tokens for quick access
@@ -313,6 +323,25 @@ export function PortfolioCard({
             </Button>
           </div>
         </div>
+
+        {/* Banner when user has USDm/USDT instead of USDC */}
+        {nonUsdcStables.length > 0 && (
+          <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+            <Info className="size-4 shrink-0 text-amber-500 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-amber-600 dark:text-amber-400">
+                Agent only works with USDC
+              </p>
+              <p className="mt-0.5 text-muted-foreground">
+                You have {nonUsdcStables.map((h) => h.tokenSymbol).join(' and ')}. Use the{' '}
+                <Link href="/swap" className="text-primary hover:underline font-medium">
+                  Swap
+                </Link>{' '}
+                feature to convert to USDC.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Token holding cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">

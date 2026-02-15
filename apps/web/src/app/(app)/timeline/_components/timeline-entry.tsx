@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime, formatUsd, shortenAddress } from '@/lib/format';
-import { SignalCard } from '@/components/signal-card';
+import { SignalCard, YieldSignalCard } from '@/components/signal-card';
 
 /* ------------------------------------------------------------------ */
 /*  Node configuration                                                 */
@@ -209,21 +209,14 @@ function renderDetail(entry: TimelineEntryProps['entry']) {
       );
 
     case 'analysis': {
-      const signals = Array.isArray(detail.signals)
-        ? (detail.signals as Array<{
-            currency: string;
-            direction: string;
-            confidence: number;
-            reasoning: string;
-            timeHorizon?: string;
-          }>)
-        : [];
+      const signals = Array.isArray(detail.signals) ? detail.signals : [];
+      const isYieldAnalysis = signals.length > 0 && typeof signals[0] === 'object' && 'vaultName' in (signals[0] as object);
 
       return (
         <div className="space-y-3">
-          {(detail.marketSummary || detail.reasoning) ? (
+          {(detail.marketSummary || detail.reasoning || detail.summary) ? (
             <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-              {String(detail.marketSummary || detail.reasoning)}
+              {String(detail.marketSummary || detail.reasoning || detail.summary)}
             </p>
           ) : null}
           {signals.length > 0 && (
@@ -231,16 +224,41 @@ function renderDetail(entry: TimelineEntryProps['entry']) {
               <p className="text-xs font-medium text-muted-foreground">
                 Signals ({signals.length})
               </p>
-              {signals.map((s, i) => (
-                <SignalCard
-                  key={i}
-                  currency={s.currency}
-                  direction={s.direction}
-                  confidence={s.confidence}
-                  reasoning={s.reasoning}
-                  timeHorizon={s.timeHorizon}
-                />
-              ))}
+              {isYieldAnalysis
+                ? (signals as Array<{
+                    vaultName: string;
+                    action: string;
+                    amountUsd: number;
+                    estimatedApr: number;
+                    confidence: number;
+                    reasoning?: string;
+                  }>).map((s, i) => (
+                    <YieldSignalCard
+                      key={i}
+                      vaultName={s.vaultName}
+                      action={s.action}
+                      amountUsd={s.amountUsd}
+                      estimatedApr={s.estimatedApr}
+                      confidence={s.confidence}
+                      reasoning={s.reasoning}
+                    />
+                  ))
+                : (signals as Array<{
+                    currency: string;
+                    direction: string;
+                    confidence: number;
+                    reasoning?: string;
+                    timeHorizon?: string;
+                  }>).map((s, i) => (
+                    <SignalCard
+                      key={i}
+                      currency={s.currency}
+                      direction={s.direction}
+                      confidence={s.confidence}
+                      reasoning={s.reasoning}
+                      timeHorizon={s.timeHorizon}
+                    />
+                  ))}
             </div>
           )}
           {renderCitations(entry.citations)}
