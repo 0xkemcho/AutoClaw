@@ -7,6 +7,7 @@ export interface ProgressEvent {
   step: ProgressStep;
   message: string;
   data?: ProgressData;
+  agentType?: 'fx' | 'yield';
 }
 
 /**
@@ -21,6 +22,7 @@ export function emitProgress(
   step: ProgressStep,
   message: string,
   data?: ProgressData,
+  agentType?: 'fx' | 'yield',
 ): void {
-  agentEvents.emit(`progress:${walletAddress}`, { step, message, data } satisfies ProgressEvent);
+  agentEvents.emit(`progress:${walletAddress}`, { step, message, data, agentType } satisfies ProgressEvent);
 }

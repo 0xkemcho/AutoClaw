@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useCallback, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'sonner';
 import type { RiskAnswers } from '@autoclaw/shared';
@@ -17,26 +17,32 @@ import { useMotionSafe } from '@/lib/motion';
 
 type Phase = 'agent-select' | 'questionnaire' | 'yield-setup' | 'funding' | 'registration';
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const m = useMotionSafe();
   const { isOnboarded, walletAddress, refreshSession } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const submitMutation = useSubmitRiskProfile();
 
-  const [phase, setPhase] = useState<Phase>('agent-select');
-  const [agentType, setAgentType] = useState<'fx' | 'yield'>('fx');
+  // If ?agent=yield, skip agent-select and go straight to yield-setup
+  const preselectedAgent = searchParams.get('agent') as 'fx' | 'yield' | null;
+  const initialPhase: Phase = preselectedAgent === 'yield' ? 'yield-setup' : 'agent-select';
+  const initialAgentType: 'fx' | 'yield' = preselectedAgent === 'yield' ? 'yield' : 'fx';
+
+  const [phase, setPhase] = useState<Phase>(initialPhase);
+  const [agentType, setAgentType] = useState<'fx' | 'yield'>(initialAgentType);
   const [submissionResult, setSubmissionResult] = useState<{
     serverWalletAddress: string | null;
     riskProfile: string;
   } | null>(null);
   const [lastAnswers, setLastAnswers] = useState<RiskAnswers | null>(null);
 
-  // If already onboarded on initial load, redirect to dashboard
+  // If already onboarded and no specific agent requested, redirect to FX agent
   useEffect(() => {
-    if (isOnboarded) {
+    if (isOnboarded && !preselectedAgent) {
       router.replace('/fx-agent');
     }
-  }, [isOnboarded, router]);
+  }, [isOnboarded, preselectedAgent, router]);
 
   const handleComplete = useCallback(
     async (answers: RiskAnswers) => {
@@ -67,6 +73,17 @@ export default function OnboardingPage() {
     setPhase('registration');
   }, []);
 
+  // Skip onboarding entirely — marks onboarded with no agents, user sees hero CTAs
+  const handleSkipOnboarding = useCallback(async () => {
+    try {
+      await api.post('/api/user/complete-onboarding', {});
+      await refreshSession();
+    } catch {
+      // Non-fatal
+    }
+    router.push('/fx-agent');
+  }, [refreshSession, router]);
+
   // Called when registration completes (or is skipped) — marks onboarding done
   const handleOnboardingDone = useCallback(async () => {
     const redirectPath = agentType === 'yield' ? '/yield-agent' : '/fx-agent';
@@ -80,7 +97,7 @@ export default function OnboardingPage() {
     }
   }, [agentType, refreshSession, router]);
 
-  if (isOnboarded) return null;
+  if (isOnboarded && !preselectedAgent) return null;
 
   return (
     <AnimatePresence mode="wait">
@@ -98,6 +115,7 @@ export default function OnboardingPage() {
               setAgentType(type);
               setPhase(type === 'yield' ? 'yield-setup' : 'questionnaire');
             }}
+            onSkip={handleSkipOnboarding}
           />
         </motion.div>
       )}
@@ -169,6 +187,7 @@ export default function OnboardingPage() {
           className="flex w-full justify-center"
         >
           <RegisterAgent
+            agentType={agentType}
             serverWalletAddress={submissionResult?.serverWalletAddress ?? null}
             walletAddress={walletAddress ?? ''}
             onDone={handleOnboardingDone}
@@ -176,5 +195,13 @@ export default function OnboardingPage() {
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense>
+      <OnboardingContent />
+    </Suspense>
   );
 }

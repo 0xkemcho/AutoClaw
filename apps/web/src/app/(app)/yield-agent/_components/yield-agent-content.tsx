@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Loader2,
   Ban,
+  Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -927,11 +928,88 @@ function SettingsTab() {
 /*  Main: Tabbed layout                                                */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/*  Hero CTA for unregistered users                                    */
+/* ------------------------------------------------------------------ */
+
+function YieldHero() {
+  const m = useMotionSafe();
+  const router = useRouter();
+
+  const features = [
+    {
+      icon: TrendingUp,
+      title: 'High-Yield Vaults',
+      desc: 'Automatically finds the best Merkl-incentivized vaults on Celo — Ichi, Uniswap, Steer & more.',
+    },
+    {
+      icon: RefreshCw,
+      title: 'Auto-Rebalancing',
+      desc: 'Continuously monitors APRs and rotates into higher-yielding positions.',
+    },
+    {
+      icon: Coins,
+      title: 'Reward Claiming',
+      desc: 'Claims Merkl rewards and optionally auto-compounds them back into vaults.',
+    },
+  ];
+
+  return (
+    <motion.div
+      {...m.fadeIn}
+      transition={{ duration: m.duration.normal }}
+      className="space-y-8"
+    >
+      <div className="text-center">
+        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 ring-1 ring-amber-500/20">
+          <Sprout className="size-7 text-amber-500" />
+        </div>
+        <h1 className="text-2xl font-bold">Yield Farming Agent</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground leading-relaxed">
+          Put your stablecoins to work. The yield agent automatically deposits
+          into the highest-APR vaults on Celo and manages your positions 24/7.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        {features.map((f) => (
+          <Card key={f.title}>
+            <CardContent className="flex flex-col items-center p-5 text-center">
+              <f.icon className="mb-3 size-6 text-amber-500" />
+              <p className="text-sm font-semibold">{f.title}</p>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                {f.desc}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="flex justify-center">
+        <Button
+          size="lg"
+          className="gap-2"
+          onClick={() => router.push('/onboarding?agent=yield')}
+        >
+          <Sprout className="size-4" />
+          Create Yield Agent
+        </Button>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main: Tabbed layout (or hero if no agent registered)               */
+/* ------------------------------------------------------------------ */
+
 function YieldAgentTabs() {
   const m = useMotionSafe();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+
+  const { data, isLoading, isError } = useYieldAgentStatus();
 
   const activeTab = searchParams.get('tab') ?? DEFAULT_TAB;
 
@@ -951,6 +1029,33 @@ function YieldAgentTabs() {
     [searchParams, router, pathname],
   );
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <Skeleton className="mx-auto h-7 w-48" />
+          <Skeleton className="mx-auto mt-2 h-4 w-72" />
+        </div>
+        <Card>
+          <CardContent className="space-y-4 p-6">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-64" />
+            <div className="flex gap-3">
+              <Skeleton className="h-9 w-24" />
+              <Skeleton className="h-9 w-24" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // No yield agent registered — show hero CTA
+  if (!data || isError) {
+    return <YieldHero />;
+  }
+
   return (
     <motion.div
       {...m.fadeIn}
@@ -963,6 +1068,23 @@ function YieldAgentTabs() {
           Automated yield optimization across Celo DeFi protocols
         </p>
       </div>
+
+      {!data.config.agent8004Id && (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+          <Info className="size-4 shrink-0 text-amber-500" />
+          <p className="flex-1 text-sm text-muted-foreground">
+            Your agent isn&apos;t registered on ERC-8004 yet.{' '}
+            <span className="text-amber-500">Registration is free (gasless).</span>
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push('/onboarding?agent=yield&step=register')}
+          >
+            Register Now
+          </Button>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
