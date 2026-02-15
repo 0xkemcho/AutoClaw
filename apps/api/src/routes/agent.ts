@@ -366,18 +366,21 @@ export async function agentRoutes(app: FastifyInstance) {
   );
 
   // GET /api/agent/portfolio
+  // Query param: agent_type=fx|yield (default: fx)
   app.get(
     '/api/agent/portfolio',
     { preHandler: authMiddleware },
     async (request, reply) => {
       const walletAddress = request.user!.walletAddress;
+      const agentType = (request.query as { agent_type?: string })?.agent_type ?? 'fx';
+      const validType = agentType === 'yield' ? 'yield' : 'fx';
 
       // Look up the server wallet address for on-chain balance query
       const { data: configData, error: configError } = await supabaseAdmin
         .from('agent_configs')
         .select('server_wallet_address')
         .eq('wallet_address', walletAddress)
-        .eq('agent_type', 'fx')
+        .eq('agent_type', validType)
         .single();
 
       if (configError || !configData?.server_wallet_address) {
@@ -387,17 +390,19 @@ export async function agentRoutes(app: FastifyInstance) {
       try {
         const balances = await getWalletBalances(configData.server_wallet_address);
 
-        // Fetch avg_entry_rate from agent_positions for PnL calculation
-        const { data: positionsData } = await supabaseAdmin
-          .from('agent_positions')
-          .select('token_symbol, avg_entry_rate')
-          .eq('wallet_address', walletAddress);
-
+        // FX: fetch avg_entry_rate from agent_positions for PnL. Yield: no position tracking.
         const entryRateMap = new Map<string, number>();
-        if (positionsData) {
-          for (const p of positionsData) {
-            if (p.avg_entry_rate != null) {
-              entryRateMap.set(p.token_symbol, p.avg_entry_rate);
+        if (validType === 'fx') {
+          const { data: positionsData } = await supabaseAdmin
+            .from('agent_positions')
+            .select('token_symbol, avg_entry_rate')
+            .eq('wallet_address', walletAddress);
+
+          if (positionsData) {
+            for (const p of positionsData) {
+              if (p.avg_entry_rate != null) {
+                entryRateMap.set(p.token_symbol, p.avg_entry_rate);
+              }
             }
           }
         }
@@ -411,7 +416,6 @@ export async function agentRoutes(app: FastifyInstance) {
           totalValueUsd += valueUsd;
           const avgEntryRate = entryRateMap.get(b.symbol) ?? null;
           const costBasis = avgEntryRate != null ? avgEntryRate * balance : null;
-          // PnL per token: tracked tokens use real cost basis, untracked = 0 PnL
           const pnl = costBasis != null ? valueUsd - costBasis : 0;
           if (costBasis != null) hasAnyTrackedPosition = true;
           totalPnl += pnl;
@@ -426,7 +430,6 @@ export async function agentRoutes(app: FastifyInstance) {
           };
         });
 
-        // Only show PnL if we have at least one tracked position
         const totalCostBasis = totalValueUsd - totalPnl;
         const totalPnlResult = hasAnyTrackedPosition ? totalPnl : null;
         const totalPnlPct = hasAnyTrackedPosition && totalCostBasis > 0

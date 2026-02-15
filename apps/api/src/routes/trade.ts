@@ -20,7 +20,7 @@ import {
   TOKEN_METADATA,
   type SupportedToken,
 } from '@autoclaw/shared';
-import { executeTrade } from '../services/trade-executor';
+import { executeSwap, sendTokens } from '../services/trade-executor';
 
 const supabaseAdmin = createSupabaseAdmin(
   process.env.SUPABASE_URL!,
@@ -359,33 +359,42 @@ export async function tradeRoutes(app: FastifyInstance) {
       }
 
       try {
-        // Look up user's agent config for server wallet
-        const { data: agent, error: agentError } = await supabaseAdmin
+        // Look up user's agent config for server wallet (prefer FX, fallback to yield)
+        let { data: agent, error: agentError } = await supabaseAdmin
           .from('agent_configs')
           .select('server_wallet_id, server_wallet_address')
           .eq('wallet_address', walletAddress)
-          .single();
+          .eq('agent_type', 'fx')
+          .maybeSingle();
 
         if (agentError || !agent?.server_wallet_id || !agent?.server_wallet_address) {
+          const fallback = await supabaseAdmin
+            .from('agent_configs')
+            .select('server_wallet_id, server_wallet_address')
+            .eq('wallet_address', walletAddress)
+            .eq('agent_type', 'yield')
+            .maybeSingle();
+          agent = fallback.data;
+        }
+
+        if (!agent?.server_wallet_id || !agent?.server_wallet_address) {
           return reply.status(400).send({
             error: 'Agent wallet not configured. Complete onboarding first.',
           });
         }
 
-        // Determine direction: base→mento/commodity = buy, mento/commodity→base = sell
-        const isFromBase = VALID_FROM_TOKENS.has(from) || from === 'USDm';
-        const direction: 'buy' | 'sell' = isFromBase ? 'buy' : 'sell';
-        const currency = isFromBase ? to : from;
-
-        const result = await executeTrade({
+        const result = await executeSwap({
           serverWalletId: agent.server_wallet_id,
           serverWalletAddress: agent.server_wallet_address,
-          currency,
-          direction,
-          amountUsd: parseFloat(amount),
+          from,
+          to,
+          amount,
+          slippagePct: slippage,
         });
 
         // Log to fx_agent_timeline (manual swaps default to FX agent)
+        const direction = VALID_FROM_TOKENS.has(from) || from === 'USDm' ? 'buy' : 'sell';
+        const currency = direction === 'buy' ? to : from;
         await supabaseAdmin.from('fx_agent_timeline').insert({
           wallet_address: walletAddress,
           event_type: 'trade',
@@ -398,7 +407,7 @@ export async function tradeRoutes(app: FastifyInstance) {
             amountOut: result.amountOut.toString(),
             rate: result.rate,
           },
-          currency: to,
+          currency,
           amount_usd: parseFloat(amount),
           direction,
           tx_hash: result.txHash,
@@ -413,6 +422,73 @@ export async function tradeRoutes(app: FastifyInstance) {
       } catch (err) {
         console.error('Swap error:', err);
         const message = err instanceof Error ? err.message : 'Swap failed';
+        return reply.status(500).send({ error: message });
+      }
+    },
+  );
+
+  // POST /api/trade/send — send tokens from agent wallet to recipient
+  app.post(
+    '/api/trade/send',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const body = request.body as {
+        token?: string;
+        amount?: number;
+        recipient?: string;
+      };
+
+      const { token, amount, recipient } = body;
+
+      if (!token || !ALL_SWAP_TOKENS.has(token)) {
+        return reply.status(400).send({
+          error: `Invalid token. Must be one of: ${[...ALL_SWAP_TOKENS].join(', ')}`,
+        });
+      }
+      if (amount == null || isNaN(amount) || amount <= 0) {
+        return reply.status(400).send({ error: "'amount' must be a positive number" });
+      }
+      if (!recipient || !/^0x[a-fA-F0-9]{40}$/.test(recipient)) {
+        return reply.status(400).send({ error: 'Invalid recipient address' });
+      }
+
+      try {
+        let { data: agent } = await supabaseAdmin
+          .from('agent_configs')
+          .select('server_wallet_id, server_wallet_address')
+          .eq('wallet_address', walletAddress)
+          .eq('agent_type', 'fx')
+          .maybeSingle();
+
+        if (!agent?.server_wallet_id || !agent?.server_wallet_address) {
+          const fallback = await supabaseAdmin
+            .from('agent_configs')
+            .select('server_wallet_id, server_wallet_address')
+            .eq('wallet_address', walletAddress)
+            .eq('agent_type', 'yield')
+            .maybeSingle();
+          agent = fallback.data;
+        }
+
+        if (!agent?.server_wallet_id || !agent?.server_wallet_address) {
+          return reply.status(400).send({
+            error: 'Agent wallet not configured. Complete onboarding first.',
+          });
+        }
+
+        const result = await sendTokens({
+          serverWalletId: agent.server_wallet_id,
+          serverWalletAddress: agent.server_wallet_address,
+          token,
+          amount: String(amount),
+          recipient,
+        });
+
+        return { txHash: result.txHash };
+      } catch (err) {
+        console.error('Send error:', err);
+        const message = err instanceof Error ? err.message : 'Send failed';
         return reply.status(500).send({ error: message });
       }
     },

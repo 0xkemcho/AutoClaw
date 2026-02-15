@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TokenLogo } from '@/components/token-logo';
-import { api } from '@/lib/api-client';
+import { api, ApiError } from '@/lib/api-client';
 import { usePortfolio, portfolioKeys } from '@/hooks/use-portfolio';
 
 const BASE_TOKENS = ['USDC', 'USDT', 'USDm'] as const;
@@ -134,8 +134,13 @@ export function SwapContent() {
       queryClient.invalidateQueries({ queryKey: ['timeline'] });
     },
     onError: (err) => {
-      const message = err instanceof Error ? err.message : 'Swap failed';
-      toast.error('Swap failed', { description: message });
+      const desc =
+        err instanceof ApiError && err.body && typeof err.body === 'object' && 'error' in err.body
+          ? String((err.body as { error: unknown }).error)
+          : err instanceof Error
+            ? err.message
+            : 'Swap failed';
+      toast.error('Swap failed', { description: desc });
     },
   });
 

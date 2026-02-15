@@ -5,6 +5,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getToken } from '@/lib/token-store';
 import { agentKeys } from './use-agent';
 import { timelineKeys } from './use-timeline';
+import { yieldAgentKeys } from './use-yield-agent';
+import { portfolioKeys } from './use-portfolio';
 import type { ProgressStep, ProgressData } from '@autoclaw/shared';
 
 export type { ProgressStep };
@@ -122,7 +124,7 @@ export function useAgentProgress(): ProgressState {
 
     ws.onopen = () => {
       console.log('[ws] Connection opened, sending auth...');
-      ws.send(JSON.stringify({ type: 'auth', token: token.substring(0, 20) + '...' }));
+      ws.send(JSON.stringify({ type: 'auth', token }));
     };
 
     ws.onmessage = (event) => {
@@ -172,7 +174,9 @@ export function useAgentProgress(): ProgressState {
 
             // Invalidate queries to refresh UI with latest data
             queryClient.invalidateQueries({ queryKey: agentKeys.status() });
+            queryClient.invalidateQueries({ queryKey: yieldAgentKeys.status() });
             queryClient.invalidateQueries({ queryKey: timelineKeys.all });
+            queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
 
             // Clear steps after a delay so user sees the completion state
             setTimeout(() => {

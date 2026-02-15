@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import type { RiskAnswers } from '@autoclaw/shared';
 import { useAuth } from '@/providers/auth-provider';
 import { useSubmitRiskProfile } from '@/hooks/use-user';
-import { api } from '@/lib/api-client';
+import { api, ApiError } from '@/lib/api-client';
 import { AgentSelect } from './_components/agent-select';
 import { Questionnaire } from './_components/questionnaire';
 import { YieldSetup } from './_components/yield-setup';
@@ -26,11 +26,15 @@ function OnboardingContent() {
 
   // If ?agent= is specified, skip agent-select and go straight to the right step
   const preselectedAgent = searchParams.get('agent') as 'fx' | 'yield' | null;
-  const initialPhase: Phase = preselectedAgent === 'yield'
-    ? 'yield-setup'
-    : preselectedAgent === 'fx'
-      ? 'questionnaire'
-      : 'agent-select';
+  const step = searchParams.get('step');
+  const initialPhase: Phase =
+    step === 'register' && preselectedAgent
+      ? 'registration'
+      : preselectedAgent === 'yield'
+        ? 'yield-setup'
+        : preselectedAgent === 'fx'
+          ? 'questionnaire'
+          : 'agent-select';
   const initialAgentType: 'fx' | 'yield' = preselectedAgent === 'yield' ? 'yield' : 'fx';
 
   const [phase, setPhase] = useState<Phase>(initialPhase);
@@ -47,6 +51,42 @@ function OnboardingContent() {
       router.replace('/fx-agent');
     }
   }, [isOnboarded, preselectedAgent, router]);
+
+  // When entering registration via step=register, fetch agent config for submissionResult
+  useEffect(() => {
+    if (phase !== 'registration' || submissionResult !== null) return;
+
+    const fetchAgentConfig = async () => {
+      try {
+        if (agentType === 'yield') {
+          const data = await api.get<{ config: { serverWalletAddress: string | null } }>(
+            '/api/yield-agent/status',
+          );
+          setSubmissionResult({
+            serverWalletAddress: data.config?.serverWalletAddress ?? null,
+            riskProfile: 'moderate',
+          });
+        } else {
+          const data = await api.get<{ config: { serverWalletAddress: string | null } }>(
+            '/api/agent/status',
+          );
+          setSubmissionResult({
+            serverWalletAddress: data.config?.serverWalletAddress ?? null,
+            riskProfile: 'moderate',
+          });
+        }
+      } catch (err) {
+        // Agent not configured — redirect to setup flow
+        if (err instanceof ApiError && err.status === 404) {
+          setPhase(agentType === 'yield' ? 'yield-setup' : 'questionnaire');
+        } else {
+          toast.error('Failed to load agent. Please try again.');
+        }
+      }
+    };
+
+    fetchAgentConfig();
+  }, [phase, submissionResult, agentType]);
 
   const handleComplete = useCallback(
     async (answers: RiskAnswers) => {
@@ -116,6 +156,7 @@ function OnboardingContent() {
         >
           <AgentSelect
             onSelect={(type) => {
+              router.replace(`/onboarding?agent=${type}`);
               setAgentType(type);
               setPhase(type === 'yield' ? 'yield-setup' : 'questionnaire');
             }}

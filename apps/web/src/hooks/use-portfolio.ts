@@ -34,15 +34,19 @@ interface PositionsResponse {
 
 export const portfolioKeys = {
   all: ['portfolio'] as const,
-  summary: () => [...portfolioKeys.all, 'summary'] as const,
+  summary: (agentType?: 'fx' | 'yield') =>
+    [...portfolioKeys.all, 'summary', agentType ?? 'fx'] as const,
   positions: () => [...portfolioKeys.all, 'positions'] as const,
 };
 
-export function usePortfolio() {
+export function usePortfolio(agentType: 'fx' | 'yield' = 'fx') {
   const { isAuthenticated } = useAuth();
   return useQuery({
-    queryKey: portfolioKeys.summary(),
-    queryFn: () => api.get<PortfolioResponse>('/api/agent/portfolio'),
+    queryKey: portfolioKeys.summary(agentType),
+    queryFn: () =>
+      api.get<PortfolioResponse>(
+        `/api/agent/portfolio?agent_type=${agentType}`,
+      ),
     refetchInterval: 30_000,
     enabled: isAuthenticated,
   });
