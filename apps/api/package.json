@@ -25,7 +25,7 @@
     "fastify": "^5.x",
     "parallel-web": "^0.3.1",
     "thirdweb": "^5.x",
-    "viem": "^2.45.1",
+    "viem": "~2.44.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
