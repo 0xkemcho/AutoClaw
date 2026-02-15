@@ -1,6 +1,5 @@
 import type { FastifyInstance } from 'fastify';
 import { parseUnits, formatUnits, type Address, type PublicClient } from 'viem';
-import { readContract } from 'viem/actions';
 import { authMiddleware } from '../middleware/auth';
 import { celoClient } from '../lib/celo-client';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
@@ -463,7 +462,10 @@ export async function tradeRoutes(app: FastifyInstance) {
       }
 
       const decimals = getTokenDecimals(token);
-      const balance = await readContract(celoClient, {
+      // Type assertion: Celo client has cacheTime/Client type conflicts with viem in Vercel builds
+      const balance = await (
+        celoClient as { readContract: (p: { address: Address; abi: unknown; functionName: string; args: [Address] }) => Promise<bigint> }
+      ).readContract({
         address: tokenAddress as Address,
         abi: erc20Abi,
         functionName: 'balanceOf',
