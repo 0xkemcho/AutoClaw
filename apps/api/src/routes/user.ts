@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../middleware/auth';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import { computeRiskScore, scoreToProfile } from '../lib/risk-scoring';
-import { createAgentWallet } from '../lib/privy-wallet';
+import { createServerWallet } from '../lib/thirdweb-wallet';
 import { DEFAULT_GUARDRAILS, type RiskAnswers, type RiskProfile } from '@autoclaw/shared';
 
 const supabaseAdmin = createSupabaseAdmin(
@@ -78,8 +78,9 @@ export async function userRoutes(app: FastifyInstance) {
         if (existingConfig?.server_wallet_id && existingConfig?.server_wallet_address) {
           serverWalletAddress = existingConfig.server_wallet_address;
         } else {
-          // Create new Privy server wallet
-          const wallet = await createAgentWallet(walletAddress);
+          // Create new thirdweb server wallet (idempotent for same identifier)
+          const identifier = `agent-fx-${walletAddress.toLowerCase()}`;
+          const wallet = await createServerWallet(identifier);
           serverWalletAddress = wallet.address;
 
           // Insert agent config with default guardrails based on risk profile
@@ -90,7 +91,7 @@ export async function userRoutes(app: FastifyInstance) {
               wallet_address: walletAddress,
               agent_type: 'fx',
               server_wallet_address: wallet.address,
-              server_wallet_id: wallet.walletId,
+              server_wallet_id: identifier,
               active: false,
               frequency: String(defaults.frequency),
               max_trade_size_usd: defaults.maxTradeSizeUsd,

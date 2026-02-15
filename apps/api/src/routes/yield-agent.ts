@@ -6,7 +6,7 @@ import { runAgentCycle } from '../services/agent-cron';
 import { fetchYieldOpportunities, fetchClaimableRewards } from '../services/merkl-client';
 import { getWalletBalances } from '../services/dune-balances';
 import { executeYieldWithdraw } from '../services/yield-executor';
-import { createAgentWallet } from '../lib/privy-wallet';
+import { createServerWallet } from '../lib/thirdweb-wallet';
 import { registerAgentOnChain } from '../services/agent-registry';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
@@ -182,10 +182,11 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
         return reply.status(409).send({ error: 'Yield agent already registered' });
       }
 
-      // Create a separate server wallet for yield agent
+      // Create a separate server wallet for yield agent (thirdweb)
+      const identifier = `agent-yield-${walletAddress.toLowerCase()}`;
       let walletResult;
       try {
-        walletResult = await createAgentWallet(walletAddress);
+        walletResult = await createServerWallet(identifier);
       } catch (err) {
         console.error('Failed to create yield agent wallet:', err);
         return reply.status(500).send({ error: 'Failed to create agent wallet' });
@@ -209,7 +210,7 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
           agent_type: 'yield',
           active: false,
           frequency: String(body.frequency),
-          server_wallet_id: walletResult.walletId,
+          server_wallet_id: identifier,
           server_wallet_address: walletResult.address,
           strategy_params: strategyParams,
           next_run_at: nextRunAt,
@@ -626,18 +627,18 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
 
       const displayName = profileResult.data?.display_name ?? walletAddress.slice(0, 8);
       const agentConfig = configResult.data as Pick<AgentConfigRow, 'active'>;
+      const agentName = `AutoClaw-Yield-${displayName.replace(/\s+/g, '-')}`;
 
       return {
         type: 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',
-        name: `AutoClaw Yield Agent — ${displayName}`,
+        name: agentName,
         description:
-          'AutoClaw Yield Agent is an autonomous yield farming agent on the Celo blockchain. ' +
-          'It allocates USDC across Ichi vaults for Merkl-incentivized yields, monitors APR changes, ' +
-          'manages impermanent loss risk, and auto-compounds rewards — all with configurable guardrails. ' +
-          'Built for the Celo hackathon with ERC-8004 on-chain agent identity and reputation.',
-        image: 'https://autoclaw.xyz/autoclaw.webp',
+          'AutoClaw Yield Agent allocates USDC across Ichi vaults on Celo for Merkl-incentivized yields. ' +
+          'Monitors APR changes, manages impermanent loss risk, auto-compounds rewards — with configurable guardrails. ' +
+          'ERC-8004 on-chain identity and reputation.',
+        image: 'https://autoclaw.co/autoclaw.webp',
         services: [
-          { name: 'web', endpoint: 'https://autoclaw.xyz', description: 'Website' },
+          { name: 'web', endpoint: 'https://autoclaw.co', description: 'Website' },
           { name: 'github', endpoint: 'https://github.com/0xkemcho/AutoClaw', description: 'Source Code' },
         ],
         x402Support: false,

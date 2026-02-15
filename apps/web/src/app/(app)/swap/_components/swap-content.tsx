@@ -21,9 +21,6 @@ import { usePortfolio, portfolioKeys } from '@/hooks/use-portfolio';
 
 const BASE_TOKENS = ['USDC', 'USDT', 'USDm'] as const;
 
-// On Celo, gas is paid in fee currency (USDC/USDT/USDm). Reserve buffer for approve + swap txs.
-const FEE_CURRENCY_TOKENS = new Set(BASE_TOKENS);
-const GAS_BUFFER_USD = 0.03;
 const MENTO_TOKENS = [
   'EURm', 'BRLm', 'KESm', 'PHPm', 'COPm', 'XOFm',
   'NGNm', 'JPYm', 'CHFm', 'ZARm', 'GBPm', 'AUDm', 'CADm', 'GHSm',
@@ -166,13 +163,9 @@ export function SwapContent() {
 
   const handleMax = useCallback(() => {
     if (fromBalance !== null && fromBalance > 0) {
-      let maxAmount = fromBalance;
-      if (FEE_CURRENCY_TOKENS.has(fromToken)) {
-        maxAmount = Math.max(0, fromBalance - GAS_BUFFER_USD);
-      }
-      setAmount(String(maxAmount));
+      setAmount(String(fromBalance));
     }
-  }, [fromBalance, fromToken]);
+  }, [fromBalance]);
 
   const canSwap =
     amount && Number(amount) > 0 && quote && !swapMutation.isPending;

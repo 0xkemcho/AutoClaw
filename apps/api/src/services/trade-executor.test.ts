@@ -4,10 +4,9 @@ const mockGetQuote = vi.hoisted(() => vi.fn());
 const mockApplySlippage = vi.hoisted(() => vi.fn());
 const mockCheckAllowance = vi.hoisted(() => vi.fn());
 const mockBuildApproveTx = vi.hoisted(() => vi.fn());
-const mockSendTransaction = vi.hoisted(() => vi.fn());
+const mockSendTransactionFromServerWallet = vi.hoisted(() => vi.fn());
 const mockWaitForTransactionReceipt = vi.hoisted(() => vi.fn());
 const mockReadContract = vi.hoisted(() => vi.fn());
-const mockGetAgentWalletClient = vi.hoisted(() => vi.fn());
 const mockEncodeFunctionData = vi.hoisted(() => vi.fn());
 
 vi.mock('viem', async (importOriginal) => {
@@ -18,18 +17,20 @@ vi.mock('viem', async (importOriginal) => {
   };
 });
 
-vi.mock('@autoclaw/contracts', () => ({
-  getQuote: mockGetQuote,
-  applySlippage: mockApplySlippage,
-  checkAllowance: mockCheckAllowance,
-  buildApproveTx: mockBuildApproveTx,
-  BROKER_ADDRESS: '0xBROKER' as `0x${string}`,
-  BIPOOL_MANAGER_ADDRESS: '0xBIPOOL' as `0x${string}`,
-  USDM_ADDRESS: '0xUSDM' as `0x${string}`,
-  USDC_FEE_ADAPTER: '0xUSDC_FEE_ADAPTER' as `0x${string}`,
-  USDT_FEE_ADAPTER: '0xUSDT_FEE_ADAPTER' as `0x${string}`,
-  brokerAbi: [],
-}));
+vi.mock('@autoclaw/contracts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@autoclaw/contracts')>();
+  return {
+    ...actual,
+    getQuote: mockGetQuote,
+    applySlippage: mockApplySlippage,
+    checkAllowance: mockCheckAllowance,
+    buildApproveTx: mockBuildApproveTx,
+    BROKER_ADDRESS: '0xBROKER' as `0x${string}`,
+    BIPOOL_MANAGER_ADDRESS: '0xBIPOOL' as `0x${string}`,
+    USDM_ADDRESS: '0xUSDM' as `0x${string}`,
+    brokerAbi: [],
+  };
+});
 
 vi.mock('@autoclaw/shared', () => ({
   getTokenAddress: vi.fn().mockImplementation((symbol: string) => {
@@ -51,8 +52,8 @@ vi.mock('../lib/celo-client', () => ({
   },
 }));
 
-vi.mock('../lib/privy-wallet', () => ({
-  getAgentWalletClient: mockGetAgentWalletClient,
+vi.mock('../lib/thirdweb-wallet', () => ({
+  sendTransactionFromServerWallet: mockSendTransactionFromServerWallet,
 }));
 
 import { executeTrade, clearApprovalCache } from './trade-executor';
@@ -66,10 +67,9 @@ describe('trade-executor', () => {
     mockApplySlippage.mockReset();
     mockCheckAllowance.mockReset();
     mockBuildApproveTx.mockReset();
-    mockSendTransaction.mockReset();
+    mockSendTransactionFromServerWallet.mockReset();
     mockWaitForTransactionReceipt.mockReset();
     mockReadContract.mockReset();
-    mockGetAgentWalletClient.mockReset();
     mockEncodeFunctionData.mockReset();
 
     // Default mock setup — readContract returns large balance so pre-flight check passes
@@ -83,12 +83,8 @@ describe('trade-executor', () => {
     mockEncodeFunctionData.mockReturnValue('0xSWAPDATA');
     mockCheckAllowance.mockResolvedValue(0n);
     mockBuildApproveTx.mockReturnValue({ to: '0xUSDM', data: '0xAPPROVEDATA' });
-    mockSendTransaction.mockResolvedValue('0xTXHASH123');
+    mockSendTransactionFromServerWallet.mockResolvedValue('0xTXHASH123');
     mockWaitForTransactionReceipt.mockResolvedValue({ status: 'success' });
-    mockGetAgentWalletClient.mockResolvedValue({
-      sendTransaction: mockSendTransaction,
-      chain: { id: 42220 },
-    });
   });
 
   describe('executeTrade', () => {
@@ -212,8 +208,8 @@ describe('trade-executor', () => {
       });
 
       expect(mockBuildApproveTx).toHaveBeenCalled();
-      // Approve tx + swap tx = 2 sendTransaction calls
-      expect(mockSendTransaction).toHaveBeenCalledTimes(2);
+      // Approve tx + swap tx = 2 sendTransactionFromServerWallet calls
+      expect(mockSendTransactionFromServerWallet).toHaveBeenCalledTimes(2);
     });
 
     it('skips approve when allowance is sufficient', async () => {
@@ -228,8 +224,8 @@ describe('trade-executor', () => {
       });
 
       expect(mockBuildApproveTx).not.toHaveBeenCalled();
-      // Only swap tx = 1 sendTransaction call
-      expect(mockSendTransaction).toHaveBeenCalledTimes(1);
+      // Only swap tx = 1 sendTransactionFromServerWallet call
+      expect(mockSendTransactionFromServerWallet).toHaveBeenCalledTimes(1);
     });
 
     it('skips allowance check on second trade (cached)', async () => {
@@ -292,7 +288,7 @@ describe('trade-executor', () => {
       });
 
       // 2 swap txs (no approval needed since allowance >= balance)
-      expect(mockSendTransaction).toHaveBeenCalledTimes(2);
+      expect(mockSendTransactionFromServerWallet).toHaveBeenCalledTimes(2);
       expect(mockWaitForTransactionReceipt).toHaveBeenCalledTimes(2);
       // encodeFunctionData called twice (once per hop)
       expect(mockEncodeFunctionData).toHaveBeenCalledTimes(2);
@@ -325,60 +321,9 @@ describe('trade-executor', () => {
       ).rejects.toThrow('Unknown token address');
     });
 
-    it('passes feeCurrency to all sendTransaction calls', async () => {
-      mockCheckAllowance.mockResolvedValue(0n); // Force approval tx
-
-      await executeTrade({
-        serverWalletId: 'mock-wallet-id',
-        serverWalletAddress: MOCK_WALLET_ADDRESS,
-        currency: 'EURm',
-        direction: 'buy',
-        amountUsd: 100,
-      });
-
-      // Both approval and swap sendTransaction calls should include feeCurrency
-      for (const call of mockSendTransaction.mock.calls) {
-        expect(call[0]).toHaveProperty('feeCurrency');
-      }
-    });
-
-    it('uses USDC fee adapter when wallet holds USDC', async () => {
-      // Default mock returns large balance for all — USDC is first in priority
-      await executeTrade({
-        serverWalletId: 'mock-wallet-id',
-        serverWalletAddress: MOCK_WALLET_ADDRESS,
-        currency: 'EURm',
-        direction: 'buy',
-        amountUsd: 100,
-      });
-
-      // The swap sendTransaction should use USDC fee adapter
-      const lastCall = mockSendTransaction.mock.calls[mockSendTransaction.mock.calls.length - 1][0];
-      expect(lastCall.feeCurrency).toBe('0xUSDC_FEE_ADAPTER');
-    });
-
-    it('uses USDm address as feeCurrency when only USDm has balance', async () => {
-      mockReadContract.mockImplementation(async (args: Record<string, unknown>) => {
-        const address = args.address as string;
-        if (address === '0xUSDC' || address === '0xUSDT') return 0n;
-        return BigInt('999999999999999999999999');
-      });
-
-      await executeTrade({
-        serverWalletId: 'mock-wallet-id',
-        serverWalletAddress: MOCK_WALLET_ADDRESS,
-        currency: 'EURm',
-        direction: 'buy',
-        amountUsd: 100,
-      });
-
-      const lastCall = mockSendTransaction.mock.calls[mockSendTransaction.mock.calls.length - 1][0];
-      expect(lastCall.feeCurrency).toBe('0xUSDM');
-    });
-
     it('translates "insufficient funds" error to actionable message', async () => {
       mockCheckAllowance.mockResolvedValue(BigInt('999999999999999999999'));
-      mockSendTransaction.mockRejectedValueOnce(
+      mockSendTransactionFromServerWallet.mockRejectedValueOnce(
         new Error('insufficient funds for transfer'),
       );
 
@@ -395,7 +340,7 @@ describe('trade-executor', () => {
 
     it('translates "execution reverted" error to actionable message', async () => {
       mockCheckAllowance.mockResolvedValue(BigInt('999999999999999999999'));
-      mockSendTransaction.mockRejectedValueOnce(
+      mockSendTransactionFromServerWallet.mockRejectedValueOnce(
         new Error('execution reverted'),
       );
 

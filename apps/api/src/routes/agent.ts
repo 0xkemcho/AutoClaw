@@ -670,21 +670,22 @@ export async function agentRoutes(app: FastifyInstance) {
       const agentConfig = configResult.data as Pick<AgentConfigRow, 'active' | 'agent_type'>;
 
       const agentLabel = agentType === 'yield' ? 'Yield' : 'FX';
+      const agentName = `AutoClaw-${agentLabel}-${displayName.replace(/\s+/g, '-')}`;
       const agentDesc = agentType === 'yield'
         ? 'AutoClaw Yield Agent autonomously allocates funds across Ichi vaults on Celo to earn Merkl-incentivized APR. ' +
-          'It scans opportunities, manages positions, claims rewards, and rebalances — all with configurable guardrails.'
-        : 'AutoClaw is an autonomous FX trading agent powered by AI on the Celo blockchain. ' +
-          'It monitors global FX news in real-time, generates trade signals using Gemini LLM analysis, ' +
-          'and executes stablecoin swaps via the Mento protocol — all with configurable risk guardrails. ' +
-          'Supports 15+ Mento stablecoins (USDm, EURm, BRLm, JPYm, and more).';
+          'Scans opportunities, manages positions, claims rewards, and rebalances — all with configurable guardrails. ' +
+          'ERC-8004 on-chain identity and reputation.'
+        : 'AutoClaw FX Agent monitors global FX news in real-time, generates trade signals with Gemini LLM, ' +
+          'and executes stablecoin swaps via Mento on Celo — with configurable risk guardrails. ' +
+          'Supports 15+ Mento stablecoins (USDm, EURm, BRLm, JPYm, and more). ERC-8004 on-chain identity and reputation.';
 
       return {
         type: 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',
-        name: `AutoClaw ${agentLabel} Agent — ${displayName}`,
-        description: agentDesc + ' Built for the Celo hackathon with ERC-8004 on-chain agent identity and reputation.',
-        image: 'https://autoclaw.xyz/autoclaw.webp',
+        name: agentName,
+        description: agentDesc,
+        image: 'https://autoclaw.co/autoclaw.webp',
         services: [
-          { name: 'web', endpoint: 'https://autoclaw.xyz', description: 'Website' },
+          { name: 'web', endpoint: 'https://autoclaw.co', description: 'Website' },
           { name: 'github', endpoint: 'https://github.com/0xkemcho/AutoClaw', description: 'Source Code' },
         ],
         x402Support: false,

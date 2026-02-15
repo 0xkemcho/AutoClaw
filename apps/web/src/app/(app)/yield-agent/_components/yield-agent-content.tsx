@@ -770,6 +770,7 @@ function AgentTab() {
           isLoading={portfolioQuery.isLoading}
           serverWalletAddress={serverWalletAddress}
           marketTokens={marketQuery.data?.tokens}
+          agentType="yield"
         />
       </div>
 

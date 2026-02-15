@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, Send } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -29,21 +29,31 @@ interface SendModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   holdings: Array<{ tokenSymbol: string; balance: number }>;
+  agentType?: 'fx' | 'yield';
 }
 
 const ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 
-// On Celo, gas is paid in the fee currency (USDC/USDT/USDm). When sending one of these,
-// reserve a buffer so the tx doesn't fail with "transfer amount exceeds balance".
-const FEE_CURRENCY_TOKENS = new Set(['USDC', 'USDT', 'USDm']);
-const GAS_BUFFER_USD = 0.02;
-
-export function SendModal({ open, onOpenChange, holdings }: SendModalProps) {
+export function SendModal({ open, onOpenChange, holdings, agentType = 'fx' }: SendModalProps) {
   const queryClient = useQueryClient();
 
   const [token, setToken] = useState('');
   const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
+
+  // Real-time on-chain balance (avoids stale Dune/portfolio data)
+  const { data: balanceData } = useQuery({
+    queryKey: ['trade', 'balance', token, agentType],
+    queryFn: () =>
+      api.get<{ balance: number }>(
+        `/api/trade/balance?token=${encodeURIComponent(token)}&agent_type=${agentType}`,
+      ),
+    enabled: open && !!token,
+  });
+
+  const onChainBalance = balanceData?.balance ?? null;
+  const effectiveBalance =
+    onChainBalance !== null ? onChainBalance : holdings.find((h) => h.tokenSymbol === token)?.balance ?? 0;
 
   // Reset form when modal opens
   const resetForm = useCallback(() => {
@@ -63,8 +73,8 @@ export function SendModal({ open, onOpenChange, holdings }: SendModalProps) {
   const isValidAmount =
     !isNaN(parsedAmount) &&
     parsedAmount > 0 &&
-    selectedHolding != null &&
-    parsedAmount <= selectedHolding.balance;
+    token !== '' &&
+    parsedAmount <= effectiveBalance;
   const isValidAddress = ADDRESS_REGEX.test(recipient);
   const canSubmit = isValidAmount && isValidAddress && token !== '';
 
@@ -74,6 +84,7 @@ export function SendModal({ open, onOpenChange, holdings }: SendModalProps) {
         token,
         amount: parsedAmount,
         recipient,
+        agent_type: agentType,
       }),
     onSuccess: () => {
       toast.success('Transaction sent successfully');
@@ -93,12 +104,8 @@ export function SendModal({ open, onOpenChange, holdings }: SendModalProps) {
   }
 
   function handleMax() {
-    if (selectedHolding) {
-      let maxAmount = selectedHolding.balance;
-      if (FEE_CURRENCY_TOKENS.has(token)) {
-        maxAmount = Math.max(0, selectedHolding.balance - GAS_BUFFER_USD);
-      }
-      setAmount(String(maxAmount));
+    if (token && effectiveBalance >= 0) {
+      setAmount(String(effectiveBalance));
     }
   }
 
@@ -127,20 +134,26 @@ export function SendModal({ open, onOpenChange, holdings }: SendModalProps) {
                 <SelectValue placeholder="Select token" />
               </SelectTrigger>
               <SelectContent>
-                {holdings.map((h) => (
-                  <SelectItem key={h.tokenSymbol} value={h.tokenSymbol}>
-                    <div className="flex items-center gap-2">
-                      <TokenLogo symbol={h.tokenSymbol} size={16} />
-                      <span>{h.tokenSymbol}</span>
-                      <span className="text-muted-foreground font-mono text-xs">
-                        {h.balance.toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
+                {holdings.map((h) => {
+                  const displayBalance =
+                    token === h.tokenSymbol && onChainBalance !== null
+                      ? onChainBalance
+                      : h.balance;
+                  return (
+                    <SelectItem key={h.tokenSymbol} value={h.tokenSymbol}>
+                      <div className="flex items-center gap-2">
+                        <TokenLogo symbol={h.tokenSymbol} size={16} />
+                        <span>{h.tokenSymbol}</span>
+                        <span className="text-muted-foreground font-mono text-xs">
+                          {displayBalance.toLocaleString('en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -164,15 +177,15 @@ export function SendModal({ open, onOpenChange, holdings }: SendModalProps) {
                 size="sm"
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 text-xs"
                 onClick={handleMax}
-                disabled={!selectedHolding}
+                disabled={!token || effectiveBalance <= 0}
               >
                 MAX
               </Button>
             </div>
-            {amount !== '' && !isNaN(parsedAmount) && selectedHolding && parsedAmount > selectedHolding.balance && (
+            {amount !== '' && !isNaN(parsedAmount) && token && parsedAmount > effectiveBalance && (
               <p className="text-xs text-destructive">
                 Exceeds available balance of{' '}
-                {selectedHolding.balance.toLocaleString('en-US', {
+                {effectiveBalance.toLocaleString('en-US', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}{' '}

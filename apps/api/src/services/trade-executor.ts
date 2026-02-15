@@ -7,14 +7,12 @@ import {
   BROKER_ADDRESS,
   BIPOOL_MANAGER_ADDRESS,
   USDM_ADDRESS,
-  USDC_FEE_ADAPTER,
-  USDT_FEE_ADAPTER,
   brokerAbi,
   erc20Abi,
 } from '@autoclaw/contracts';
 import { getTokenAddress, getTokenDecimals, USDC_CELO_ADDRESS, USDT_CELO_ADDRESS } from '@autoclaw/shared';
 import { celoClient } from '../lib/celo-client';
-import { getAgentWalletClient } from '../lib/privy-wallet';
+import { sendTransactionFromServerWallet } from '../lib/thirdweb-wallet';
 
 // Stable base tokens the wallet might hold, in priority order.
 // The first one with sufficient balance is used as the source for buys.
@@ -23,19 +21,6 @@ const BASE_STABLE_TOKENS: Array<{ symbol: string; address: Address; decimals: nu
   { symbol: 'USDT', address: USDT_CELO_ADDRESS as Address, decimals: 6 },
   { symbol: 'USDm', address: USDM_ADDRESS, decimals: 18 },
 ];
-
-const FEE_CURRENCY_MAP: Record<string, Address> = {
-  USDC: USDC_FEE_ADAPTER,
-  USDT: USDT_FEE_ADAPTER,
-  USDm: USDM_ADDRESS,
-};
-
-// Map fee currency address -> underlying token address (for conflict check)
-const FEE_CURRENCY_TO_TOKEN: Record<string, Address> = {
-  [USDC_FEE_ADAPTER]: USDC_CELO_ADDRESS as Address,
-  [USDT_FEE_ADAPTER]: USDT_CELO_ADDRESS as Address,
-  [USDM_ADDRESS]: USDM_ADDRESS,
-};
 
 const DEFAULT_SLIPPAGE_PCT = 0.5;
 const approvalCache = new Map<string, number>(); // key -> timestamp
@@ -56,31 +41,6 @@ export interface TradeResult {
   amountIn: bigint;
   amountOut: bigint;
   rate: number;
-}
-
-/**
- * Pick a fee currency for Celo CIP-64 transactions.
- * Returns the adapter address for 6-decimal tokens (USDC/USDT)
- * or the raw address for 18-decimal USDm.
- */
-async function selectFeeCurrency(walletAddress: Address): Promise<Address> {
-  for (const base of BASE_STABLE_TOKENS) {
-    const bal = await celoClient.readContract({
-      address: base.address,
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      args: [walletAddress],
-    });
-    if (bal > 0n) {
-      const feeAddr = FEE_CURRENCY_MAP[base.symbol];
-      if (feeAddr) {
-        console.log(`[trade] Using ${base.symbol} for gas fees (feeCurrency: ${feeAddr})`);
-        return feeAddr;
-      }
-    }
-  }
-  console.warn('[trade] No base stable found for gas fees, defaulting to USDm');
-  return USDM_ADDRESS;
 }
 
 /**
@@ -203,9 +163,6 @@ export async function executeTrade(params: {
     }
   }
 
-  // Determine fee currency for Celo CIP-64 transactions
-  const feeCurrency = await selectFeeCurrency(serverWalletAddress as Address);
-
   console.log(`Executing trade: ${direction} ${currency}, source=${sourceSymbol} (${tokenIn}) target=${direction === 'buy' ? currency : 'USDm'} (${tokenOut})`);
 
   // 1. Get quote
@@ -221,10 +178,7 @@ export async function executeTrade(params: {
   // 2. Apply slippage
   const amountOutMin = applySlippage(quote.amountOut, DEFAULT_SLIPPAGE_PCT);
 
-  // 3. Get wallet client
-  const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
-
-  // 4. Check and set approval if needed (with TTL-based cache)
+  // 3. Check and set approval if needed (with TTL-based cache)
   const approvalKey = `${tokenIn}-${serverWalletAddress}`;
   const cachedAt = approvalCache.get(approvalKey);
   const isCacheValid = cachedAt && (Date.now() - cachedAt) < APPROVAL_CACHE_TTL_MS;
@@ -241,11 +195,9 @@ export async function executeTrade(params: {
       const approveTx = buildApproveTx({ token: tokenIn, spender: BROKER_ADDRESS });
       let approveHash: `0x${string}`;
       try {
-        approveHash = await walletClient.sendTransaction({
+        approveHash = await sendTransactionFromServerWallet(serverWalletAddress, {
           to: approveTx.to,
           data: approveTx.data,
-          chain: walletClient.chain,
-          feeCurrency,
         });
       } catch (err) {
         throw parseTransactionError(err, `Approval for ${sourceSymbol} failed`);
@@ -294,11 +246,9 @@ export async function executeTrade(params: {
       if (intermediateAllowance < currentAmountIn) {
         const approveTx = buildApproveTx({ token: hop.tokenIn, spender: BROKER_ADDRESS });
         try {
-          const approveHash = await walletClient.sendTransaction({
+          const approveHash = await sendTransactionFromServerWallet(serverWalletAddress, {
             to: approveTx.to,
             data: approveTx.data,
-            chain: walletClient.chain,
-            feeCurrency,
           });
           await celoClient.waitForTransactionReceipt({ hash: approveHash });
         } catch (err) {
@@ -321,11 +271,9 @@ export async function executeTrade(params: {
     });
 
     try {
-      lastHash = await walletClient.sendTransaction({
+      lastHash = await sendTransactionFromServerWallet(serverWalletAddress, {
         to: BROKER_ADDRESS,
         data,
-        chain: walletClient.chain,
-        feeCurrency,
       });
     } catch (err) {
       throw parseTransactionError(err, `Swap ${direction} ${currency} failed`);
@@ -375,15 +323,6 @@ export async function executeSwap(params: {
   const tokenOutDecimals = getTokenDecimals(to);
   const amountIn = parseUnits(amount, tokenInDecimals);
 
-  const feeCurrency = await selectFeeCurrency(serverWalletAddress as Address);
-  // When swapping FROM the same token we'd use for gas, feeCurrency causes SafeERC20 with Mento Broker.
-  // Use native CELO only in that conflict case; otherwise use fee currency (USDm/USDC/USDT).
-  const tokenUsedForGas = FEE_CURRENCY_TO_TOKEN[feeCurrency];
-  const gasConflict = tokenUsedForGas && fromAddress.toLowerCase() === tokenUsedForGas.toLowerCase();
-  const txFeeCurrency = gasConflict ? undefined : feeCurrency;
-
-  const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
-
   const quote = await getQuote({
     tokenIn: fromAddress,
     tokenOut: toAddress,
@@ -402,7 +341,6 @@ export async function executeSwap(params: {
     amountOutHuman: formatUnits(quote.amountOut, tokenOutDecimals),
     amountOutMinHuman: formatUnits(amountOutMin, tokenOutDecimals),
     routeHops: quote.route.length,
-    gasCurrency: gasConflict ? 'CELO (native, conflict avoided)' : 'feeCurrency',
   });
   // #endregion
 
@@ -418,15 +356,10 @@ export async function executeSwap(params: {
       celoClient: celoClient as unknown as PublicClient,
     });
     if (allowance < amountIn) {
-      // #region agent log
-      _dbg('H4', 'executing approve (will spend gas in fee currency)', { from });
-      // #endregion
       const approveTx = buildApproveTx({ token: fromAddress, spender: BROKER_ADDRESS });
-      const approveHash = await walletClient.sendTransaction({
+      const approveHash = await sendTransactionFromServerWallet(serverWalletAddress, {
         to: approveTx.to,
         data: approveTx.data,
-        chain: walletClient.chain,
-        ...(txFeeCurrency && { feeCurrency: txFeeCurrency }),
       });
       await celoClient.waitForTransactionReceipt({ hash: approveHash });
     }
@@ -486,11 +419,9 @@ export async function executeSwap(params: {
       });
       if (intermediateAllowance < currentAmountIn) {
         const approveTx = buildApproveTx({ token: hop.tokenIn, spender: BROKER_ADDRESS });
-        const approveHash = await walletClient.sendTransaction({
+        const approveHash = await sendTransactionFromServerWallet(serverWalletAddress, {
           to: approveTx.to,
           data: approveTx.data,
-          chain: walletClient.chain,
-          ...(txFeeCurrency && { feeCurrency: txFeeCurrency }),
         });
         await celoClient.waitForTransactionReceipt({ hash: approveHash });
       }
@@ -510,11 +441,9 @@ export async function executeSwap(params: {
     });
 
     try {
-      lastHash = await walletClient.sendTransaction({
+      lastHash = await sendTransactionFromServerWallet(serverWalletAddress, {
         to: BROKER_ADDRESS,
         data,
-        chain: walletClient.chain,
-        ...(txFeeCurrency && { feeCurrency: txFeeCurrency }),
       });
     } catch (err) {
       // #region agent log
@@ -552,12 +481,9 @@ export async function executeSwap(params: {
   };
 }
 
-const FEE_CURRENCY_TOKEN_SYMBOLS = new Set(['USDC', 'USDT', 'USDm']);
-const GAS_BUFFER_HUMAN = '0.02';
-
 /**
  * Send tokens from the agent's server wallet to a recipient address.
- * When sending USDC/USDT/USDm, gas is paid in that token — use MAX to auto-reserve.
+ * Gasless via thirdweb — no fee reserve needed.
  */
 export async function sendTokens(params: {
   serverWalletId: string;
@@ -566,7 +492,7 @@ export async function sendTokens(params: {
   amount: string;
   recipient: string;
 }): Promise<{ txHash: string }> {
-  const { serverWalletId, serverWalletAddress, token, amount, recipient } = params;
+  const { serverWalletAddress, token, amount, recipient } = params;
 
   const tokenAddress = getTokenAddress(token) as Address | undefined;
   if (!tokenAddress) {
@@ -576,22 +502,16 @@ export async function sendTokens(params: {
   const decimals = getTokenDecimals(token);
   const amountWei = parseUnits(amount, decimals);
 
-  const feeCurrency = await selectFeeCurrency(serverWalletAddress as Address);
-  const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
-
   const balance = await celoClient.readContract({
     address: tokenAddress,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: [serverWalletAddress as Address],
   });
+
   if (balance < amountWei) {
-    const hint =
-      FEE_CURRENCY_TOKEN_SYMBOLS.has(token)
-        ? ` Reserve ~${GAS_BUFFER_HUMAN} ${token} for gas. Use MAX to send the rest.`
-        : '';
     throw new Error(
-      `Insufficient ${token} balance: have ${formatUnits(balance, decimals)}, need ${amount}.${hint}`,
+      `Insufficient ${token} balance: have ${formatUnits(balance, decimals)}, need ${amount}`,
     );
   }
 
@@ -601,11 +521,9 @@ export async function sendTokens(params: {
     args: [recipient as Address, amountWei],
   });
 
-  const hash = await walletClient.sendTransaction({
+  const hash = await sendTransactionFromServerWallet(serverWalletAddress, {
     to: tokenAddress,
     data,
-    chain: walletClient.chain,
-    feeCurrency,
   });
 
   const receipt = await celoClient.waitForTransactionReceipt({ hash });

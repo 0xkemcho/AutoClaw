@@ -61,7 +61,7 @@ Node.js EventEmitter singleton broadcasts agent progress per user (`progress:{wa
 
 ### Trade Execution (`apps/api/src/services/trade-executor.ts`)
 
-Maps currency → on-chain token address → gets quote from Mento Broker → checks/sets ERC20 approval → executes swap via Privy server wallet (viem WalletClient). All trades route through USDm as the hub token. Default slippage: 0.5%.
+Maps currency → on-chain token address → gets quote from Mento Broker → checks/sets ERC20 approval → executes swap via thirdweb server wallet (gasless EIP-7702). All trades route through USDm as the hub token. Default slippage: 0.5%.
 
 ### Contract Layer (`packages/contracts`)
 
@@ -81,7 +81,7 @@ SIWE via thirdweb: `POST /api/auth/payload` → client signs → `POST /api/auth
 
 ### Server Wallet Management
 
-Privy SDK creates and manages server-side wallets for each user. Wallet creation happens during onboarding. The Privy wallet is used to sign and send transactions on Celo.
+Thirdweb API creates and manages server-side wallets for each user. Wallet creation happens during onboarding. Transactions are gasless via EIP-7702 (thirdweb sponsors gas). Identifiers: `agent-fx-{walletAddress}`, `agent-yield-{walletAddress}`, `erc8004-registrar`.
 
 ### API Routes
 
@@ -122,13 +122,13 @@ Next.js 15 with App Router, React 19, TypeScript strict mode.
 - Tests: Vitest with globals enabled, colocated `*.test.ts` files next to source
 - Routes are Fastify plugins (async functions accepting `FastifyInstance`)
 - Services receive dependencies as function params (explicit, no DI framework)
-- Supabase clients are singletons; Privy client is cached via `getPrivyClient()`
+- Supabase clients are singletons; thirdweb server wallets created via REST API
 - In-memory caching in services (news cache, approval cache) — not shared across instances
 - Frontend components use shadcn/ui primitives; new components go in `src/components/ui/`
 
 ## Environment Variables
 
-**API** (`apps/api/.env.example`): Required: `THIRDWEB_SECRET_KEY`, `THIRDWEB_ADMIN_PRIVATE_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PARALLEL_API_KEY`, `DUNE_SIM_API_KEY`. Defaults: `PORT=4000`, `CELO_RPC_URL=https://forno.celo.org`, `CORS_ORIGIN=http://localhost:3000`.
+**API** (`apps/api/.env.example`): Required: `THIRDWEB_SECRET_KEY`, `THIRDWEB_ADMIN_PRIVATE_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PARALLEL_API_KEY`, `DUNE_SIM_API_KEY`. Defaults: `PORT=4000`, `CELO_RPC_URL=https://forno.celo.org`, `CORS_ORIGIN=http://localhost:3000`.
 
 **Web** (`apps/web/.env.local`): `NEXT_PUBLIC_THIRDWEB_CLIENT_ID`, `NEXT_PUBLIC_API_URL` (default `http://localhost:4000`), `NEXT_PUBLIC_CELO_EXPLORER_URL`.
 
