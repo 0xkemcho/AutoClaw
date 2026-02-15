@@ -8,3 +8,9 @@
 {"location":"trade-executor.ts","message":"balance before swap","data":{"walletBalanceHuman":"4.999782886040700794","amountInHuman":"4.969782886040701","needsApprove":true},"timestamp":1771149412618,"hypothesisId":"H4"}
 {"location":"trade-executor.ts","message":"hop 0","data":{"hopIndex":0,"isLastHop":true,"currentAmountInRaw":"4969782886040701000","hopMinOutRaw":"4942510"},"timestamp":1771149412619,"hypothesisId":"H2"}
 {"location":"trade-executor.ts","message":"swap success","data":{"runId":"post-fix","txHash":"0xf75f4fe064a6c7ecd691f4c6cc99c73c0acfcba993a11e05386f259492051ca9"},"timestamp":1771149419594,"hypothesisId":"H6"}
+{"location":"trade-executor.ts","message":"executeSwap entry","data":{"from":"USDT","to":"USDC","amount":"3.62008","slippagePct":0.5},"timestamp":1771161142074,"hypothesisId":"H3"}
+{"location":"trade-executor.ts","message":"quote and slippage","data":{"runId":"post-fix","amountInHuman":"3.62008","amountOutHuman":"3.615097","amountOutMinHuman":"3.597021","routeHops":2},"timestamp":1771161142532,"hypothesisId":"H1"}
+{"location":"trade-executor.ts","message":"balance before swap","data":{"walletBalanceHuman":"3.62008","amountInHuman":"3.62008","needsApprove":true},"timestamp":1771161149959,"hypothesisId":"H4"}
+{"location":"trade-executor.ts","message":"hop 0","data":{"hopIndex":0,"isLastHop":false,"currentAmountInRaw":"3620080","hopMinOutRaw":"1"},"timestamp":1771161149959,"hypothesisId":"H2"}
+{"location":"trade-executor.ts","message":"hop 1","data":{"hopIndex":1,"isLastHop":true,"currentAmountInRaw":"3620080","hopMinOutRaw":"3597021"},"timestamp":1771161156470,"hypothesisId":"H2"}
+{"location":"trade-executor.ts","message":"swap success","data":{"runId":"post-fix","txHash":"0xbbf7a2e016fae901454366aefc9bb1ec30dc033dcd1e940e741751def2a44bcd"},"timestamp":1771161163709,"hypothesisId":"H6"}

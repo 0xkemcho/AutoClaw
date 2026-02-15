@@ -53,7 +53,7 @@ export interface YieldOpportunity {
   apr: number;
   tvl: number;
   dailyRewards: number;
-  tokens: Array<{ symbol: string; address: string; decimals: number }>;
+  tokens: Array<{ symbol: string; address: string; decimals: number; icon?: string }>;
   depositUrl?: string;
   /** Merkl opportunity type (CLAMM, ERC20LOGPROCESSOR, UNISWAP_V4) */
   type?: string;

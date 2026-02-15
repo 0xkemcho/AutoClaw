@@ -93,7 +93,8 @@ export async function executeYieldDeposit(params: {
         return {
           success: false,
           action: 'deposit',
-          error: `No swap route from ${sourceToken.symbol} to vault deposit token. Fund your wallet with USDC or USDT to deposit into this vault.`,
+          vaultAddress,
+          error: `No swap route from ${sourceToken.symbol} to this vault's deposit token. This vault may require a token not available via Mento (e.g. USDF). Try a vault that accepts USDC or USDT directly.`,
         };
       }
 

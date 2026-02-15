@@ -10,6 +10,17 @@ export function formatUsd(value: number): string {
   }).format(value);
 }
 
+/** Format large USD values compactly: "$36.6K", "$1.2M" */
+export function formatUsdCompact(value: number): string {
+  if (value >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (value >= 1_000) {
+    return `$${(value / 1_000).toFixed(1)}K`;
+  }
+  return formatUsd(value);
+}
+
 /** Format a number as percentage with sign: "+4.2%" or "-1.3%" */
 export function formatPct(value: number): string {
   const sign = value > 0 ? '+' : '';

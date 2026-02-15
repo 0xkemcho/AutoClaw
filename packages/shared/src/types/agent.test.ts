@@ -1,4 +1,27 @@
-import { DEFAULT_GUARDRAILS } from './agent';
+import { DEFAULT_GUARDRAILS, parseFrequencyToMs } from './agent';
+
+describe('parseFrequencyToMs', () => {
+  const HOUR_MS = 60 * 60 * 1000;
+
+  it('parses numeric frequency (4 -> 4h)', () => {
+    expect(parseFrequencyToMs(4)).toBe(4 * HOUR_MS);
+  });
+
+  it('parses string numeric frequency ("4" -> 4h)', () => {
+    expect(parseFrequencyToMs('4')).toBe(4 * HOUR_MS);
+  });
+
+  it('parses FREQUENCY_MS keys (hourly, 4h, daily)', () => {
+    expect(parseFrequencyToMs('hourly')).toBe(1 * HOUR_MS);
+    expect(parseFrequencyToMs('4h')).toBe(4 * HOUR_MS);
+    expect(parseFrequencyToMs('daily')).toBe(24 * HOUR_MS);
+  });
+
+  it('falls back to 24h for unknown values', () => {
+    expect(parseFrequencyToMs('unknown')).toBe(24 * HOUR_MS);
+    expect(parseFrequencyToMs(null)).toBe(24 * HOUR_MS);
+  });
+});
 
 describe('DEFAULT_GUARDRAILS', () => {
   describe('conservative profile', () => {
@@ -9,8 +32,8 @@ describe('DEFAULT_GUARDRAILS', () => {
       expect(conservative.dailyTradeLimit).toBe(2);
     });
 
-    it('has frequency set to daily', () => {
-      expect(DEFAULT_GUARDRAILS.conservative.frequency).toBe('daily');
+    it('has frequency set to 24 (daily)', () => {
+      expect(DEFAULT_GUARDRAILS.conservative.frequency).toBe(24);
     });
   });
 
@@ -22,8 +45,8 @@ describe('DEFAULT_GUARDRAILS', () => {
       expect(moderate.dailyTradeLimit).toBe(5);
     });
 
-    it('has frequency set to 4h', () => {
-      expect(DEFAULT_GUARDRAILS.moderate.frequency).toBe('4h');
+    it('has frequency set to 4', () => {
+      expect(DEFAULT_GUARDRAILS.moderate.frequency).toBe(4);
     });
   });
 
@@ -35,8 +58,8 @@ describe('DEFAULT_GUARDRAILS', () => {
       expect(aggressive.dailyTradeLimit).toBe(10);
     });
 
-    it('has frequency set to hourly', () => {
-      expect(DEFAULT_GUARDRAILS.aggressive.frequency).toBe('hourly');
+    it('has frequency set to 1 (hourly)', () => {
+      expect(DEFAULT_GUARDRAILS.aggressive.frequency).toBe(1);
     });
   });
 

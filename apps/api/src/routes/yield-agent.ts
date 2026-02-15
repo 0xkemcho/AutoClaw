@@ -1,11 +1,19 @@
 import type { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../middleware/auth';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
-import { frequencyToMs, FREQUENCY_MS, DEFAULT_YIELD_GUARDRAILS, type RiskProfile } from '@autoclaw/shared';
+import { frequencyToMs, parseFrequencyToMs, DEFAULT_YIELD_GUARDRAILS, type RiskProfile } from '@autoclaw/shared';
 import { runAgentCycle } from '../services/agent-cron';
 import { fetchYieldOpportunities, fetchClaimableRewards } from '../services/merkl-client';
 import { getWalletBalances } from '../services/dune-balances';
 import { executeYieldWithdraw } from '../services/yield-executor';
+import {
+  clearYieldPositionAfterWithdraw,
+  fullSyncYieldPositionsFromChain,
+  syncYieldPositionsFromChain,
+} from '../services/yield-position-tracker';
+import { convertWalletToUsdc } from '../services/convert-to-usdc';
+import { IchiVaultAdapter } from '../services/vault-adapters/ichi';
+import { celoClient } from '../lib/celo-client';
 import { createServerWallet } from '../lib/thirdweb-wallet';
 import { registerAgentOnChain } from '../services/agent-registry';
 
@@ -274,10 +282,7 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
         const hasValidFutureRun = existingNextRun > Date.now();
 
         if (!hasValidFutureRun) {
-          const rawFreq = config.frequency;
-          const freqMs = typeof rawFreq === 'number'
-            ? frequencyToMs(rawFreq)
-            : (FREQUENCY_MS[String(rawFreq)] ?? frequencyToMs(24));
+          const freqMs = parseFrequencyToMs(config.frequency);
           updates.next_run_at = new Date(Date.now() + freqMs).toISOString();
         }
       }
@@ -319,6 +324,12 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: 'Yield agent wallet not set up' });
       }
 
+      // Sync positions from chain first so we use accurate data (clears stale rows if user withdrew manually)
+      await syncYieldPositionsFromChain({
+        walletAddress,
+        serverWalletAddress: config.server_wallet_address,
+      });
+
       const MIN_BALANCE_USD = 5;
       try {
         const balances = await getWalletBalances(config.server_wallet_address);
@@ -350,10 +361,7 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
       });
 
       // Update last_run_at and next_run_at
-      const rawFreq = config.frequency;
-      const freqMs = typeof rawFreq === 'number'
-        ? frequencyToMs(rawFreq)
-        : (FREQUENCY_MS[String(rawFreq)] ?? frequencyToMs(24));
+      const freqMs = parseFrequencyToMs(config.frequency);
       const nextRun = new Date(Date.now() + freqMs).toISOString();
 
       await supabaseAdmin
@@ -366,6 +374,35 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
         .eq('id', config.id);
 
       return { triggered: true };
+    },
+  );
+
+  // POST /api/yield-agent/sync-positions — discover on-chain positions and backfill yield_positions
+  app.post(
+    '/api/yield-agent/sync-positions',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+
+      const { data: configData, error: configError } = await supabaseAdmin
+        .from('agent_configs')
+        .select('server_wallet_address')
+        .eq('wallet_address', walletAddress)
+        .eq('agent_type', 'yield')
+        .single();
+
+      if (configError || !configData?.server_wallet_address) {
+        return reply.status(404).send({ error: 'Yield agent wallet not configured' });
+      }
+
+      const opportunities = await fetchYieldOpportunities();
+      const { synced, cleared } = await fullSyncYieldPositionsFromChain({
+        walletAddress,
+        serverWalletAddress: configData.server_wallet_address,
+        opportunities,
+      });
+
+      return { synced, cleared, message: 'Positions synced from chain' };
     },
   );
 
@@ -405,21 +442,49 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
         return { results: [], message: 'No active positions to withdraw' };
       }
 
+      const ichiAdapter = new IchiVaultAdapter();
+      const publicClient = celoClient as import('viem').PublicClient;
+
       // Execute withdrawal for each position
       const results = [];
       for (const pos of positions) {
         const vaultAddress = pos.vault_address as `0x${string}`;
         try {
+          // Verify on-chain position before attempting (Issue 6: skip if user withdrew manually)
+          const onChainPosition = await ichiAdapter.getPosition(
+            vaultAddress,
+            config.server_wallet_address as `0x${string}`,
+            publicClient,
+          );
+          if (onChainPosition.lpShares === 0n) {
+            await clearYieldPositionAfterWithdraw({ walletAddress, vaultAddress: pos.vault_address });
+            results.push({
+              vaultAddress,
+              txHash: null,
+              success: true,
+              skipped: true,
+              message: 'No on-chain position; cleared stale DB row',
+            });
+            continue;
+          }
+
           const result = await executeYieldWithdraw({
             serverWalletId: config.server_wallet_id,
             serverWalletAddress: config.server_wallet_address,
             vaultAddress,
           });
+          if (result.success) {
+            await clearYieldPositionAfterWithdraw({
+              walletAddress,
+              vaultAddress: pos.vault_address,
+            });
+          }
           results.push({
             vaultAddress,
             txHash: result.txHash ?? null,
             success: result.success,
             error: result.error ?? null,
+            skipped: false,
           });
         } catch (err) {
           results.push({
@@ -427,11 +492,65 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
             txHash: null,
             success: false,
             error: err instanceof Error ? err.message : String(err),
+            skipped: false,
           });
         }
       }
 
-      return { results };
+      // Convert all withdrawn tokens (USDT, WETH, etc.) to USDC so user ends with USDC
+      const anyWithdrawn = results.some((r) => r.success && !r.skipped);
+      let convertResult: { swapped: Array<{ symbol: string; amount: string; txHash: string }>; skipped: Array<{ symbol: string; reason: string }> } | undefined;
+      if (anyWithdrawn) {
+        try {
+          convertResult = await convertWalletToUsdc({
+            serverWalletId: config.server_wallet_id,
+            serverWalletAddress: config.server_wallet_address,
+          });
+        } catch (err) {
+          console.error('Convert to USDC after withdraw failed:', err);
+          convertResult = {
+            swapped: [],
+            skipped: [{ symbol: 'all', reason: err instanceof Error ? err.message : 'Convert failed' }],
+          };
+        }
+      }
+
+      return { results, convertResult };
+    },
+  );
+
+  // POST /api/yield-agent/convert-to-usdc — swap all convertible tokens to USDC
+  app.post(
+    '/api/yield-agent/convert-to-usdc',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+
+      const { data: configData, error: configError } = await supabaseAdmin
+        .from('agent_configs')
+        .select('server_wallet_id, server_wallet_address')
+        .eq('wallet_address', walletAddress)
+        .eq('agent_type', 'yield')
+        .single();
+
+      const config = configData as Pick<AgentConfigRow, 'server_wallet_id' | 'server_wallet_address'> | null;
+
+      if (configError || !config || !config.server_wallet_id || !config.server_wallet_address) {
+        return reply.status(404).send({ error: 'Yield agent wallet not configured' });
+      }
+
+      try {
+        const result = await convertWalletToUsdc({
+          serverWalletId: config.server_wallet_id,
+          serverWalletAddress: config.server_wallet_address,
+        });
+        return result;
+      } catch (err) {
+        console.error('Convert to USDC failed:', err);
+        return reply.status(500).send({
+          error: err instanceof Error ? err.message : 'Failed to convert to USDC',
+        });
+      }
     },
   );
 

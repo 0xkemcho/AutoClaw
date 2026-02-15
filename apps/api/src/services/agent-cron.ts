@@ -1,8 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { type Address, erc20Abi, formatUnits } from 'viem';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
-import { frequencyToMs, FREQUENCY_MS, type AgentFrequency, type ProgressStep, ALL_TOKEN_ADDRESSES, TOKEN_METADATA } from '@autoclaw/shared';
+import { parseFrequencyToMs, type AgentFrequency, type ProgressStep, ALL_TOKEN_ADDRESSES, TOKEN_METADATA } from '@autoclaw/shared';
 import { getPositions, calculatePortfolioValue, updatePositionAfterTrade } from './position-tracker';
+import {
+  upsertYieldPositionAfterDeposit,
+  clearYieldPositionAfterWithdraw,
+  syncYieldPositionsFromChain,
+} from './yield-position-tracker';
 import { calculateTradeAmount } from './rules-engine';
 import { emitProgress } from './agent-events';
 import { submitTradeFeedback } from './agent-registry';
@@ -52,10 +57,7 @@ async function agentTick(): Promise<void> {
     console.log(`Agent tick: ${dueAgents.length} agent(s) due to run`);
 
     for (const config of dueAgents) {
-      const rawFreq = config.frequency;
-      const freqMs = typeof rawFreq === 'number'
-        ? frequencyToMs(rawFreq)
-        : (FREQUENCY_MS[String(rawFreq)] ?? frequencyToMs(24));
+      const freqMs = parseFrequencyToMs(config.frequency);
       try {
         await runAgentCycle(config);
 
@@ -118,6 +120,12 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
     let portfolioValue: number;
 
     if (agentType === 'yield') {
+      // Sync DB with on-chain: clear any rows where user withdrew manually
+      await syncYieldPositionsFromChain({
+        walletAddress,
+        serverWalletAddress: config.server_wallet_address,
+      });
+
       const { data: yieldPositions } = await supabaseAdmin
         .from('yield_positions')
         .select('*')
@@ -281,6 +289,38 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
             txHash: result.txHash,
             amountUsd: result.amountUsd,
           }, runId, agentType);
+
+          // Update yield_positions so vault deposits appear in portfolio
+          if (agentType === 'yield' && result.vaultAddress && result.amountUsd != null) {
+            upsertYieldPositionAfterDeposit({
+              walletAddress,
+              serverWalletAddress: config.server_wallet_address,
+              vaultAddress: result.vaultAddress as Address,
+              amountUsd: result.amountUsd,
+            }).catch(err => console.error('[yield] Failed to update position:', err.message));
+            // Refresh guardrail context so next signal sees updated positions
+            guardrailContext.positions.push({
+              vault_address: result.vaultAddress,
+              vaultAddress: result.vaultAddress,
+              deposit_amount_usd: result.amountUsd,
+              depositAmountUsd: result.amountUsd,
+              deposited_at: new Date().toISOString(),
+              depositedAt: new Date().toISOString(),
+            });
+          }
+
+          // Clear yield_positions after successful withdraw
+          if (agentType === 'yield' && signalAction === 'withdraw' && s.vaultAddress) {
+            clearYieldPositionAfterWithdraw({
+              walletAddress,
+              vaultAddress: s.vaultAddress,
+            }).catch(err => console.error('[yield] Failed to clear position:', err.message));
+            // Refresh guardrail context: remove withdrawn vault from positions
+            const vaultKey = (s.vaultAddress as string).toLowerCase();
+            guardrailContext.positions = guardrailContext.positions.filter(
+              (p: any) => (p.vault_address ?? p.vaultAddress ?? '').toLowerCase() !== vaultKey,
+            );
+          }
 
           // Submit ERC-8004 reputation feedback (non-blocking)
           if (config.agent_8004_id && result.txHash) {

@@ -1,10 +1,15 @@
 import type { GuardrailCheck } from '@autoclaw/shared';
 import type { YieldOpportunity, YieldSignal, YieldGuardrails, DEFAULT_YIELD_GUARDRAILS } from '@autoclaw/shared';
+import { USDC_CELO_ADDRESS } from '@autoclaw/shared';
+import { findRoute } from '@autoclaw/contracts';
 import { fetchYieldOpportunities, fetchClaimableRewards } from '../merkl-client';
 import { analyzeYieldOpportunities } from '../yield-analyzer';
 import { executeYieldDeposit, executeYieldWithdraw } from '../yield-executor';
 import { checkYieldGuardrails } from '../yield-guardrails';
+import { IchiVaultAdapter } from '../vault-adapters/ichi';
+import { celoClient } from '../../lib/celo-client';
 import type { Address } from 'viem';
+import type { PublicClient } from 'viem';
 import type {
   AgentStrategy,
   AgentConfigRow,
@@ -18,6 +23,40 @@ import type {
 interface YieldData {
   opportunities: YieldOpportunity[];
   claimableRewards: Array<{ token: { symbol: string; address: string }; claimableAmount: string }>;
+}
+
+const ichiAdapter = new IchiVaultAdapter();
+
+/**
+ * Filter vault opportunities to only those where a swap route exists from USDC
+ * to the vault's deposit token (via Mento). Excludes vaults that require USDF or
+ * other tokens not in Mento.
+ */
+async function filterVaultsByRouteAvailability(
+  opportunities: YieldOpportunity[],
+): Promise<YieldOpportunity[]> {
+  const publicClient = celoClient as unknown as PublicClient;
+  const results = await Promise.allSettled(
+    opportunities.map(async (opp) => {
+      const vaultAddr = opp.vaultAddress as Address;
+      if (!vaultAddr || !vaultAddr.startsWith('0x') || vaultAddr.length !== 42) {
+        return null;
+      }
+      const vaultInfo = await ichiAdapter.getVaultInfo(vaultAddr, publicClient);
+      const { token: depositToken } = ichiAdapter.getDepositToken(vaultInfo);
+      const route = await findRoute(
+        USDC_CELO_ADDRESS as Address,
+        depositToken,
+        publicClient,
+      );
+      return route && route.length > 0 ? opp : null;
+    }),
+  );
+
+  return results
+    .filter((r): r is PromiseFulfilledResult<YieldOpportunity | null> => r.status === 'fulfilled')
+    .map((r) => r.value)
+    .filter((opp): opp is YieldOpportunity => opp !== null);
 }
 
 function getGuardrails(config: AgentConfigRow): YieldGuardrails {
@@ -42,9 +81,12 @@ export class YieldStrategy implements AgentStrategy {
     const allOpportunities = await fetchYieldOpportunities();
 
     // Filter client-side for Ichi protocol (matches POC pattern)
-    const opportunities = allOpportunities.filter(opp =>
+    const ichiOpportunities = allOpportunities.filter(opp =>
       opp.protocol?.toLowerCase().includes('ichi')
     );
+
+    // Filter to only vaults where USDC -> deposit token swap route exists (Mento)
+    const opportunities = await filterVaultsByRouteAvailability(ichiOpportunities);
 
     // Fetch claimable rewards for this wallet
     const claimableRewards = config.server_wallet_address
@@ -108,6 +150,7 @@ export class YieldStrategy implements AgentStrategy {
         success: result.success,
         txHash: result.txHash,
         amountUsd: s.amountUsd,
+        vaultAddress: result.vaultAddress,
         error: result.error,
       };
     }

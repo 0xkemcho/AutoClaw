@@ -29,6 +29,13 @@ const supabaseAdmin = createSupabaseAdmin(
 );
 
 const ALL_SWAP_TOKENS = new Set<string>([...BASE_TOKENS, ...MENTO_TOKENS, ...COMMODITY_TOKENS]);
+const SEND_TOKENS = new Set<string>([
+  ...ALL_SWAP_TOKENS,
+  'WETH',
+  'WBTC',
+  'CELO',
+  'stCELO',
+]);
 const VALID_FROM_TOKENS = new Set<string>(BASE_TOKENS);
 const VALID_TO_TOKENS = new Set<string>([...MENTO_TOKENS, ...COMMODITY_TOKENS]);
 
@@ -430,9 +437,9 @@ export async function tradeRoutes(app: FastifyInstance) {
       const token = query.token;
       const agentType = query.agent_type === 'yield' ? 'yield' : 'fx';
 
-      if (!token || !ALL_SWAP_TOKENS.has(token)) {
+      if (!token || !SEND_TOKENS.has(token)) {
         return reply.status(400).send({
-          error: `Invalid token. Must be one of: ${[...ALL_SWAP_TOKENS].join(', ')}`,
+          error: `Invalid token. Must be one of: ${[...SEND_TOKENS].join(', ')}`,
         });
       }
 
@@ -482,9 +489,9 @@ export async function tradeRoutes(app: FastifyInstance) {
 
       const { token, amount, recipient, agent_type: requestedAgentType = 'fx' } = body;
 
-      if (!token || !ALL_SWAP_TOKENS.has(token)) {
+      if (!token || !SEND_TOKENS.has(token)) {
         return reply.status(400).send({
-          error: `Invalid token. Must be one of: ${[...ALL_SWAP_TOKENS].join(', ')}`,
+          error: `Invalid token. Must be one of: ${[...SEND_TOKENS].join(', ')}`,
         });
       }
       if (amount == null || isNaN(amount) || amount <= 0) {

@@ -423,37 +423,40 @@ export function AgentStatusCard({
         {/* ============================================================ */}
         <div className="flex w-full flex-col gap-2">
           <div className="flex w-full gap-3">
-            <Button
-              variant="default"
-              className="flex-1 h-11"
-              disabled={
-                runNowMutation.isPending ||
-                isRunning ||
-                isCoolingDown ||
-                !isActive ||
-                !isRegistered8004
-              }
-              onClick={handleRunNow}
-            >
-              {isRunning ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Zap className="size-4" />
-              )}
-              {isRunning
-                ? 'Running...'
-                : isCoolingDown
-                  ? `Cooldown ${cooldownLeft}`
-                  : 'Run Now'}
-            </Button>
+            <div className="flex-1 min-w-0">
+              <Button
+                variant="default"
+                className="w-full h-11"
+                disabled={
+                  runNowMutation.isPending ||
+                  isRunning ||
+                  isCoolingDown ||
+                  !isActive ||
+                  !isRegistered8004
+                }
+                onClick={handleRunNow}
+              >
+                {isRunning ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Zap className="size-4" />
+                )}
+                {isRunning
+                  ? 'Running...'
+                  : isCoolingDown
+                    ? `Cooldown ${cooldownLeft}`
+                    : 'Run Now'}
+              </Button>
+            </div>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="flex-1">
-                    <Button
-                      variant="outline"
-                      className="w-full h-11"
+            <div className="flex-1 min-w-0">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="block w-full">
+                      <Button
+                        variant="outline"
+                        className="w-full h-11"
                       disabled={toggleMutation.isPending || !isRegistered8004}
                       onClick={handleToggle}
                     >
@@ -478,6 +481,7 @@ export function AgentStatusCard({
                 )}
               </Tooltip>
             </TooltipProvider>
+            </div>
           </div>
 
           {!isRegistered8004 && (

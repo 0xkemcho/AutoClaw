@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Brain, Sparkles, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -77,7 +77,7 @@ export function ReasoningView({ reasoning, isActive = true, stageMessage }: Reas
         transition={{ duration: 0.2 }}
       >
         <Card className="border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent">
-          <CardHeader className="flex-row items-start justify-between gap-2 space-y-0 pb-2">
+          <CardHeader className="space-y-0 pb-2">
             <div className="flex items-center gap-2 min-w-0">
               <Brain className="size-4 shrink-0 text-amber-500" />
               <CardTitle className="text-base">Agent Reasoning</CardTitle>
@@ -90,15 +90,17 @@ export function ReasoningView({ reasoning, isActive = true, stageMessage }: Reas
                 </motion.div>
               )}
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
-              aria-label="Dismiss reasoning"
-              onClick={() => setDismissed(true)}
-            >
-              <X className="size-4" />
-            </Button>
+            <CardAction>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+                aria-label="Dismiss reasoning"
+                onClick={() => setDismissed(true)}
+              >
+                <X className="size-4" />
+              </Button>
+            </CardAction>
           </CardHeader>
           <CardContent>
             <div className="relative">

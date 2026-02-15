@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api-client';
 import { useAuth } from '@/providers/auth-provider';
+import { portfolioKeys } from './use-portfolio';
 
 interface YieldAgentConfig {
   id: string;
@@ -48,7 +49,7 @@ interface YieldOpportunityResponse {
   apr: number;
   tvl: number;
   dailyRewards: number;
-  tokens: Array<{ symbol: string; address: string; decimals: number }>;
+  tokens: Array<{ symbol: string; address: string; decimals: number; icon?: string }>;
   depositUrl?: string; // Merkl deposit page URL
   type?: string; // CLAMM, ERC20LOGPROCESSOR, UNISWAP_V4
   merklUrl?: string; // https://app.merkl.xyz/opportunities/celo/{type}/{identifier}
@@ -171,6 +172,8 @@ export function useToggleYieldAgent() {
   });
 }
 
+const SYNC_AFTER_RUN_DELAY_MS = 5000;
+
 export function useRunYieldNow() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -181,6 +184,31 @@ export function useRunYieldNow() {
       queryClient.invalidateQueries({
         queryKey: yieldAgentKeys.timeline(),
       });
+      queryClient.invalidateQueries({
+        queryKey: yieldAgentKeys.positions(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: portfolioKeys.summary('yield'),
+      });
+
+      // Sync positions from chain 5s after run completes (agent cycle may have updated on-chain state)
+      setTimeout(() => {
+        api
+          .post<{ synced: number; cleared: number; message: string }>(
+            '/api/yield-agent/sync-positions',
+          )
+          .then(() => {
+            queryClient.invalidateQueries({
+              queryKey: yieldAgentKeys.positions(),
+            });
+            queryClient.invalidateQueries({
+              queryKey: portfolioKeys.summary('yield'),
+            });
+          })
+          .catch(() => {
+            // Ignore sync errors; positions will refresh on next manual sync or page load
+          });
+      }, SYNC_AFTER_RUN_DELAY_MS);
     },
   });
 }
@@ -199,16 +227,69 @@ export function useRegisterYieldAgent() {
   });
 }
 
+export function useSyncYieldPositions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ synced: number; cleared: number; message: string }>(
+        '/api/yield-agent/sync-positions',
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: yieldAgentKeys.positions() });
+      queryClient.invalidateQueries({ queryKey: portfolioKeys.summary('yield') });
+    },
+  });
+}
+
+export interface WithdrawAllResult {
+  vaultAddress: string;
+  txHash: string | null;
+  success: boolean;
+  error?: string | null;
+  skipped?: boolean;
+  message?: string;
+}
+
+export interface WithdrawAllResponse {
+  results: WithdrawAllResult[];
+  message?: string;
+  convertResult?: {
+    swapped: Array<{ symbol: string; amount: string; txHash: string }>;
+    skipped: Array<{ symbol: string; reason: string }>;
+  };
+}
+
+export interface ConvertToUsdcResponse {
+  swapped: Array<{ symbol: string; amount: string; txHash: string }>;
+  skipped: Array<{ symbol: string; reason: string }>;
+}
+
+export function useConvertToUsdc() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<ConvertToUsdcResponse>('/api/yield-agent/convert-to-usdc'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: yieldAgentKeys.positions() });
+      queryClient.invalidateQueries({ queryKey: portfolioKeys.summary('yield') });
+      queryClient.invalidateQueries({ queryKey: yieldAgentKeys.status() });
+    },
+  });
+}
+
 export function useWithdrawAll() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      api.post<{ success: boolean }>('/api/yield-agent/withdraw-all'),
+      api.post<WithdrawAllResponse>('/api/yield-agent/withdraw-all'),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: yieldAgentKeys.positions(),
       });
       queryClient.invalidateQueries({ queryKey: yieldAgentKeys.status() });
+      queryClient.invalidateQueries({
+        queryKey: portfolioKeys.summary('yield'),
+      });
     },
   });
 }

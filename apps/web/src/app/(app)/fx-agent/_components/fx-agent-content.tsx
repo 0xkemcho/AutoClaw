@@ -3,16 +3,11 @@
 import { Suspense, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { motion } from 'motion/react';
-import {
-  TrendingUp,
-  ShieldCheck,
-  BarChart3,
-  Zap,
-  Info,
-} from 'lucide-react';
+import { TrendingUp, Info } from 'lucide-react';
 import { useMotionSafe } from '@/lib/motion';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
+import { CardSpotlight } from '@/components/ui/card-spotlight';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DashboardContent } from '@/app/(app)/dashboard/_components/dashboard-content';
@@ -32,19 +27,19 @@ function FxHero() {
 
   const features = [
     {
-      icon: BarChart3,
       title: 'AI-Driven Signals',
       desc: 'Real-time FX news analysis powered by Gemini, generating buy/sell/hold signals with confidence scores.',
+      tags: ['Gemini', 'Real-time'],
     },
     {
-      icon: ShieldCheck,
       title: 'Risk Guardrails',
       desc: 'Configurable trade limits, max allocation, stop-loss, and daily caps based on your risk profile.',
+      tags: ['Configurable', 'Safe'],
     },
     {
-      icon: Zap,
       title: 'Mento Protocol',
       desc: 'Executes stablecoin swaps across 15+ Mento pairs — USDm, EURm, BRLm, JPYm, and more.',
+      tags: ['15+ pairs', 'USDm'],
     },
   ];
 
@@ -65,20 +60,6 @@ function FxHero() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {features.map((f) => (
-          <Card key={f.title}>
-            <CardContent className="flex flex-col items-center p-5 text-center">
-              <f.icon className="mb-3 size-6 text-primary" />
-              <p className="text-sm font-semibold">{f.title}</p>
-              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                {f.desc}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
       <div className="flex justify-center">
         <Button
           size="lg"
@@ -88,6 +69,33 @@ function FxHero() {
           <TrendingUp className="size-4" />
           Create FX Agent
         </Button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        {features.map((f) => (
+          <CardSpotlight
+            key={f.title}
+            color="rgba(251, 191, 36, 0.12)"
+            radius={280}
+          >
+            <div className="flex flex-col items-center p-6 text-center">
+              <p className="text-sm font-semibold">{f.title}</p>
+              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                {f.desc}
+              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {f.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-border/60 bg-muted/50 px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </CardSpotlight>
+        ))}
       </div>
     </motion.div>
   );
