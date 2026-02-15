@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api-client';
+import { api, ApiError } from '@/lib/api-client';
 import { useAuth } from '@/providers/auth-provider';
 
 interface AgentConfigResponse {
@@ -36,6 +36,10 @@ export function useAgentStatus() {
     queryKey: agentKeys.status(),
     queryFn: () => api.get<AgentStatusResponse>('/api/agent/status'),
     enabled: isAuthenticated,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 404) return false;
+      return failureCount < 2;
+    },
   });
 }
 

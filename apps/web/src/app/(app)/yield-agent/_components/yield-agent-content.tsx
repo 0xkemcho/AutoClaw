@@ -13,10 +13,15 @@ import {
   Pause,
   Settings,
   ArrowDownToLine,
+  ArrowUpRight,
+  ArrowDownLeft,
   ExternalLink,
   Loader2,
   Ban,
   Info,
+  Copy,
+  Check,
+  Wallet,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -64,8 +69,10 @@ import {
   useWithdrawAll,
 } from '@/hooks/use-yield-agent';
 import type { YieldTimelineFilters } from '@/hooks/use-yield-agent';
-import { formatUsd, formatRelativeTime, formatCountdown } from '@/lib/format';
+import { formatUsd, formatRelativeTime, formatCountdown, shortenAddress } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ReceiveModal } from '@/app/(app)/dashboard/_components/receive-modal';
+import { SendModal } from '@/app/(app)/dashboard/_components/send-modal';
 
 const EXPLORER_BASE =
   process.env.NEXT_PUBLIC_CELO_EXPLORER_URL || 'https://celoscan.io';
@@ -86,6 +93,106 @@ const EVENT_TYPE_STYLES: Record<string, string> = {
 
 function eventBadgeClass(eventType: string): string {
   return EVENT_TYPE_STYLES[eventType] ?? EVENT_TYPE_STYLES.system;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Agent Tab: Wallet Section                                          */
+/* ------------------------------------------------------------------ */
+
+function YieldWalletSection() {
+  const { data, isLoading } = useYieldAgentStatus();
+  const [copied, setCopied] = useState(false);
+  const [receiveOpen, setReceiveOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-4">
+          <Skeleton className="h-4 w-48" />
+          <div className="mt-3 flex gap-2">
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const serverWalletAddress = data?.config.serverWalletAddress;
+  if (!serverWalletAddress) return null;
+
+  async function handleCopy() {
+    if (!serverWalletAddress) return;
+    await navigator.clipboard.writeText(serverWalletAddress);
+    toast('Address copied!');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between p-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex size-9 items-center justify-center rounded-full bg-amber-500/10">
+            <Wallet className="size-4 text-amber-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Agent Wallet</p>
+            <div className="flex items-center gap-1.5">
+              <code className="font-mono text-sm">
+                {shortenAddress(serverWalletAddress, 6)}
+              </code>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                onClick={handleCopy}
+              >
+                {copied ? (
+                  <Check className="size-3 text-emerald-400" />
+                ) : (
+                  <Copy className="size-3" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setReceiveOpen(true)}
+          >
+            <ArrowDownLeft className="size-4" />
+            Receive
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setSendOpen(true)}
+          >
+            <ArrowUpRight className="size-4" />
+            Send
+          </Button>
+        </div>
+
+        <ReceiveModal
+          open={receiveOpen}
+          onOpenChange={setReceiveOpen}
+          walletAddress={serverWalletAddress}
+        />
+        <SendModal
+          open={sendOpen}
+          onOpenChange={setSendOpen}
+          holdings={[]}
+        />
+      </CardContent>
+    </Card>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -330,23 +437,28 @@ function YieldOpportunitiesSection() {
     return (
       <div>
         <h3 className="mb-3 text-sm font-semibold">Top Opportunities</h3>
-        <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="flex items-center gap-4 p-3">
-                <Skeleton className="h-4 flex-1" />
-                <Skeleton className="h-4 w-16" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardContent className="p-0">
+            <div className="space-y-0 divide-y">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-4 py-3">
+                  <Skeleton className="h-4 w-8" />
+                  <Skeleton className="h-4 flex-1" />
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   const opportunities = (data?.opportunities ?? [])
     .sort((a, b) => b.apr - a.apr)
-    .slice(0, 5);
+    .slice(0, 10);
 
   if (opportunities.length === 0) {
     return (
@@ -366,38 +478,75 @@ function YieldOpportunitiesSection() {
 
   return (
     <div>
-      <h3 className="mb-3 text-sm font-semibold">Top Opportunities</h3>
-      <div className="space-y-2">
-        {opportunities.map((opp) => (
-          <Card key={opp.id}>
-            <CardContent className="flex items-center gap-4 p-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{opp.name}</p>
-                <div className="mt-0.5 flex items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className="text-[11px] border-blue-500/30 text-blue-400"
-                  >
-                    {opp.protocol}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    TVL {formatUsd(opp.tvl)}
-                  </span>
-                </div>
-              </div>
+      <h3 className="mb-3 text-sm font-semibold">
+        Top Opportunities{' '}
+        <Badge variant="secondary" className="ml-1.5 text-xs">
+          {opportunities.length}
+        </Badge>
+      </h3>
+      <Card>
+        <CardContent className="p-0">
+          {/* Table header */}
+          <div className="flex items-center gap-4 border-b px-4 py-2.5 text-xs font-medium text-muted-foreground">
+            <span className="w-8 text-center">#</span>
+            <span className="flex-1">Composition</span>
+            <span className="w-24 text-right">TVL</span>
+            <span className="w-24 text-right">Rewards/day</span>
+            <span className="w-20 text-right">APR</span>
+          </div>
 
-              <div className="text-right shrink-0">
-                <p className="text-sm font-semibold text-amber-500">
+          {/* Table rows */}
+          <div className="divide-y">
+            {opportunities.map((opp, idx) => (
+              <div
+                key={opp.id}
+                className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30"
+              >
+                {/* Rank */}
+                <span className="w-8 text-center text-sm text-muted-foreground font-mono">
+                  {idx + 1}
+                </span>
+
+                {/* Name + Protocol + Tokens */}
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm font-medium">{opp.name}</p>
+                  <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+                    <Badge
+                      variant="outline"
+                      className="text-[11px] border-blue-500/30 text-blue-400"
+                    >
+                      {opp.protocol}
+                    </Badge>
+                    {opp.tokens.slice(0, 3).map((t) => (
+                      <span
+                        key={t.address}
+                        className="inline-flex items-center rounded-md bg-muted/50 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+                      >
+                        {t.symbol}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* TVL */}
+                <span className="w-24 text-right text-sm font-mono tabular-nums text-muted-foreground">
+                  {formatUsd(opp.tvl)}
+                </span>
+
+                {/* Daily Rewards */}
+                <span className="w-24 text-right text-sm font-mono tabular-nums text-muted-foreground">
+                  {formatUsd(opp.dailyRewards)}
+                </span>
+
+                {/* APR */}
+                <span className="w-20 text-right text-sm font-semibold font-mono tabular-nums text-amber-500">
                   {opp.apr.toFixed(1)}%
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {formatUsd(opp.dailyRewards)}/day
-                </p>
+                </span>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -483,6 +632,7 @@ function YieldRewardsSection() {
 function AgentTab() {
   return (
     <div className="space-y-6">
+      <YieldWalletSection />
       <YieldStatusSection />
       <YieldPositionsSection />
       <YieldOpportunitiesSection />

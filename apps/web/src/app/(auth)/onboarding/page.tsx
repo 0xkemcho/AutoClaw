@@ -24,9 +24,13 @@ function OnboardingContent() {
   const searchParams = useSearchParams();
   const submitMutation = useSubmitRiskProfile();
 
-  // If ?agent=yield, skip agent-select and go straight to yield-setup
+  // If ?agent= is specified, skip agent-select and go straight to the right step
   const preselectedAgent = searchParams.get('agent') as 'fx' | 'yield' | null;
-  const initialPhase: Phase = preselectedAgent === 'yield' ? 'yield-setup' : 'agent-select';
+  const initialPhase: Phase = preselectedAgent === 'yield'
+    ? 'yield-setup'
+    : preselectedAgent === 'fx'
+      ? 'questionnaire'
+      : 'agent-select';
   const initialAgentType: 'fx' | 'yield' = preselectedAgent === 'yield' ? 'yield' : 'fx';
 
   const [phase, setPhase] = useState<Phase>(initialPhase);

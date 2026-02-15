@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api-client';
+import { api, ApiError } from '@/lib/api-client';
+import { useAuth } from '@/providers/auth-provider';
 
 interface YieldAgentConfig {
   id: string;
@@ -97,10 +98,16 @@ export const yieldAgentKeys = {
 };
 
 export function useYieldAgentStatus() {
+  const { isAuthenticated } = useAuth();
   return useQuery({
     queryKey: yieldAgentKeys.status(),
     queryFn: () =>
       api.get<YieldAgentStatusResponse>('/api/yield-agent/status'),
+    enabled: isAuthenticated,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 404) return false;
+      return failureCount < 2;
+    },
   });
 }
 
