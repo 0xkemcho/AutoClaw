@@ -111,14 +111,34 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
     // 1. Log cycle start
     await logTimeline(walletAddress, 'system', { summary: `${agentType.toUpperCase()} agent cycle started` }, runId, agentType);
 
-    // 2. Fetch positions and portfolio value
+    // 2. Fetch positions, portfolio value, and on-chain wallet balances
     console.log(`[agent:${walletAddress.slice(0, 8)}:${agentType}] Fetching positions...`);
-    const positions = await getPositions(walletAddress);
-    const portfolioValue = await calculatePortfolioValue(positions);
-    console.log(`[agent:${walletAddress.slice(0, 8)}:${agentType}] Portfolio: $${portfolioValue.toFixed(2)}, ${positions.length} positions`);
-
-    // 2b. Fetch on-chain wallet balances
     const walletBalances = await getOnChainBalances(config.server_wallet_address);
+    let positions: Array<Record<string, unknown>>;
+    let portfolioValue: number;
+
+    if (agentType === 'yield') {
+      const { data: yieldPositions } = await supabaseAdmin
+        .from('yield_positions')
+        .select('*')
+        .eq('wallet_address', walletAddress)
+        .gt('lp_shares', 0);
+      positions = (yieldPositions ?? []) as Array<Record<string, unknown>>;
+      const vaultValue = positions.reduce(
+        (sum, p) => sum + Number(p.deposit_amount_usd ?? 0),
+        0,
+      );
+      const liquidValue = walletBalances.reduce((s, b) => s + b.valueUsd, 0);
+      portfolioValue = vaultValue + liquidValue;
+      console.log(`[agent:${walletAddress.slice(0, 8)}:${agentType}] Portfolio: $${portfolioValue.toFixed(2)} (vault: $${vaultValue.toFixed(2)}, liquid: $${liquidValue.toFixed(2)}), ${positions.length} positions`);
+    } else {
+      const fxPositions = await getPositions(walletAddress);
+      positions = fxPositions as unknown as Array<Record<string, unknown>>;
+      portfolioValue = await calculatePortfolioValue(fxPositions);
+      console.log(`[agent:${walletAddress.slice(0, 8)}:${agentType}] Portfolio: $${portfolioValue.toFixed(2)}, ${positions.length} positions`);
+    }
+
+    // 2b. Log balance summary
     const balanceSummary = walletBalances
       .filter(b => b.balance > 0)
       .map(b => `${b.symbol}: ${b.formatted}`)
@@ -186,17 +206,21 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
     const executeStep = progressSteps[3] ?? ('executing_trades' as ProgressStep);
     const tradesToday = await getTradeCountToday(walletAddress, agentType);
 
-    // Build price map for guardrails
+    // Build price map for guardrails (FX uses token_symbol; yield positions don't have it)
     const positionPrices: Record<string, number> = {};
-    for (const pos of positions) {
-      const { data: snapshot } = await supabaseAdmin
-        .from('token_price_snapshots')
-        .select('price_usd')
-        .eq('token_symbol', pos.token_symbol)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      positionPrices[pos.token_symbol] = (snapshot as { price_usd: number } | null)?.price_usd ?? 1;
+    if (agentType === 'fx') {
+      for (const pos of positions) {
+        const tokenSymbol = pos.token_symbol as string | undefined;
+        if (!tokenSymbol) continue;
+        const { data: snapshot } = await supabaseAdmin
+          .from('token_price_snapshots')
+          .select('price_usd')
+          .eq('token_symbol', tokenSymbol)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        positionPrices[tokenSymbol] = (snapshot as { price_usd: number } | null)?.price_usd ?? 1;
+      }
     }
 
     const guardrailContext = {

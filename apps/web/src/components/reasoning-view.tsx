@@ -9,6 +9,36 @@ interface ReasoningViewProps {
   isActive?: boolean;
 }
 
+/** Renders reasoning text with basic structure: paragraphs, lists, and line breaks. */
+function FormattedReasoning({ text }: { text: string }) {
+  const blocks = text.split(/\n\n+/).filter(Boolean);
+  return (
+    <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+      {blocks.map((block, i) => {
+        const lines = block.split('\n');
+        const isList = lines.every(
+          (l) => /^\s*[-*]\s/.test(l) || /^\s*\d+\.\s/.test(l),
+        );
+        if (isList && lines.length > 0) {
+          return (
+            <ul key={i} className="list-disc list-inside space-y-1 pl-1">
+              {lines.map((line, j) => {
+                const content = line.replace(/^\s*[-*]\s/, '').replace(/^\s*\d+\.\s/, '');
+                return <li key={j}>{content}</li>;
+              })}
+            </ul>
+          );
+        }
+        return (
+          <div key={i} className="whitespace-pre-wrap">
+            {block}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ReasoningView({ reasoning, isActive = true }: ReasoningViewProps) {
   if (!reasoning && !isActive) return null;
 
@@ -44,9 +74,7 @@ export function ReasoningView({ reasoning, isActive = true }: ReasoningViewProps
                   transition={{ duration: 0.3 }}
                   className="prose prose-invert prose-sm max-w-none"
                 >
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                    {reasoning}
-                  </p>
+                  <FormattedReasoning text={reasoning} />
                 </motion.div>
               ) : (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">

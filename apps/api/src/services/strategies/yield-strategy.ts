@@ -75,7 +75,12 @@ export class YieldStrategy implements AgentStrategy {
       portfolioValueUsd: context.portfolioValueUsd,
       guardrails,
       customPrompt: config.custom_prompt,
-      walletAddress: config.wallet_address,  // Enable real-time reasoning stream
+      walletAddress: config.wallet_address,
+      walletBalances: context.walletBalances?.map((b) => ({
+        symbol: b.symbol,
+        formatted: b.formatted,
+        valueUsd: b.valueUsd,
+      })),
     });
 
     return {
