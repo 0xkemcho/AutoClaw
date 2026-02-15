@@ -84,7 +84,7 @@ describe('funding-monitor · checkForDeposits', () => {
     await checkForDeposits();
 
     expect(mockFrom).toHaveBeenCalledWith('agent_configs');
-    expect(mockSelect).toHaveBeenCalledWith('wallet_address, server_wallet_address');
+    expect(mockSelect).toHaveBeenCalledWith('wallet_address, server_wallet_address, server_wallet_id');
     expect(mockNot).toHaveBeenCalledWith('server_wallet_address', 'is', null);
   });
 

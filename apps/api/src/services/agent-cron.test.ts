@@ -123,9 +123,12 @@ vi.mock('./news-fetcher', () => ({
 
 vi.mock('./llm-analyzer', () => ({
   analyzeFxNews: vi.fn().mockResolvedValue({
-    signals: [],
-    marketSummary: 'No market data',
-    sourcesUsed: 0,
+    signals: [
+      { currency: 'EURm', direction: 'hold', confidence: 35, reasoning: 'ECB holding rates steady', timeHorizon: 'medium' },
+      { currency: 'GBPm', direction: 'hold', confidence: 28, reasoning: 'UK data mixed', timeHorizon: 'short' },
+    ],
+    marketSummary: 'Markets calm, no strong catalysts',
+    sourcesUsed: 1,
   }),
 }));
 
@@ -158,6 +161,8 @@ import {
   logTimeline,
   getTradeCountToday,
 } from './agent-cron';
+import { fetchFxNews } from './news-fetcher';
+import { analyzeFxNews } from './llm-analyzer';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -258,16 +263,11 @@ describe('getTradeCountToday', () => {
     expect(result).toBe(0);
   });
 
-  it('returns 0 on query error', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('throws on query error', async () => {
     setQueryResult({ count: null, error: { message: 'connection refused' } });
 
-    const result = await getTradeCountToday('0xWALLET');
-
-    expect(result).toBe(0);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      'Failed to count trades today:',
-      expect.objectContaining({ message: 'connection refused' }),
+    await expect(getTradeCountToday('0xWALLET')).rejects.toThrow(
+      'Failed to count trades today: connection refused',
     );
   });
 });
@@ -277,6 +277,11 @@ describe('getTradeCountToday', () => {
 // ---------------------------------------------------------------------------
 describe('runAgentCycle', () => {
   it('orchestrates full cycle: positions → news → LLM → rules → log', async () => {
+    // Provide at least one news article so the cycle proceeds past the empty-news guard
+    (fetchFxNews as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      { title: 'EUR strengthens', url: 'https://example.com/1', source: 'Reuters', excerpt: 'EUR up 0.5%' },
+    ]);
+
     const insertedRows: any[] = [];
     mockFrom.mockImplementation(() => {
       const handler: ProxyHandler<any> = {
@@ -327,11 +332,104 @@ describe('runAgentCycle', () => {
       summary: 'Agent cycle started',
     });
 
-    // Second insert should be 'analysis' event
+    // Second insert should be 'analysis' event with signals in detail
     expect(insertedRows[1]).toMatchObject({
       wallet_address: '0xAGENT',
       event_type: 'analysis',
     });
+
+    const analysisDetail = insertedRows[1].detail;
+    expect(analysisDetail).toHaveProperty('signals');
+    expect(analysisDetail.signals).toHaveLength(2);
+    expect(analysisDetail.signals[0]).toMatchObject({
+      currency: 'EURm',
+      direction: 'hold',
+      confidence: 35,
+    });
+    expect(analysisDetail.signals[1]).toMatchObject({
+      currency: 'GBPm',
+      direction: 'hold',
+      confidence: 28,
+    });
+    expect(analysisDetail).toHaveProperty('marketSummary', 'Markets calm, no strong catalysts');
+    expect(analysisDetail).toHaveProperty('sourcesUsed', 1);
+
+    // Summary should include per-currency signal info
+    expect(insertedRows[1].summary).toContain('EURm hold 35%');
+    expect(insertedRows[1].summary).toContain('GBPm hold 28%');
+    expect(insertedRows[1].summary).toContain('0 actionable');
+  });
+
+  it('skips LLM analysis and logs timeline event when fetchFxNews returns empty array', async () => {
+    // fetchFxNews already returns [] by default in the mock setup
+
+    const insertedRows: any[] = [];
+    mockFrom.mockImplementation(() => {
+      const handler: ProxyHandler<any> = {
+        get(_t, prop) {
+          if (prop === 'then') {
+            return (resolve: (v: any) => void) => resolve({ data: [], error: null, count: 0 });
+          }
+          if (prop === 'insert') {
+            return (row: any) => {
+              insertedRows.push(row);
+              return new Proxy({}, handler);
+            };
+          }
+          return (..._args: any[]) => new Proxy({}, handler);
+        },
+      };
+      return new Proxy({}, handler);
+    });
+
+    // Reset call tracking on mocked functions
+    (fetchFxNews as ReturnType<typeof vi.fn>).mockClear();
+    (analyzeFxNews as ReturnType<typeof vi.fn>).mockClear();
+
+    const fakeConfig = {
+      id: 'cfg-1',
+      wallet_address: '0xAGENT',
+      server_wallet_address: '0xSERVER',
+      server_wallet_id: 'sw-1',
+      active: true,
+      frequency: 'daily' as const,
+      max_trade_size_usd: 50,
+      max_allocation_pct: 20,
+      stop_loss_pct: 10,
+      daily_trade_limit: 3,
+      allowed_currencies: null,
+      blocked_currencies: null,
+      custom_prompt: null,
+      last_run_at: null,
+      next_run_at: null,
+      created_at: '2025-01-01T00:00:00Z',
+      updated_at: '2025-01-01T00:00:00Z',
+    };
+
+    await runAgentCycle(fakeConfig);
+
+    // fetchFxNews should have been called
+    expect(fetchFxNews).toHaveBeenCalled();
+
+    // analyzeFxNews should NOT have been called (empty news guard)
+    expect(analyzeFxNews).not.toHaveBeenCalled();
+
+    // Should have logged "Agent cycle started" and then the empty-news system event
+    expect(insertedRows[0]).toMatchObject({
+      wallet_address: '0xAGENT',
+      event_type: 'system',
+      summary: 'Agent cycle started',
+    });
+
+    expect(insertedRows[1]).toMatchObject({
+      wallet_address: '0xAGENT',
+      event_type: 'system',
+      summary: 'No news articles fetched — skipping analysis',
+    });
+
+    // Should NOT have an analysis event
+    const analysisRows = insertedRows.filter((r: any) => r.event_type === 'analysis');
+    expect(analysisRows).toHaveLength(0);
   });
 });
 

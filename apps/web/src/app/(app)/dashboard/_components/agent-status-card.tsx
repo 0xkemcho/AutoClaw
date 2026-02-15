@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
   Play,
@@ -34,7 +34,7 @@ import { formatCountdown, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-const ERC8004_SCAN_BASE = 'https://www.8004scan.io/agents';
+const ERC8004_SCAN_BASE = 'https://www.8004scan.io/agents/celo';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -286,6 +286,66 @@ export function AgentStatusCard({
     setIsActive(config.active);
   }, [config.active]);
 
+  /* ---- optimistic running state (instant feedback) ---- */
+  const [isRunningOptimistic, setIsRunningOptimistic] = useState(false);
+  const runningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear optimistic state once real progress arrives
+  useEffect(() => {
+    if (progress.isRunning) {
+      setIsRunningOptimistic(false);
+    }
+  }, [progress.isRunning]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (runningTimerRef.current) clearTimeout(runningTimerRef.current);
+    };
+  }, []);
+
+  const isRunning = progress.isRunning || isRunningOptimistic;
+
+  /* ---- 5-minute cooldown ---- */
+  const COOLDOWN_MS = 5 * 60 * 1000;
+  const [cooldownEnd, setCooldownEnd] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const stored = localStorage.getItem('autoclaw:runNow:cooldownEnd');
+    if (stored) {
+      const end = parseInt(stored, 10);
+      return end > Date.now() ? end : null;
+    }
+    return null;
+  });
+  const [cooldownLeft, setCooldownLeft] = useState('');
+
+  useEffect(() => {
+    if (!cooldownEnd || cooldownEnd <= Date.now()) {
+      setCooldownLeft('');
+      setCooldownEnd(null);
+      return;
+    }
+
+    function tick() {
+      const diff = (cooldownEnd as number) - Date.now();
+      if (diff <= 0) {
+        setCooldownLeft('');
+        setCooldownEnd(null);
+        localStorage.removeItem('autoclaw:runNow:cooldownEnd');
+        return;
+      }
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setCooldownLeft(`${mins}:${secs.toString().padStart(2, '0')}`);
+    }
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [cooldownEnd]);
+
+  const isCoolingDown = cooldownEnd !== null && cooldownEnd > Date.now();
+
   /* ---- countdown ---- */
   const { timeLeft, progress: countdownProgress } = useCountdown(config.nextRunAt, config.lastRunAt, config.frequency);
 
@@ -306,11 +366,27 @@ export function AgentStatusCard({
   }
 
   function handleRunNow() {
+    // Instant visual feedback
+    setIsRunningOptimistic(true);
+
+    // Auto-clear optimistic state after 15s if WebSocket never fires
+    runningTimerRef.current = setTimeout(() => setIsRunningOptimistic(false), 15_000);
+
+    // Start cooldown
+    const end = Date.now() + COOLDOWN_MS;
+    setCooldownEnd(end);
+    localStorage.setItem('autoclaw:runNow:cooldownEnd', String(end));
+
     runNowMutation.mutate(undefined, {
       onSuccess: () => {
         toast.success('Agent run triggered');
       },
       onError: () => {
+        setIsRunningOptimistic(false);
+        if (runningTimerRef.current) clearTimeout(runningTimerRef.current);
+        // Clear cooldown on error
+        setCooldownEnd(null);
+        localStorage.removeItem('autoclaw:runNow:cooldownEnd');
         toast.error('Failed to trigger run');
       },
     });
@@ -347,7 +423,7 @@ export function AgentStatusCard({
             <div className="flex items-center gap-2">
               <ShieldCheck className="size-4 text-primary" />
               <a
-                href={`${ERC8004_SCAN_BASE}/${agent8004Id}?chain=42220`}
+                href={`${ERC8004_SCAN_BASE}/${agent8004Id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
@@ -393,7 +469,7 @@ export function AgentStatusCard({
         {/* B. Countdown Ring or Progress Stepper                         */}
         {/* ============================================================ */}
         <AnimatePresence mode="wait">
-          {progress.isRunning || progress.currentStep === 'complete' || progress.currentStep === 'error' ? (
+          {isRunning || progress.currentStep === 'complete' || progress.currentStep === 'error' ? (
             <motion.div
               key="stepper"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -547,18 +623,23 @@ export function AgentStatusCard({
               className="flex-1 h-11"
               disabled={
                 runNowMutation.isPending ||
-                progress.isRunning ||
+                isRunning ||
+                isCoolingDown ||
                 !isActive ||
                 !isRegistered8004
               }
               onClick={handleRunNow}
             >
-              {progress.isRunning ? (
+              {isRunning ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <Zap className="size-4" />
               )}
-              {progress.isRunning ? 'Running...' : 'Run Now'}
+              {isRunning
+                ? 'Running...'
+                : isCoolingDown
+                  ? `Cooldown ${cooldownLeft}`
+                  : 'Run Now'}
             </Button>
 
             <TooltipProvider>

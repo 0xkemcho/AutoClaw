@@ -10,6 +10,7 @@ const supabaseAdmin = createSupabaseAdmin(
 
 /**
  * Get current positions for a wallet from the DB.
+ * Throws on database error to prevent cascading incorrect calculations.
  */
 export async function getPositions(walletAddress: string): Promise<PositionRow[]> {
   const { data, error } = await supabaseAdmin
@@ -20,7 +21,7 @@ export async function getPositions(walletAddress: string): Promise<PositionRow[]
 
   if (error) {
     console.error('Failed to fetch positions:', error);
-    return [];
+    throw new Error(`Failed to fetch positions: ${error.message}`);
   }
 
   return (data ?? []) as PositionRow[];
@@ -28,6 +29,8 @@ export async function getPositions(walletAddress: string): Promise<PositionRow[]
 
 /**
  * Calculate the total portfolio value in USD.
+ * NOTE: Balances in agent_positions are stored in human-readable units (not raw wei).
+ * The trade executor's rate already accounts for token decimals.
  */
 export async function calculatePortfolioValue(
   positions: PositionRow[],
@@ -50,6 +53,7 @@ export async function calculatePortfolioValue(
 
 /**
  * Update positions after a trade.
+ * Throws on database error to ensure position consistency.
  */
 export async function updatePositionAfterTrade(params: {
   walletAddress: string;
@@ -78,10 +82,11 @@ export async function updatePositionAfterTrade(params: {
   if (direction === 'buy') {
     const tokensAcquired = amountUsd * rate;
     newBalance = currentBalance + tokensAcquired;
-    if (newBalance > 0) {
-      newAvgRate = ((currentBalance * currentAvgRate) + (tokensAcquired * (1 / rate))) / newBalance;
+    if (currentBalance > 0 && newBalance > 0) {
+      // Weighted average: (old_cost + new_cost) / total_tokens
+      newAvgRate = ((currentBalance * currentAvgRate) + amountUsd) / newBalance;
     } else {
-      newAvgRate = 1 / rate;
+      newAvgRate = amountUsd / tokensAcquired;
     }
   } else {
     const tokensReduced = amountUsd * rate;
@@ -89,7 +94,12 @@ export async function updatePositionAfterTrade(params: {
     newAvgRate = currentAvgRate;
   }
 
-  await supabaseAdmin
+  // Clean up dust positions
+  if (newBalance < 1e-6) {
+    newBalance = 0;
+  }
+
+  const { error } = await supabaseAdmin
     .from('agent_positions')
     .upsert({
       wallet_address: walletAddress,
@@ -99,4 +109,9 @@ export async function updatePositionAfterTrade(params: {
       avg_entry_rate: newAvgRate,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'wallet_address,token_symbol' });
+
+  if (error) {
+    console.error('Failed to update position:', error);
+    throw new Error(`Failed to update position for ${currency}: ${error.message}`);
+  }
 }

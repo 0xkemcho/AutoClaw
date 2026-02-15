@@ -63,8 +63,8 @@ export async function fetchFxNews(currencies: string[]): Promise<NewsArticle[]> 
           allArticles.push({
             title: r.title ?? query,
             url,
-            excerpt: r.snippet ?? r.text?.slice(0, 300) ?? '',
-            publishedAt: r.published_at ?? undefined,
+            excerpt: r.excerpts?.join(' ').slice(0, 300) ?? '',
+            publishedAt: r.publish_date ?? undefined,
             source: url ? new URL(url).hostname : undefined,
           });
         }
@@ -103,8 +103,8 @@ export function buildSearchQueries(currencies: string[], month: string, year: nu
     queries.push(`${name} exchange rate forecast ${month} ${year}`);
   }
 
+  queries.push(`gold price XAU forecast ${month} ${year}`);
   queries.push(`central bank interest rate decision ${month} ${year}`);
-  queries.push(`emerging market FX outlook ${month} ${year}`);
 
   return queries;
 }

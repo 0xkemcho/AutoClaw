@@ -669,7 +669,7 @@ export function useUpdateYieldSettings()  // POST /api/yield-agent/settings
 
 #### 7.1 Unit Tests
 
-- [ ] `apps/api/src/services/yield-rules-engine.test.ts` — all 6 guardrail checks
+- [x] `apps/api/src/services/yield-guardrails.test.ts` — all guardrail checks
 - [ ] `apps/api/src/services/yield-analyzer.test.ts` — APR weighting, signal generation
 - [ ] `apps/api/src/services/merkl-client.test.ts` — API response parsing, caching, error handling
 - [ ] `apps/api/src/services/vault-adapters/ichi.test.ts` — deposit/withdraw/position logic
@@ -677,7 +677,7 @@ export function useUpdateYieldSettings()  // POST /api/yield-agent/settings
 #### 7.2 Integration Test
 
 - [ ] End-to-end yield cycle test: mock Merkl API → generate signals → check guardrails → verify deposit flow
-- [ ] Strategy dispatch test: FX config → FxStrategy, yield config → YieldStrategy
+- [x] Strategy dispatch test: FX config → FxStrategy, yield config → YieldStrategy
 
 ## Acceptance Criteria
 

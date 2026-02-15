@@ -85,11 +85,10 @@ describe('position-tracker', () => {
       expect(result[0].balance).toBe(100);
     });
 
-    it('returns empty array on error', async () => {
+    it('throws on database error', async () => {
       mockFrom.mockReturnValue(createChainableMock({ data: null, error: { message: 'DB error' } }));
 
-      const result = await getPositions('0xWALLET');
-      expect(result).toEqual([]);
+      await expect(getPositions('0xWALLET')).rejects.toThrow('Failed to fetch positions');
     });
   });
 
@@ -169,6 +168,7 @@ describe('position-tracker', () => {
           wallet_address: '0xWALLET',
           token_symbol: 'EURm',
           balance: 95, // 100 * 0.95
+          avg_entry_rate: expect.closeTo(100 / 95, 5), // amountUsd / tokensAcquired = 1/rate
         }),
         expect.any(Object)
       );
@@ -203,9 +203,13 @@ describe('position-tracker', () => {
         rate: 0.95,
       });
 
+      // newBalance = 50 + (100 * 0.95) = 145
+      // newAvgRate = ((50 * 1.0) + 100) / 145 = 150 / 145
+      const expectedAvgRate = (50 * 1.0 + 100) / 145;
       expect(upsertMock).toHaveBeenCalledWith(
         expect.objectContaining({
           balance: 145, // 50 + (100 * 0.95)
+          avg_entry_rate: expect.closeTo(expectedAvgRate, 5),
         }),
         expect.any(Object)
       );
@@ -284,6 +288,34 @@ describe('position-tracker', () => {
         }),
         expect.any(Object)
       );
+    });
+
+    it('throws on upsert error', async () => {
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'agent_positions') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                }),
+              }),
+            }),
+            upsert: vi.fn().mockResolvedValue({ error: { message: 'upsert failed' } }),
+          };
+        }
+        return createChainableMock();
+      });
+
+      await expect(
+        updatePositionAfterTrade({
+          walletAddress: '0xWALLET',
+          currency: 'EURm',
+          direction: 'buy',
+          amountUsd: 100,
+          rate: 0.95,
+        })
+      ).rejects.toThrow('Failed to update position for EURm: upsert failed');
     });
   });
 });

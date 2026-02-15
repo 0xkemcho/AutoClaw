@@ -48,15 +48,15 @@ Fix all FX agent API queries to filter by `agent_type = 'fx'`, matching how yiel
 
 Every query that uses `.eq('wallet_address', walletAddress).single()` needs `.eq('agent_type', 'fx')`:
 
-- [ ] `GET /api/agent/status` — add `.eq('agent_type', 'fx')`
-- [ ] `POST /api/agent/toggle` — add `.eq('agent_type', 'fx')`
-- [ ] `POST /api/agent/run-now` — add `.eq('agent_type', 'fx')`
-- [ ] `GET /api/agent/timeline` — add `.eq('agent_type', 'fx')` on agent_configs lookup
-- [ ] `GET /api/agent/positions` — add `.eq('agent_type', 'fx')`
-- [ ] `GET /api/agent/portfolio` — add `.eq('agent_type', 'fx')`
-- [ ] `PUT /api/agent/settings` — add `.eq('agent_type', 'fx')`
-- [ ] `POST /api/agent/register-8004` — accept `agent_type` body param, add filter (see 1.2)
-- [ ] `GET /api/agent/:walletAddress/8004-metadata` — add `.eq('agent_type', 'fx')` (or accept query param)
+- [x] `GET /api/agent/status` — add `.eq('agent_type', 'fx')`
+- [x] `POST /api/agent/toggle` — add `.eq('agent_type', 'fx')`
+- [x] `POST /api/agent/run-now` — add `.eq('agent_type', 'fx')`
+- [x] `GET /api/agent/timeline` — add `.eq('agent_type', 'fx')` on agent_configs lookup
+- [x] `GET /api/agent/positions` — add `.eq('agent_type', 'fx')`
+- [x] `GET /api/agent/portfolio` — add `.eq('agent_type', 'fx')`
+- [x] `PUT /api/agent/settings` — add `.eq('agent_type', 'fx')`
+- [x] `POST /api/agent/register-8004` — accept `agent_type` body param, add filter (see 1.2)
+- [x] `GET /api/agent/:walletAddress/8004-metadata` — add `.eq('agent_type', 'fx')` (or accept query param)
 
 #### 1.2 Fix Register-8004 Endpoint
 
@@ -87,10 +87,10 @@ await supabaseAdmin
 
 Add `emitProgress` calls during the two-step on-chain registration:
 
-- [ ] Before `register()` call: `emitProgress(walletAddress, 'registering_8004', 'Submitting registration transaction...')`
-- [ ] After `register()` succeeds: `emitProgress(walletAddress, 'linking_wallet', 'Linking server wallet...')`
-- [ ] After `setAgentWallet()` succeeds: `emitProgress(walletAddress, 'complete', 'Agent registered successfully!')`
-- [ ] On error: `emitProgress(walletAddress, 'error', errorMessage)`
+- [x] Before `register()` call: `emitProgress(walletAddress, 'registering_8004', 'Submitting registration transaction...')`
+- [x] After `register()` succeeds: `emitProgress(walletAddress, 'linking_wallet', 'Linking server wallet...')`
+- [x] After `setAgentWallet()` succeeds: `emitProgress(walletAddress, 'complete', 'Agent registered successfully!')`
+- [x] On error: `emitProgress(walletAddress, 'error', errorMessage)`
 
 **File:** `packages/shared/src/types/agent.ts`
 
@@ -115,9 +115,9 @@ export type ProgressStep =
 
 Currently if `register()` succeeds but `setAgentWallet()` fails, the agent ID is lost. Fix:
 
-- [ ] After `register()` succeeds, immediately save `agent_8004_id` and `agent_8004_tx_hash` to DB
-- [ ] Then attempt `setAgentWallet()` — if it fails, the agent ID is still saved and user can retry linking
-- [ ] Pass `walletAddress` and `agentType` to `registerAgentOnChain()` so it can emit progress events
+- [x] After `register()` succeeds, immediately save `agent_8004_id` and `agent_8004_tx_hash` to DB
+- [x] Then attempt `setAgentWallet()` — if it fails, the agent ID is still saved and user can retry linking
+- [x] Pass `walletAddress` and `agentType` to `registerAgentOnChain()` so it can emit progress events
 
 ---
 
@@ -159,20 +159,20 @@ Replace the static spinner in `register-agent.tsx` with a WebSocket-powered step
 
 **File:** `apps/web/src/app/(auth)/onboarding/_components/register-agent.tsx`
 
-- [ ] Accept `agentType` prop: `agentType: 'fx' | 'yield'`
-- [ ] Pass `agent_type` in the API call body:
+- [x] Accept `agentType` prop: `agentType: 'fx' | 'yield'`
+- [x] Pass `agent_type` in the API call body:
   ```typescript
   await api.post('/api/agent/register-8004', { agent_type: agentType });
   ```
-- [ ] Integrate `useAgentProgress()` hook for live WS updates during registration
-- [ ] Show a visual step indicator with 3 steps:
+- [x] Integrate `useAgentProgress()` hook for live WS updates during registration
+- [x] Show a visual step indicator with 3 steps:
   1. "Registering on ERC-8004" (step: `registering_8004`)
   2. "Linking server wallet" (step: `linking_wallet`)
   3. "Complete" (step: `complete`)
-- [ ] Show live log messages below the step indicator (from WS `message` field)
-- [ ] Add "Gasless" badge on the register button: `<Badge variant="outline">Gasless</Badge>`
-- [ ] Update the description to mention gas-free registration
-- [ ] On success: show agent ID, link to 8004scan, auto-advance after 3s or click "Continue"
+- [x] Show live log messages below the step indicator (from WS `message` field)
+- [x] Add "Gasless" badge on the register button: `<Badge variant="outline">Gasless</Badge>`
+- [x] Update the description to mention gas-free registration
+- [x] On success: show agent ID, link to 8004scan, auto-advance after 3s or click "Continue"
 
 #### 3.2 Update Progress Hook Labels
 
@@ -198,8 +198,8 @@ const STEP_LABELS: Record<ProgressStep, string> = {
 
 The `useEffect` at line 41-45 redirects `isOnboarded` users away. This blocks the second-agent flow.
 
-- [ ] Remove the `isOnboarded` redirect effect entirely
-- [ ] Instead, only redirect if user navigates to `/onboarding` without a `?agent=` param AND is already onboarded:
+- [x] Remove the `isOnboarded` redirect effect entirely
+- [x] Instead, only redirect if user navigates to `/onboarding` without a `?agent=` param AND is already onboarded:
 
 ```typescript
 useEffect(() => {
@@ -214,7 +214,7 @@ useEffect(() => {
 
 **File:** `apps/web/src/app/(auth)/onboarding/page.tsx`
 
-- [ ] Pass `agentType` state to `RegisterAgent` component:
+- [x] Pass `agentType` state to `RegisterAgent` component:
   ```tsx
   <RegisterAgent
     agentType={agentType}
@@ -234,9 +234,9 @@ Already correct — redirects to `/yield-agent` or `/fx-agent` based on `agentTy
 
 **File:** `apps/web/src/app/(auth)/onboarding/_components/agent-select.tsx`
 
-- [ ] Add a "Skip for now" ghost button below the agent cards
-- [ ] On click: call `POST /api/user/complete-onboarding` then redirect to `/fx-agent`
-- [ ] This marks the user as onboarded with no agents — they'll see hero CTAs on agent pages
+- [x] Add a "Skip for now" ghost button below the agent cards
+- [x] On click: call `POST /api/user/complete-onboarding` then redirect to `/fx-agent`
+- [x] This marks the user as onboarded with no agents — they'll see hero CTAs on agent pages
 
 ---
 
@@ -246,9 +246,9 @@ Already correct — redirects to `/yield-agent` or `/fx-agent` based on `agentTy
 
 **File:** `apps/web/src/app/(auth)/onboarding/_components/fund-wallet.tsx`
 
-- [ ] Line 63: Change `router.push('/dashboard')` → call `onContinue?.()` or use agent-aware redirect
-- [ ] Line 109: Change `router.push('/dashboard')` → call `onContinue?.()` (continue to registration)
-- [ ] Line 112: Change `router.push('/dashboard')` → call `onContinue?.()` (skip funding, go to registration)
+- [x] Line 63: Change `router.push('/dashboard')` → call `onContinue?.()` or use agent-aware redirect
+- [x] Line 109: Change `router.push('/dashboard')` → call `onContinue?.()` (continue to registration)
+- [x] Line 112: Change `router.push('/dashboard')` → call `onContinue?.()` (skip funding, go to registration)
 
 All three should advance to the next phase (registration), not navigate away.
 
@@ -256,8 +256,8 @@ All three should advance to the next phase (registration), not navigate away.
 
 **File:** `apps/web/src/app/(auth)/onboarding/_components/register-agent.tsx`
 
-- [ ] Line 68: Change `router.push('/fx-agent')` → should route based on agent type
-- [ ] The `handleSkip` already calls `onDone()` when available; the fallback `router.push('/fx-agent')` should be `router.push(agentType === 'yield' ? '/yield-agent' : '/fx-agent')`
+- [x] Line 68: Change `router.push('/fx-agent')` → should route based on agent type
+- [x] The `handleSkip` already calls `onDone()` when available; the fallback `router.push('/fx-agent')` should be `router.push(agentType === 'yield' ? '/yield-agent' : '/fx-agent')`
 
 ---
 
@@ -269,15 +269,15 @@ Mirror the `YieldHero` pattern already implemented for the yield agent page.
 
 **File:** `apps/web/src/app/(app)/fx-agent/_components/fx-agent-content.tsx`
 
-- [ ] Add `useAgentStatus()` hook to check if FX agent exists
-- [ ] When `!data || isError`: render `FxHero` component (same pattern as `YieldHero`)
-- [ ] FxHero content:
+- [x] Add `useAgentStatus()` hook to check if FX agent exists
+- [x] When `!data || isError`: render `FxHero` component (same pattern as `YieldHero`)
+- [x] FxHero content:
   - TrendingUp icon
   - "FX Trading Agent" title
   - Description about autonomous FX stablecoin trading
   - 3 feature cards: AI-Driven Signals, Risk Guardrails, Mento Protocol
   - "Create FX Agent" CTA button → `/onboarding?agent=fx` (or just `/onboarding`)
-- [ ] Show skeleton while loading
+- [x] Show skeleton while loading
 
 #### 6.2 Add Late-Registration Banner
 
@@ -286,8 +286,8 @@ Mirror the `YieldHero` pattern already implemented for the yield agent page.
 
 For users who skipped ERC-8004 registration:
 
-- [ ] Check `agent_8004_id` from agent status response
-- [ ] If `null`, show a persistent banner at top of agent page:
+- [x] Check `agent_8004_id` from agent status response
+- [x] If `null`, show a persistent banner at top of agent page:
   ```
   "Your agent isn't registered on ERC-8004 yet. Register now for free (gasless)."
   [Register Now] [Dismiss]
@@ -306,9 +306,9 @@ For users who skipped ERC-8004 registration:
 
 Currently events are keyed by `progress:{walletAddress}`. Both FX and yield events go to the same channel.
 
-- [ ] Update event key format: `progress:{walletAddress}:{agentType}` for agent-run events
-- [ ] Keep `progress:{walletAddress}` as a fallback for registration events (they're not agent-specific in the same way)
-- [ ] Or simpler: include `agentType` in the event payload data
+- [x] Update event key format: `progress:{walletAddress}:{agentType}` for agent-run events
+- [x] Keep `progress:{walletAddress}` as a fallback for registration events (they're not agent-specific in the same way)
+- [x] Or simpler: include `agentType` in the event payload data
 
 **Recommendation**: Simplest approach — add `agentType` field to the ProgressEvent interface:
 
@@ -327,7 +327,7 @@ This lets the frontend filter events by agent type without changing the event ke
 
 **File:** `apps/api/src/routes/ws.ts`
 
-- [ ] Forward the `agentType` field in progress events to the client (it's already included in the payload, just needs to be serialized)
+- [x] Forward the `agentType` field in progress events to the client (it's already included in the payload, just needs to be serialized)
 
 #### 7.3 Update Frontend Hook
 

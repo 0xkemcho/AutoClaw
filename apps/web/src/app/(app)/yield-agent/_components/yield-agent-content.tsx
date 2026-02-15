@@ -69,10 +69,12 @@ import {
   useWithdrawAll,
 } from '@/hooks/use-yield-agent';
 import type { YieldTimelineFilters } from '@/hooks/use-yield-agent';
+import { useAgentProgress } from '@/hooks/use-agent-progress';
 import { formatUsd, formatRelativeTime, formatCountdown, shortenAddress } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { ReceiveModal } from '@/app/(app)/dashboard/_components/receive-modal';
 import { SendModal } from '@/app/(app)/dashboard/_components/send-modal';
+import { ReasoningView } from '@/components/reasoning-view';
 
 const EXPLORER_BASE =
   process.env.NEXT_PUBLIC_CELO_EXPLORER_URL || 'https://celoscan.io';
@@ -108,11 +110,14 @@ function YieldWalletSection() {
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="p-4">
+        <CardHeader>
+          <Skeleton className="h-5 w-32" />
+        </CardHeader>
+        <CardContent className="space-y-3">
           <Skeleton className="h-4 w-48" />
-          <div className="mt-3 flex gap-2">
-            <Skeleton className="h-9 w-24" />
-            <Skeleton className="h-9 w-24" />
+          <div className="flex gap-2">
+            <Skeleton className="h-9 flex-1" />
+            <Skeleton className="h-9 flex-1" />
           </div>
         </CardContent>
       </Card>
@@ -132,38 +137,36 @@ function YieldWalletSection() {
 
   return (
     <Card>
-      <CardContent className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex size-9 items-center justify-center rounded-full bg-amber-500/10">
-            <Wallet className="size-4 text-amber-500" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Agent Wallet</p>
-            <div className="flex items-center gap-1.5">
-              <code className="font-mono text-sm">
-                {shortenAddress(serverWalletAddress, 6)}
-              </code>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-6"
-                onClick={handleCopy}
-              >
-                {copied ? (
-                  <Check className="size-3 text-emerald-400" />
-                ) : (
-                  <Copy className="size-3" />
-                )}
-              </Button>
-            </div>
-          </div>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Wallet className="size-4 text-amber-500" />
+          <CardTitle className="text-base">Agent Wallet</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-2">
+          <code className="flex-1 truncate font-mono text-sm text-muted-foreground">
+            {shortenAddress(serverWalletAddress, 6)}
+          </code>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0"
+            onClick={handleCopy}
+          >
+            {copied ? (
+              <Check className="size-3.5 text-emerald-400" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
+          </Button>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5"
+            className="flex-1 gap-1.5"
             onClick={() => setReceiveOpen(true)}
           >
             <ArrowDownLeft className="size-4" />
@@ -172,7 +175,7 @@ function YieldWalletSection() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5"
+            className="flex-1 gap-1.5"
             onClick={() => setSendOpen(true)}
           >
             <ArrowUpRight className="size-4" />
@@ -203,6 +206,7 @@ function YieldStatusSection() {
   const { data, isLoading } = useYieldAgentStatus();
   const toggleAgent = useToggleYieldAgent();
   const runNow = useRunYieldNow();
+  const progress = useAgentProgress();
 
   if (isLoading) {
     return (
@@ -285,20 +289,21 @@ function YieldStatusSection() {
           <Button
             variant="outline"
             size="sm"
-            disabled={!isActive || runNow.isPending}
+            disabled={!isActive || progress.isRunning}
             onClick={() => {
               runNow.mutate(undefined, {
                 onSuccess: () => toast.success('Run triggered'),
-                onError: () => toast.error('Failed to trigger run'),
               });
             }}
           >
-            {runNow.isPending ? (
+            {progress.isRunning ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
               <RefreshCw className="size-4" />
             )}
-            <span className="ml-1.5">Run Now</span>
+            <span className="ml-1.5">
+              {progress.isRunning ? progress.stepLabel : 'Run Now'}
+            </span>
           </Button>
         </div>
 
@@ -430,6 +435,14 @@ function YieldPositionsSection() {
 /*  Agent Tab: Opportunities Section                                   */
 /* ------------------------------------------------------------------ */
 
+// Protocol logo map
+const PROTOCOL_LOGOS: Record<string, string> = {
+  Uniswap: '/protocols/uniswap.png',
+  Ichi: '/protocols/ichi.avif',
+  Steer: '/protocols/steer.webp',
+  Merkl: '/protocols/merkl.svg',
+};
+
 function YieldOpportunitiesSection() {
   const { data, isLoading } = useYieldOpportunities();
 
@@ -513,8 +526,15 @@ function YieldOpportunitiesSection() {
                   <div className="mt-0.5 flex items-center gap-2 flex-wrap">
                     <Badge
                       variant="outline"
-                      className="text-[11px] border-blue-500/30 text-blue-400"
+                      className="text-[11px] border-blue-500/30 text-blue-400 flex items-center gap-1.5"
                     >
+                      {PROTOCOL_LOGOS[opp.protocol] && (
+                        <img
+                          src={PROTOCOL_LOGOS[opp.protocol]}
+                          alt={opp.protocol}
+                          className="size-3 object-contain"
+                        />
+                      )}
                       {opp.protocol}
                     </Badge>
                     {opp.tokens.slice(0, 3).map((t) => (
@@ -630,10 +650,31 @@ function YieldRewardsSection() {
 /* ------------------------------------------------------------------ */
 
 function AgentTab() {
+  const progress = useAgentProgress();
+
+  // Show error toast when progress enters error state
+  useEffect(() => {
+    if (progress.currentStep === 'error') {
+      toast.error(progress.stepMessage || 'Agent run failed');
+    }
+  }, [progress.currentStep, progress.stepMessage]);
+
   return (
     <div className="space-y-6">
-      <YieldWalletSection />
-      <YieldStatusSection />
+      {/* Agent and Wallet side-by-side */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <YieldStatusSection />
+        <YieldWalletSection />
+      </div>
+
+      {/* Real-time reasoning display during analysis */}
+      {progress.isRunning && progress.reasoning && (
+        <ReasoningView
+          reasoning={progress.reasoning}
+          isActive={progress.currentStep === 'analyzing_yields'}
+        />
+      )}
+
       <YieldPositionsSection />
       <YieldOpportunitiesSection />
       <YieldRewardsSection />

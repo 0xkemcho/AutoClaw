@@ -17,7 +17,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   // Verify signature and issue JWT
-  app.post('/api/auth/login', async (request) => {
+  app.post('/api/auth/login', async (request, reply) => {
     const { payload, signature } = request.body as {
       payload: unknown;
       signature: string;
@@ -31,7 +31,7 @@ export async function authRoutes(app: FastifyInstance) {
     });
 
     if (!verifiedPayload.valid) {
-      return { error: 'Invalid signature' };
+      return reply.status(401).send({ error: 'Invalid signature' });
     }
 
     const jwt = await thirdwebAuth.generateJWT({
@@ -66,7 +66,8 @@ export async function authRoutes(app: FastifyInstance) {
     },
   );
 
-  // Logout (client-side — just acknowledge)
+  // Stateless JWT — token invalidation happens client-side.
+  // For server-side revocation, implement a token blacklist.
   app.post('/api/auth/logout', async () => {
     return { success: true };
   });
