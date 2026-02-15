@@ -4,6 +4,7 @@ import {
   applySlippage,
   checkAllowance,
   buildApproveTx,
+  getErc20Balance,
   BROKER_ADDRESS,
   BIPOOL_MANAGER_ADDRESS,
   USDM_ADDRESS,
@@ -110,11 +111,10 @@ export async function executeTrade(params: {
     let found: typeof BASE_STABLE_TOKENS[number] | null = null;
 
     for (const base of BASE_STABLE_TOKENS) {
-      const bal = await celoClient.readContract({
-        address: base.address,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [serverWalletAddress as Address],
+      const bal = await getErc20Balance({
+        token: base.address,
+        account: serverWalletAddress as Address,
+        client: celoClient,
       });
       const neededForBase = parseUnits(amountUsd.toString(), base.decimals);
       if (bal >= neededForBase) {
@@ -141,11 +141,10 @@ export async function executeTrade(params: {
 
   // Pre-flight balance check for sells (buys already checked in the loop above)
   if (direction === 'sell') {
-    const walletBalance = await celoClient.readContract({
-      address: tokenIn,
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      args: [serverWalletAddress as Address],
+    const walletBalance = await getErc20Balance({
+      token: tokenIn,
+      account: serverWalletAddress as Address,
+      client: celoClient,
     });
     if (walletBalance < amountIn) {
       // Allow small rounding differences (floating-point → parseUnits can overshoot)
@@ -228,11 +227,10 @@ export async function executeTrade(params: {
     // For intermediate hops (i > 0), read the wallet's actual balance of the
     // intermediate token to determine how much to swap.
     if (i > 0) {
-      currentAmountIn = await celoClient.readContract({
-        address: hop.tokenIn,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [serverWalletAddress as Address],
+      currentAmountIn = await getErc20Balance({
+        token: hop.tokenIn,
+        account: serverWalletAddress as Address,
+        client: celoClient,
       });
       console.log(`[trade] Hop ${i + 1}: intermediate ${hop.tokenIn} balance = ${currentAmountIn}`);
 
@@ -366,11 +364,10 @@ export async function executeSwap(params: {
     approvalCache.set(approvalKey, Date.now());
   }
 
-  const walletBalance = await celoClient.readContract({
-    address: fromAddress,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: [serverWalletAddress as Address],
+  const walletBalance = await getErc20Balance({
+    token: fromAddress,
+    account: serverWalletAddress as Address,
+    client: celoClient,
   });
 
   // #region agent log
@@ -405,11 +402,10 @@ export async function executeSwap(params: {
     // #endregion
 
     if (i > 0) {
-      currentAmountIn = await celoClient.readContract({
-        address: hop.tokenIn,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [serverWalletAddress as Address],
+      currentAmountIn = await getErc20Balance({
+        token: hop.tokenIn,
+        account: serverWalletAddress as Address,
+        client: celoClient,
       });
       const intermediateAllowance = await checkAllowance({
         token: hop.tokenIn,
@@ -502,11 +498,10 @@ export async function sendTokens(params: {
   const decimals = getTokenDecimals(token);
   const amountWei = parseUnits(amount, decimals);
 
-  const balance = await celoClient.readContract({
-    address: tokenAddress,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: [serverWalletAddress as Address],
+  const balance = await getErc20Balance({
+    token: tokenAddress,
+    account: serverWalletAddress as Address,
+    client: celoClient,
   });
 
   if (balance < amountWei) {
