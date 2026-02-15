@@ -113,7 +113,7 @@ export async function tradeRoutes(app: FastifyInstance) {
           amountIn,
           tokenInDecimals: fromDecimals,
           tokenOutDecimals: toDecimals,
-          celoClient: celoClient as unknown as PublicClient,
+          celoClient,
         });
 
         const amountOutMin = applySlippage(quote.amountOut, slippage);
@@ -123,7 +123,7 @@ export async function tradeRoutes(app: FastifyInstance) {
           token: fromAddress,
           owner: walletAddress as Address,
           spender: BROKER_ADDRESS,
-          celoClient: celoClient as unknown as PublicClient,
+          celoClient,
         });
 
         const needsApproval = currentAllowance < amountIn;
