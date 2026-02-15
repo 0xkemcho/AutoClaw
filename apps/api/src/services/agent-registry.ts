@@ -47,7 +47,13 @@ export async function registerAgentOnChain(params: {
   metadataUrl: string;
 }): Promise<{ agentId: bigint; registerTxHash: string; linkTxHash: string }> {
   const { userWalletAddress, serverWalletId, serverWalletAddress, metadataUrl } = params;
-  const registrarAddress = await getRegistrarAddress();
+
+  let registrarAddress: string;
+  try {
+    registrarAddress = await getRegistrarAddress();
+  } catch (err) {
+    throw new Error(`ERC-8004: Failed to get registrar wallet. Ensure THIRDWEB_SECRET_KEY is set. ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   // Step 1: register(agentURI) — gasless via thirdweb
   emitProgress(userWalletAddress, 'registering_8004', 'Submitting registration transaction...', { agentId: undefined, txHash: undefined });
@@ -58,13 +64,24 @@ export async function registerAgentOnChain(params: {
     args: [metadataUrl],
   });
 
-  const { transactionIds: registerIds } = await sendSponsoredTransaction({
-    chainId: CELO_CHAIN_ID,
-    from: registrarAddress,
-    transactions: [{ to: IDENTITY_REGISTRY_ADDRESS, data: registerData }],
-  });
+  let registerIds: string[];
+  try {
+    const result = await sendSponsoredTransaction({
+      chainId: CELO_CHAIN_ID,
+      from: registrarAddress,
+      transactions: [{ to: IDENTITY_REGISTRY_ADDRESS, data: registerData }],
+    });
+    registerIds = result.transactionIds;
+  } catch (err) {
+    throw new Error(`ERC-8004: Failed to submit register tx. Check thirdweb dashboard (gas sponsorship, Celo chain). ${err instanceof Error ? err.message : String(err)}`);
+  }
 
-  const registerHash = await waitForTransactionHash(registerIds[0]);
+  let registerHash: `0x${string}`;
+  try {
+    registerHash = await waitForTransactionHash(registerIds[0]);
+  } catch (err) {
+    throw new Error(`ERC-8004: Failed to get register tx hash. ${err instanceof Error ? err.message : String(err)}`);
+  }
   emitProgress(userWalletAddress, 'registering_8004', 'Waiting for registration confirmation...', { txHash: registerHash });
 
   const registerReceipt = await celoClient.waitForTransactionReceipt({ hash: registerHash });
@@ -91,28 +108,47 @@ export async function registerAgentOnChain(params: {
   // Step 3: Get EIP-712 signature from server wallet for setAgentWallet
   emitProgress(userWalletAddress, 'linking_wallet', `Agent #${agentId} registered! Linking server wallet...`, { agentId: Number(agentId), txHash: registerHash });
 
-  const { signature, deadline } = await prepareAgentWalletLink(
-    serverWalletId,
-    serverWalletAddress,
-    agentId,
-    registrarAddress,
-  );
+  let signature: `0x${string}`;
+  let deadline: bigint;
+  try {
+    const linkResult = await prepareAgentWalletLink(
+      serverWalletId,
+      serverWalletAddress,
+      agentId,
+      registrarAddress,
+    );
+    signature = linkResult.signature;
+    deadline = linkResult.deadline;
+  } catch (err) {
+    throw new Error(`ERC-8004: Failed to sign wallet link (prepareAgentWalletLink). ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   // Step 4: setAgentWallet(agentId, serverWallet, deadline, signature) — gasless
   console.log(`[8004] Linking server wallet ${serverWalletAddress} to agent ${agentId}`);
-  const linkData = encodeFunctionData({
+  const setAgentWalletData = encodeFunctionData({
     abi: identityRegistryAbi,
     functionName: 'setAgentWallet',
     args: [agentId, serverWalletAddress as Address, deadline, signature],
   });
 
-  const { transactionIds: linkIds } = await sendSponsoredTransaction({
-    chainId: CELO_CHAIN_ID,
-    from: registrarAddress,
-    transactions: [{ to: IDENTITY_REGISTRY_ADDRESS, data: linkData }],
-  });
+  let linkIds: string[];
+  try {
+    const linkResult = await sendSponsoredTransaction({
+      chainId: CELO_CHAIN_ID,
+      from: registrarAddress,
+      transactions: [{ to: IDENTITY_REGISTRY_ADDRESS, data: setAgentWalletData }],
+    });
+    linkIds = linkResult.transactionIds;
+  } catch (err) {
+    throw new Error(`ERC-8004: Failed to submit setAgentWallet tx. ${err instanceof Error ? err.message : String(err)}`);
+  }
 
-  const linkHash = await waitForTransactionHash(linkIds[0]);
+  let linkHash: `0x${string}`;
+  try {
+    linkHash = await waitForTransactionHash(linkIds[0]);
+  } catch (err) {
+    throw new Error(`ERC-8004: Failed to get setAgentWallet tx hash. ${err instanceof Error ? err.message : String(err)}`);
+  }
   emitProgress(userWalletAddress, 'linking_wallet', 'Waiting for wallet link confirmation...', { agentId: Number(agentId), txHash: linkHash });
 
   const linkReceipt = await celoClient.waitForTransactionReceipt({ hash: linkHash });

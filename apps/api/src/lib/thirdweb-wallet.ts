@@ -3,6 +3,7 @@
  * Replaces Privy: create wallets, send sponsored transactions (EIP-7702), sign typed data.
  */
 const THIRDWEB_API_BASE = 'https://api.thirdweb.com';
+const CELO_CHAIN_ID = 42220;
 
 function getSecretKey(): string {
   const key = process.env.THIRDWEB_SECRET_KEY;
@@ -135,18 +136,22 @@ export interface EIP712TypedData {
 /**
  * Sign EIP-712 typed data with a thirdweb server wallet.
  * Uses Engine.serverWallet from thirdweb SDK (requires secretKey client).
+ * Chain is required for signing messages.
  */
 export async function signTypedData(params: {
   from: string;
   typedData: EIP712TypedData;
 }): Promise<`0x${string}`> {
   const { from, typedData } = params;
-  const { Engine } = await import('thirdweb');
+  const { Engine, defineChain } = await import('thirdweb');
   const { thirdwebClient } = await import('./thirdweb.js');
+
+  const celoChain = defineChain(CELO_CHAIN_ID);
 
   const account = Engine.serverWallet({
     client: thirdwebClient,
     address: from,
+    chain: celoChain,
   });
 
   const signature = await account.signTypedData({
@@ -161,8 +166,6 @@ export async function signTypedData(params: {
 
   return signature as `0x${string}`;
 }
-
-const CELO_CHAIN_ID = 42220;
 
 /**
  * Wait for a transaction hash from thirdweb transaction IDs.

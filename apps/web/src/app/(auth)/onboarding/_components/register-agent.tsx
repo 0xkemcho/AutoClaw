@@ -147,9 +147,13 @@ export function RegisterAgent({
 
       setAgentId(result.agentId);
       setPhase('success');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('ERC-8004 registration failed:', err);
-      setErrorMessage(err?.message ?? 'Registration failed. Please try again.');
+      const apiErr = err as { body?: { detail?: string }; message?: string };
+      const detail = apiErr?.body && typeof apiErr.body === 'object' && 'detail' in apiErr.body
+        ? String((apiErr.body as { detail?: string }).detail)
+        : null;
+      setErrorMessage(detail || (err instanceof Error ? err.message : 'Registration failed. Please try again.'));
       setPhase('error');
     }
   }, [agentType]);
