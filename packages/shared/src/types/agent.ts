@@ -1,3 +1,6 @@
+/** Agent type */
+export type AgentType = 'fx' | 'yield';
+
 /** Frequency in hours (1–24, integer) */
 export type AgentFrequency = number;
 
@@ -52,6 +55,8 @@ export interface AgentConfig {
   nextRunAt: string | null;
   createdAt: string;
   updatedAt: string;
+  agentType?: AgentType;
+  strategyParams?: Record<string, unknown>;
 }
 
 export interface AgentTimelineEntry {
@@ -124,6 +129,11 @@ export type ProgressStep =
   | 'analyzing'
   | 'checking_signals'
   | 'executing_trades'
+  | 'scanning_vaults'
+  | 'analyzing_yields'
+  | 'checking_yield_guardrails'
+  | 'executing_yields'
+  | 'claiming_rewards'
   | 'complete'
   | 'error';
 
@@ -169,13 +179,45 @@ export interface ProgressErrorData {
   error: string;
 }
 
+export interface ProgressYieldScanData {
+  vaultCount: number;
+  protocols: string[];
+  topApr: number;
+}
+
+export interface ProgressYieldSignalData {
+  signals: Array<{ vaultName: string; action: string; allocationPct: number; apr: number }>;
+  strategySummary: string;
+}
+
+export interface ProgressYieldDepositData {
+  vaultAddress: string;
+  vaultName: string;
+  action: string;
+  amountUsd: number;
+  txHash?: string;
+  error?: string;
+}
+
+export interface ProgressRewardClaimData {
+  tokenSymbol: string;
+  amount: string;
+  valueUsd: number;
+  txHash?: string;
+  compounded: boolean;
+}
+
 export type ProgressData =
   | ProgressNewsData
   | ProgressSignalsData
   | ProgressGuardrailData
   | ProgressTradeData
   | ProgressCompleteData
-  | ProgressErrorData;
+  | ProgressErrorData
+  | ProgressYieldScanData
+  | ProgressYieldSignalData
+  | ProgressYieldDepositData
+  | ProgressRewardClaimData;
 
 export interface AgentStatus {
   config: AgentConfig;

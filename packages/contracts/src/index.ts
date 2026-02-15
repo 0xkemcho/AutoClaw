@@ -3,6 +3,8 @@ export { biPoolManagerAbi } from './abis/bipool-manager';
 export { erc20Abi } from './abis/erc20';
 export { identityRegistryAbi } from './abis/identity-registry';
 export { reputationRegistryAbi } from './abis/reputation-registry';
+export { ichiVaultAbi } from './abis/ichi-vault';
+export { merklDistributorAbi } from './abis/merkl-distributor';
 
 export {
   BROKER_ADDRESS,
@@ -14,6 +16,8 @@ export {
   USDT_FEE_ADAPTER,
   IDENTITY_REGISTRY_ADDRESS,
   REPUTATION_REGISTRY_ADDRESS,
+  MERKL_DISTRIBUTOR_ADDRESS,
+  ICHI_USDT_WETH_VAULT,
 } from './addresses';
 
 export { getRoutes, findRoute, clearRouteCache } from './exchanges';

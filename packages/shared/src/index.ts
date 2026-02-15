@@ -4,3 +4,4 @@ export * from './types/user';
 export * from './types/tokens';
 export * from './types/transaction';
 export * from './types/sip';
+export * from './types/yield';

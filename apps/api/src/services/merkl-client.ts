@@ -1,0 +1,125 @@
+import type { YieldOpportunity, MerklReward, ClaimableReward } from '@autoclaw/shared';
+
+const MERKL_API_BASE = 'https://api.merkl.xyz/v4';
+const CELO_CHAIN_ID = 42220;
+
+const OPPORTUNITIES_CACHE_TTL = 5 * 60 * 1000; // 5 min
+const REWARDS_CACHE_TTL = 2 * 60 * 1000; // 2 min
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const opportunitiesCache = new Map<string, CacheEntry<YieldOpportunity[]>>();
+const rewardsCache = new Map<string, CacheEntry<MerklReward[]>>();
+
+async function merklFetch(url: string): Promise<Response> {
+  // retry up to 3 times with exponential backoff
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(url);
+    if (res.status === 429) {
+      const delay = Math.pow(2, attempt) * 1000;
+      console.warn(`[merkl] Rate limited, retrying in ${delay}ms...`);
+      await new Promise(r => setTimeout(r, delay));
+      continue;
+    }
+    if (!res.ok) throw new Error(`Merkl API error: ${res.status} ${res.statusText}`);
+    return res;
+  }
+  throw new Error('Merkl API rate limit exceeded after 3 retries');
+}
+
+export async function fetchYieldOpportunities(
+  protocol?: string,
+): Promise<YieldOpportunity[]> {
+  const cacheKey = protocol ?? 'all';
+  const cached = opportunitiesCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < OPPORTUNITIES_CACHE_TTL) {
+    return cached.data;
+  }
+
+  let url = `${MERKL_API_BASE}/opportunities?chainId=${CELO_CHAIN_ID}&status=LIVE`;
+  if (protocol) url += `&protocol=${protocol}`;
+
+  const res = await merklFetch(url);
+  const raw = await res.json();
+  const rawItems = Array.isArray(raw) ? raw : [];
+
+  const opportunities: YieldOpportunity[] = rawItems.map((item: any) => ({
+    id: item.identifier ?? item.id ?? '',
+    name: item.name ?? '',
+    vaultAddress: item.identifier ?? '',
+    protocol: item.protocol ?? '',
+    status: item.status ?? 'LIVE',
+    apr: Number(item.apr ?? 0),
+    tvl: Number(item.tvl ?? 0),
+    dailyRewards: Number(item.dailyRewards ?? 0),
+    tokens: (item.tokens ?? []).map((t: any) => ({
+      symbol: t.symbol ?? '',
+      address: t.address ?? '',
+      decimals: t.decimals ?? 18,
+    })),
+    depositUrl: item.depositUrl,
+  }));
+
+  // Sort by APR descending
+  opportunities.sort((a, b) => b.apr - a.apr);
+
+  opportunitiesCache.set(cacheKey, { data: opportunities, timestamp: Date.now() });
+  return opportunities;
+}
+
+export async function fetchUserRewards(
+  walletAddress: string,
+): Promise<MerklReward[]> {
+  const cacheKey = walletAddress.toLowerCase();
+  const cached = rewardsCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < REWARDS_CACHE_TTL) {
+    return cached.data;
+  }
+
+  const url = `${MERKL_API_BASE}/users/${walletAddress}/rewards?chainId=${CELO_CHAIN_ID}`;
+  const res = await merklFetch(url);
+  const raw = await res.json();
+  const rawItems = Array.isArray(raw) ? raw : [];
+
+  const rewards: MerklReward[] = rawItems.map((r: any) => ({
+    token: {
+      address: r.token?.address ?? '',
+      symbol: r.token?.symbol ?? '',
+      decimals: r.token?.decimals ?? 18,
+    },
+    amount: String(r.amount ?? '0'),
+    claimed: String(r.claimed ?? '0'),
+    pending: String(BigInt(r.amount ?? '0') - BigInt(r.claimed ?? '0')),
+    proofs: r.proofs ?? [],
+  }));
+
+  rewardsCache.set(cacheKey, { data: rewards, timestamp: Date.now() });
+  return rewards;
+}
+
+export async function fetchClaimableRewards(
+  walletAddress: string,
+): Promise<ClaimableReward[]> {
+  const rewards = await fetchUserRewards(walletAddress);
+
+  return rewards
+    .filter(r => {
+      const total = BigInt(r.amount);
+      const claimed = BigInt(r.claimed);
+      return total > claimed && r.proofs.length > 0;
+    })
+    .map(r => ({
+      ...r,
+      claimableAmount: String(BigInt(r.amount) - BigInt(r.claimed)),
+      claimableValueUsd: 0, // Would need price feed to calculate
+    }));
+}
+
+/** Clear all caches (for testing) */
+export function clearMerklCache(): void {
+  opportunitiesCache.clear();
+  rewardsCache.clear();
+}
