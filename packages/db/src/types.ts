@@ -297,6 +297,8 @@ export interface Database {
           custom_prompt: string | null;
           agent_8004_id: number | null;
           agent_8004_tx_hash: string | null;
+          agent_type: string;
+          strategy_params: Record<string, unknown> | null;
           last_run_at: string | null;
           next_run_at: string | null;
           created_at: string;
@@ -318,6 +320,8 @@ export interface Database {
           custom_prompt?: string | null;
           agent_8004_id?: number | null;
           agent_8004_tx_hash?: string | null;
+          agent_type?: string;
+          strategy_params?: Record<string, unknown> | null;
           last_run_at?: string | null;
           next_run_at?: string | null;
           created_at?: string;
@@ -339,6 +343,8 @@ export interface Database {
           custom_prompt?: string | null;
           agent_8004_id?: number | null;
           agent_8004_tx_hash?: string | null;
+          agent_type?: string;
+          strategy_params?: Record<string, unknown> | null;
           last_run_at?: string | null;
           next_run_at?: string | null;
           created_at?: string;
@@ -359,6 +365,7 @@ export interface Database {
           amount_usd: number | null;
           direction: 'buy' | 'sell' | null;
           tx_hash: string | null;
+          run_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -373,6 +380,7 @@ export interface Database {
           amount_usd?: number | null;
           direction?: 'buy' | 'sell' | null;
           tx_hash?: string | null;
+          run_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -387,6 +395,7 @@ export interface Database {
           amount_usd?: number | null;
           direction?: 'buy' | 'sell' | null;
           tx_hash?: string | null;
+          run_id?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -417,6 +426,51 @@ export interface Database {
           token_address?: string;
           balance?: number;
           avg_entry_rate?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      yield_positions: {
+        Row: {
+          id: string;
+          wallet_address: string;
+          vault_address: string;
+          protocol: string;
+          lp_shares: string;
+          deposit_token: string;
+          deposit_amount_usd: number;
+          deposited_at: string | null;
+          current_apr: number | null;
+          last_checked_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          wallet_address: string;
+          vault_address: string;
+          protocol?: string;
+          lp_shares?: string;
+          deposit_token: string;
+          deposit_amount_usd?: number;
+          deposited_at?: string | null;
+          current_apr?: number | null;
+          last_checked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          wallet_address?: string;
+          vault_address?: string;
+          protocol?: string;
+          lp_shares?: string;
+          deposit_token?: string;
+          deposit_amount_usd?: number;
+          deposited_at?: string | null;
+          current_apr?: number | null;
+          last_checked_at?: string | null;
+          created_at?: string;
           updated_at?: string;
         };
         Relationships: [];
