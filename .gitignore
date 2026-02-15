@@ -28,3 +28,6 @@ pnpm-debug.log*
 
 # Supabase
 supabase/.temp/
+
+# ERC-8004 script state
+scripts/erc8004/.state.json

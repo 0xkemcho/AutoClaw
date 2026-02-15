@@ -36,18 +36,20 @@ function makeConfig(overrides: Partial<{
 function makeParams(overrides: Partial<{
   signal: ReturnType<typeof makeSignal>;
   config: ReturnType<typeof makeConfig>;
-  positions: { tokenSymbol: string; balance: number }[];
+  positions: { tokenSymbol: string; balance: number; avgEntryRate: number }[];
   portfolioValueUsd: number;
   tradesToday: number;
   tradeAmountUsd: number;
+  positionPrices: Record<string, number>;
 }> = {}) {
   return {
     signal: makeSignal(),
     config: makeConfig(),
-    positions: [] as { tokenSymbol: string; balance: number }[],
+    positions: [] as { tokenSymbol: string; balance: number; avgEntryRate: number }[],
     portfolioValueUsd: 10000,
     tradesToday: 0,
     tradeAmountUsd: 500,
+    positionPrices: {} as Record<string, number>,
     ...overrides,
   };
 }
@@ -207,30 +209,32 @@ describe('checkGuardrails', () => {
 
   describe('max allocation rule', () => {
     it('passes when post-trade allocation is within the limit (buy)', () => {
-      // Portfolio: $10000, existing CELO position: $1000, buying $500 more
+      // Portfolio: $10000, existing CELO position: 1000 tokens * $1.0 = $1000, buying $500 more
       // Post-trade: ($1000 + $500) / ($10000 + $500) = 1500/10500 = 14.3%
       const result = checkGuardrails(
         makeParams({
           signal: makeSignal({ direction: 'buy', currency: 'CELO' }),
           config: makeConfig({ maxAllocationPct: 50 }),
-          positions: [{ tokenSymbol: 'CELO', balance: 1000 }],
+          positions: [{ tokenSymbol: 'CELO', balance: 1000, avgEntryRate: 0.9 }],
           portfolioValueUsd: 10000,
           tradeAmountUsd: 500,
+          positionPrices: { CELO: 1.0 },
         }),
       );
       expect(result.passed).toBe(true);
     });
 
     it('blocks when post-trade allocation exceeds the limit (buy)', () => {
-      // Portfolio: $1000, existing CELO position: $400, buying $500 more
+      // Portfolio: $1000, existing CELO position: 400 tokens * $1.0 = $400, buying $500 more
       // Post-trade: ($400 + $500) / ($1000 + $500) = 900/1500 = 60%
       const result = checkGuardrails(
         makeParams({
           signal: makeSignal({ direction: 'buy', currency: 'CELO' }),
           config: makeConfig({ maxAllocationPct: 50 }),
-          positions: [{ tokenSymbol: 'CELO', balance: 400 }],
+          positions: [{ tokenSymbol: 'CELO', balance: 400, avgEntryRate: 0.9 }],
           portfolioValueUsd: 1000,
           tradeAmountUsd: 500,
+          positionPrices: { CELO: 1.0 },
         }),
       );
       expect(result.passed).toBe(false);
@@ -244,9 +248,10 @@ describe('checkGuardrails', () => {
         makeParams({
           signal: makeSignal({ direction: 'sell', currency: 'CELO' }),
           config: makeConfig({ maxAllocationPct: 50 }),
-          positions: [{ tokenSymbol: 'CELO', balance: 400 }],
+          positions: [{ tokenSymbol: 'CELO', balance: 400, avgEntryRate: 0.9 }],
           portfolioValueUsd: 1000,
           tradeAmountUsd: 500,
+          positionPrices: { CELO: 1.0 },
         }),
       );
       expect(result.passed).toBe(true);
@@ -260,6 +265,46 @@ describe('checkGuardrails', () => {
           positions: [],
           portfolioValueUsd: 0,
           tradeAmountUsd: 500,
+        }),
+      );
+      expect(result.passed).toBe(true);
+    });
+  });
+
+  // ---- Stop-loss ---------------------------------------------------------
+
+  describe('stop-loss rule', () => {
+    it('blocks sell when loss exceeds stop-loss threshold', () => {
+      const result = checkGuardrails(
+        makeParams({
+          signal: makeSignal({ direction: 'sell', currency: 'CELO' }),
+          config: makeConfig({ stopLossPct: 10 }),
+          positions: [{ tokenSymbol: 'CELO', balance: 100, avgEntryRate: 1.0 }],
+          positionPrices: { CELO: 0.85 },
+        }),
+      );
+      expect(result.passed).toBe(false);
+      expect(result.ruleName).toBe('stop_loss');
+    });
+
+    it('passes sell when loss is within stop-loss threshold', () => {
+      const result = checkGuardrails(
+        makeParams({
+          signal: makeSignal({ direction: 'sell', currency: 'CELO' }),
+          config: makeConfig({ stopLossPct: 10 }),
+          positions: [{ tokenSymbol: 'CELO', balance: 100, avgEntryRate: 1.0 }],
+          positionPrices: { CELO: 0.95 },
+        }),
+      );
+      expect(result.passed).toBe(true);
+    });
+
+    it('passes sell when no position exists', () => {
+      const result = checkGuardrails(
+        makeParams({
+          signal: makeSignal({ direction: 'sell', currency: 'CELO' }),
+          config: makeConfig({ stopLossPct: 10 }),
+          positions: [],
         }),
       );
       expect(result.passed).toBe(true);

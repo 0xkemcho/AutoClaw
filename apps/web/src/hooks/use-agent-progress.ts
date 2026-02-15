@@ -38,6 +38,7 @@ export interface ProgressState {
   stepLabel: string;
   stepMessage: string;
   steps: StepEntry[];
+  reasoning: string;  // Accumulated reasoning from LLM
 }
 
 const IDLE_STATE: ProgressState = {
@@ -46,6 +47,7 @@ const IDLE_STATE: ProgressState = {
   stepLabel: '',
   stepMessage: '',
   steps: [],
+  reasoning: '',
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -91,6 +93,7 @@ export function useAgentProgress(): ProgressState {
               timestamp: Date.now(),
             },
           ],
+          reasoning: '',
         };
       });
       // Refresh data in case the run did complete server-side
@@ -134,12 +137,24 @@ export function useAgentProgress(): ProgressState {
               ? [entry]
               : [...prev.steps, entry];
 
+            // Accumulate reasoning if this is a reasoning chunk
+            let newReasoning = prev.reasoning;
+            if (msg.data?.cumulative_reasoning) {
+              newReasoning = msg.data.cumulative_reasoning;
+            }
+
+            // Clear reasoning on terminal states or new run start
+            if (isTerminal || (!prev.isRunning && !isTerminal)) {
+              newReasoning = '';
+            }
+
             return {
               isRunning: !isTerminal,
               currentStep: step,
               stepLabel: STEP_LABELS[step] ?? step,
               stepMessage: msg.message ?? '',
               steps,
+              reasoning: newReasoning,
             };
           });
 

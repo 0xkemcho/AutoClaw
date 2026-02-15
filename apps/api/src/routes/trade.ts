@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import { parseUnits, formatUnits, type Address } from 'viem';
+import { parseUnits, formatUnits, type Address, type PublicClient } from 'viem';
 import { authMiddleware } from '../middleware/auth';
 import { celoClient } from '../lib/celo-client';
-import { createSupabaseAdmin } from '@autoclaw/db';
+import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import {
   getQuote,
   checkAllowance,
@@ -20,12 +20,14 @@ import {
   TOKEN_METADATA,
   type SupportedToken,
 } from '@autoclaw/shared';
+import { executeTrade } from '../services/trade-executor';
 
 const supabaseAdmin = createSupabaseAdmin(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+const ALL_SWAP_TOKENS = new Set<string>([...BASE_TOKENS, ...MENTO_TOKENS, ...COMMODITY_TOKENS]);
 const VALID_FROM_TOKENS = new Set<string>(BASE_TOKENS);
 const VALID_TO_TOKENS = new Set<string>([...MENTO_TOKENS, ...COMMODITY_TOKENS]);
 
@@ -58,15 +60,15 @@ export async function tradeRoutes(app: FastifyInstance) {
       // Validate inputs
       const { from, to, amount, slippage = 0.5 } = body;
 
-      if (!from || !isValidFromToken(from)) {
+      if (!from || !ALL_SWAP_TOKENS.has(from)) {
         return reply.status(400).send({
-          error: `Invalid 'from' token. Must be one of: ${[...VALID_FROM_TOKENS].join(', ')}`,
+          error: `Invalid 'from' token. Must be one of: ${[...ALL_SWAP_TOKENS].join(', ')}`,
         });
       }
 
-      if (!to || !isValidToToken(to)) {
+      if (!to || !ALL_SWAP_TOKENS.has(to)) {
         return reply.status(400).send({
-          error: `Invalid 'to' token. Must be one of: ${[...VALID_TO_TOKENS].join(', ')}`,
+          error: `Invalid 'to' token. Must be one of: ${[...ALL_SWAP_TOKENS].join(', ')}`,
         });
       }
 
@@ -101,7 +103,7 @@ export async function tradeRoutes(app: FastifyInstance) {
           amountIn,
           tokenInDecimals: fromDecimals,
           tokenOutDecimals: toDecimals,
-          celoClient,
+          celoClient: celoClient as unknown as PublicClient,
         });
 
         const amountOutMin = applySlippage(quote.amountOut, slippage);
@@ -111,7 +113,7 @@ export async function tradeRoutes(app: FastifyInstance) {
           token: fromAddress,
           owner: walletAddress as Address,
           spender: BROKER_ADDRESS,
-          celoClient,
+          celoClient: celoClient as unknown as PublicClient,
         });
 
         const needsApproval = currentAllowance < amountIn;
@@ -137,7 +139,7 @@ export async function tradeRoutes(app: FastifyInstance) {
           minimumAmountOut: formatUnits(amountOutMin, toDecimals),
           minimumAmountOutRaw: amountOutMin.toString(),
           exchangeRate: quote.rate.toFixed(6),
-          priceImpact: 0, // TODO: calculate price impact
+          priceImpact: 0,
           estimatedGasCelo: '0.001',
           exchangeProvider: quote.exchangeProvider,
           exchangeId: quote.exchangeId,
@@ -268,13 +270,18 @@ export async function tradeRoutes(app: FastifyInstance) {
           .range(offset, offset + limit - 1);
 
         if (query.token) {
+          // Validate token against known symbols to prevent injection
+          const validTokens: Set<string> = new Set([...BASE_TOKENS, ...MENTO_TOKENS, ...COMMODITY_TOKENS]);
+          if (!validTokens.has(query.token as string)) {
+            return reply.status(400).send({ error: `Invalid token filter: ${query.token}` });
+          }
           dbQuery = dbQuery.or(
             `source_token.eq.${query.token},target_token.eq.${query.token}`,
           );
         }
 
         if (query.status) {
-          dbQuery = dbQuery.eq('status', query.status);
+          dbQuery = dbQuery.eq('status', query.status as Database['public']['Tables']['transactions']['Row']['status']);
         }
 
         const { data, error, count } = await dbQuery;
@@ -288,8 +295,9 @@ export async function tradeRoutes(app: FastifyInstance) {
 
         const total = count ?? 0;
 
+        type TransactionRow = Database['public']['Tables']['transactions']['Row'];
         return {
-          transactions: (data ?? []).map((tx) => ({
+          transactions: ((data ?? []) as TransactionRow[]).map((tx) => ({
             id: tx.id,
             type: tx.type,
             sourceToken: tx.source_token,
@@ -313,6 +321,98 @@ export async function tradeRoutes(app: FastifyInstance) {
         return reply
           .status(500)
           .send({ error: 'Failed to fetch trade history' });
+      }
+    },
+  );
+
+  // POST /api/trade/swap — execute a swap via the agent's server wallet
+  app.post(
+    '/api/trade/swap',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const body = request.body as {
+        from?: string;
+        to?: string;
+        amount?: string;
+        slippage?: number;
+      };
+
+      const { from, to, amount, slippage = 0.5 } = body;
+
+      if (!from || !ALL_SWAP_TOKENS.has(from)) {
+        return reply.status(400).send({
+          error: `Invalid 'from' token. Must be one of: ${[...ALL_SWAP_TOKENS].join(', ')}`,
+        });
+      }
+      if (!to || !ALL_SWAP_TOKENS.has(to)) {
+        return reply.status(400).send({
+          error: `Invalid 'to' token. Must be one of: ${[...ALL_SWAP_TOKENS].join(', ')}`,
+        });
+      }
+      if (from === to) {
+        return reply.status(400).send({ error: 'Cannot swap a token to itself' });
+      }
+      if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+        return reply.status(400).send({ error: "'amount' must be a positive number" });
+      }
+
+      try {
+        // Look up user's agent config for server wallet
+        const { data: agent, error: agentError } = await supabaseAdmin
+          .from('agent_configs')
+          .select('server_wallet_id, server_wallet_address')
+          .eq('wallet_address', walletAddress)
+          .single();
+
+        if (agentError || !agent?.server_wallet_id || !agent?.server_wallet_address) {
+          return reply.status(400).send({
+            error: 'Agent wallet not configured. Complete onboarding first.',
+          });
+        }
+
+        // Determine direction: base→mento/commodity = buy, mento/commodity→base = sell
+        const isFromBase = VALID_FROM_TOKENS.has(from) || from === 'USDm';
+        const direction: 'buy' | 'sell' = isFromBase ? 'buy' : 'sell';
+        const currency = isFromBase ? to : from;
+
+        const result = await executeTrade({
+          serverWalletId: agent.server_wallet_id,
+          serverWalletAddress: agent.server_wallet_address,
+          currency,
+          direction,
+          amountUsd: parseFloat(amount),
+        });
+
+        // Log to agent_timeline
+        await supabaseAdmin.from('agent_timeline').insert({
+          wallet_address: walletAddress,
+          event_type: 'trade',
+          summary: `Manual swap: ${amount} ${from} → ${to}`,
+          detail: {
+            source: 'manual_swap',
+            from,
+            to,
+            amountIn: result.amountIn.toString(),
+            amountOut: result.amountOut.toString(),
+            rate: result.rate,
+          },
+          currency: to,
+          amount_usd: parseFloat(amount),
+          direction,
+          tx_hash: result.txHash,
+        });
+
+        return {
+          txHash: result.txHash,
+          amountIn: result.amountIn.toString(),
+          amountOut: result.amountOut.toString(),
+          exchangeRate: result.rate.toFixed(6),
+        };
+      } catch (err) {
+        console.error('Swap error:', err);
+        const message = err instanceof Error ? err.message : 'Swap failed';
+        return reply.status(500).send({ error: message });
       }
     },
   );

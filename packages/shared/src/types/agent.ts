@@ -214,6 +214,12 @@ export interface ProgressRegistrationData {
   txHash?: string;
 }
 
+export interface ProgressReasoningData {
+  reasoning_chunk: string;        // Latest chunk of reasoning from LLM
+  cumulative_reasoning: string;   // Full reasoning accumulated so far
+  stage: 'thinking' | 'analyzing' | 'deciding';
+}
+
 export type ProgressData =
   | ProgressNewsData
   | ProgressSignalsData
@@ -225,7 +231,8 @@ export type ProgressData =
   | ProgressYieldSignalData
   | ProgressYieldDepositData
   | ProgressRewardClaimData
-  | ProgressRegistrationData;
+  | ProgressRegistrationData
+  | ProgressReasoningData;
 
 export interface AgentStatus {
   config: AgentConfig;

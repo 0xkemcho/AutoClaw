@@ -25,9 +25,9 @@ export function buildSwapInTxs(params: {
   }
 
   return route.map((hop, i) => {
-    // For the last hop, use the user's amountOutMin for slippage protection.
-    // For intermediate hops, use 0n (we accept any intermediate amount).
-    const hopMinOut = i === route.length - 1 ? amountOutMin : 0n;
+    // Apply slippage protection to all hops (not just the last one)
+    // For intermediate hops, use 1n as minimum to ensure non-zero output
+    const hopMinOut = i === route.length - 1 ? amountOutMin : 1n;
     // For the first hop, use the user's amountIn.
     // For subsequent hops, amountIn is the output of the previous hop —
     // but since these are separate txs, the contract handles it via balances.

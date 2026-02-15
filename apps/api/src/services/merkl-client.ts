@@ -30,17 +30,15 @@ async function merklFetch(url: string): Promise<Response> {
   throw new Error('Merkl API rate limit exceeded after 3 retries');
 }
 
-export async function fetchYieldOpportunities(
-  protocol?: string,
-): Promise<YieldOpportunity[]> {
-  const cacheKey = protocol ?? 'all';
+export async function fetchYieldOpportunities(): Promise<YieldOpportunity[]> {
+  const cacheKey = 'all';
   const cached = opportunitiesCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < OPPORTUNITIES_CACHE_TTL) {
     return cached.data;
   }
 
-  let url = `${MERKL_API_BASE}/opportunities?chainId=${CELO_CHAIN_ID}&status=LIVE`;
-  if (protocol) url += `&protocol=${protocol}`;
+  // Merkl API doesn't support protocol query param, fetch all and filter client-side
+  const url = `${MERKL_API_BASE}/opportunities?chainId=${CELO_CHAIN_ID}&status=LIVE`;
 
   const res = await merklFetch(url);
   const raw = await res.json();

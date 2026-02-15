@@ -61,7 +61,8 @@ export const MENTO_TOKEN_ADDRESSES: Record<MentoToken, string> = {
 
 export const USDC_CELO_ADDRESS = '0xcebA9300f2b948710d2653dD7B07f33A8B32118C';
 export const USDT_CELO_ADDRESS = '0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e';
-export const XAUT_CELO_ADDRESS = '0x0000000000000000000000000000000000000000'; // Placeholder — XAUT on Celo TBD
+// WARNING: XAUT is NOT tradeable — excluded from TARGET_TOKENS and ALL_TOKEN_ADDRESSES until a real Celo address is available
+export const XAUT_CELO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 export const BASE_TOKEN_ADDRESSES: Record<BaseToken, string> = {
   USDC: USDC_CELO_ADDRESS,
@@ -76,23 +77,23 @@ export const ALL_TOKEN_ADDRESSES: Record<string, string> = {
 
 export const TOKEN_METADATA: Record<
   string,
-  { name: string; flag: string; decimals: number }
+  { name: string; flag: string; decimals: number; logo?: string }
 > = {
-  USDm: { name: 'Mento Dollar', flag: '🇺🇸', decimals: 18 },
-  EURm: { name: 'Mento Euro', flag: '🇪🇺', decimals: 18 },
-  BRLm: { name: 'Mento Real', flag: '🇧🇷', decimals: 18 },
-  KESm: { name: 'Mento Shilling', flag: '🇰🇪', decimals: 18 },
-  PHPm: { name: 'Mento Peso', flag: '🇵🇭', decimals: 18 },
-  COPm: { name: 'Mento Peso', flag: '🇨🇴', decimals: 18 },
-  XOFm: { name: 'Mento CFA Franc', flag: '🇸🇳', decimals: 18 },
-  NGNm: { name: 'Mento Naira', flag: '🇳🇬', decimals: 18 },
-  JPYm: { name: 'Mento Yen', flag: '🇯🇵', decimals: 18 },
-  CHFm: { name: 'Mento Franc', flag: '🇨🇭', decimals: 18 },
-  ZARm: { name: 'Mento Rand', flag: '🇿🇦', decimals: 18 },
-  GBPm: { name: 'Mento Pound', flag: '🇬🇧', decimals: 18 },
-  AUDm: { name: 'Mento AUD', flag: '🇦🇺', decimals: 18 },
-  CADm: { name: 'Mento CAD', flag: '🇨🇦', decimals: 18 },
-  GHSm: { name: 'Mento Cedi', flag: '🇬🇭', decimals: 18 },
+  USDm: { name: 'Mento Dollar', flag: '🇺🇸', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb311ace18bb8ade8b7c5_USDm%20(Mento%20Dollar).svg' },
+  EURm: { name: 'Mento Euro', flag: '🇪🇺', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb2f0fa2216acb6660d4c_EURm%20(Mento%20Euro).svg' },
+  BRLm: { name: 'Mento Real', flag: '🇧🇷', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/69677217767a74c2cb01e39f_BRLm.svg' },
+  KESm: { name: 'Mento Shilling', flag: '🇰🇪', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb2d6bcbd3be3bbd56750_KESm%20(Mento%20Kenyan%20Shilling).svg' },
+  PHPm: { name: 'Mento Peso', flag: '🇵🇭', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb2cbc65e6fd0859c5161_PHPm%20(Mento%20Philippine%20Peso).svg' },
+  COPm: { name: 'Mento Peso', flag: '🇨🇴', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb234ccfb118a64e16f1f_COPm%20(Mento%20Colombian%20Peso).svg' },
+  XOFm: { name: 'Mento CFA Franc', flag: '🇸🇳', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb16e02aa5e97e5fa3ce7_XOFm%20(Mento%20West%20African%20CFA%20franc).svg' },
+  NGNm: { name: 'Mento Naira', flag: '🇳🇬', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb2c00879d1a053306bb8_NGNm%20(Mento%20Nigerian%20Naira).svg' },
+  JPYm: { name: 'Mento Yen', flag: '🇯🇵', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb2ac97027e7b9c1a7ed2_JPYm%20(Mento%20Japanese%20Yen).svg' },
+  CHFm: { name: 'Mento Franc', flag: '🇨🇭', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb29cafd31ab0f953cff0_CHFm%20(Mento%20Swiss%20Franc).svg' },
+  ZARm: { name: 'Mento Rand', flag: '🇿🇦', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb2830138d7e4cfcee45a_ZARm%20(South%20African%20Rand).svg' },
+  GBPm: { name: 'Mento Pound', flag: '🇬🇧', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb2790ca77dcbce98890b_GBPm%20%20(Mento%20British%20Pound).svg' },
+  AUDm: { name: 'Mento AUD', flag: '🇦🇺', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb19dd80a06cbedcde486_AUD%20(Mento%20Australian%20Dollar).svg' },
+  CADm: { name: 'Mento CAD', flag: '🇨🇦', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/6967722a396ccc2ea6a333b7_CADm.svg' },
+  GHSm: { name: 'Mento Cedi', flag: '🇬🇭', decimals: 18, logo: 'https://cdn.prod.website-files.com/6807f97b456d6dff3e784225/695bb2658ae1324a51d4d86b_GHSm%20(Mento%20Ghanaian%20Cedi).svg' },
   USDC: { name: 'USD Coin', flag: '🇺🇸', decimals: 6 },
   USDT: { name: 'Tether USD', flag: '🇺🇸', decimals: 6 },
   XAUT: { name: 'Tether Gold', flag: '🥇', decimals: 6 },
@@ -108,6 +109,6 @@ export function getTokenAddress(symbol: string): string | undefined {
   return ALL_TOKEN_ADDRESSES[symbol];
 }
 
-/** All tradeable target tokens (Mento stables + XAUT). */
-export const TARGET_TOKENS = [...MENTO_TOKENS, ...COMMODITY_TOKENS] as const;
+/** All tradeable target tokens (Mento stables only). */
+export const TARGET_TOKENS = [...MENTO_TOKENS] as const; // XAUT excluded until real address available
 export type TargetToken = (typeof TARGET_TOKENS)[number];

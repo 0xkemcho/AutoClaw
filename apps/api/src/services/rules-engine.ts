@@ -12,6 +12,7 @@ interface AgentConfigForRules {
 interface PositionForRules {
   tokenSymbol: string;
   balance: number;
+  avgEntryRate: number;
 }
 
 /**
@@ -25,8 +26,9 @@ export function checkGuardrails(params: {
   portfolioValueUsd: number;
   tradesToday: number;
   tradeAmountUsd: number;
+  positionPrices?: Record<string, number>;
 }): GuardrailCheck {
-  const { signal, config, positions, portfolioValueUsd, tradesToday, tradeAmountUsd } = params;
+  const { signal, config, positions, portfolioValueUsd, tradesToday, tradeAmountUsd, positionPrices } = params;
 
   // 1. Currency must be allowed and not blocked
   if (config.allowedCurrencies.length > 0 && !config.allowedCurrencies.includes(signal.currency)) {
@@ -66,7 +68,8 @@ export function checkGuardrails(params: {
   // 4. Max allocation per currency (only applies to buys)
   if (signal.direction === 'buy' && portfolioValueUsd > 0) {
     const currentPosition = positions.find((p) => p.tokenSymbol === signal.currency);
-    const currentValueUsd = currentPosition?.balance ?? 0;
+    const priceUsd = positionPrices?.[signal.currency] ?? 1;
+    const currentValueUsd = (currentPosition?.balance ?? 0) * priceUsd;
     const postTradeValueUsd = currentValueUsd + tradeAmountUsd;
     const postTradeAllocationPct = (postTradeValueUsd / (portfolioValueUsd + tradeAmountUsd)) * 100;
 
@@ -79,13 +82,19 @@ export function checkGuardrails(params: {
     }
   }
 
-  // 5. Stop-loss check (only applies to sells — checks if loss exceeds threshold)
+  // 5. Stop-loss check (only applies to sells)
   if (signal.direction === 'sell') {
     const position = positions.find((p) => p.tokenSymbol === signal.currency);
-    if (position && position.balance > 0) {
-      // If the position has an avg entry rate, we'd check loss here.
-      // For now, the stop-loss is checked externally by comparing current rate vs entry rate.
-      // This rule will be refined in Part 2 when we have real-time price data.
+    if (position && position.balance > 0 && position.avgEntryRate > 0) {
+      const currentPriceUsd = positionPrices?.[signal.currency] ?? 1;
+      const lossPct = ((currentPriceUsd - position.avgEntryRate) / position.avgEntryRate) * 100;
+      if (lossPct < -config.stopLossPct) {
+        return {
+          passed: false,
+          blockedReason: `Loss ${lossPct.toFixed(1)}% exceeds stop-loss threshold ${config.stopLossPct}%`,
+          ruleName: 'stop_loss',
+        };
+      }
     }
   }
 
@@ -101,5 +110,5 @@ export function calculateTradeAmount(confidence: number, maxTradeSizeUsd: number
   if (confidence >= 80) return maxTradeSizeUsd * 0.75;
   if (confidence >= 70) return maxTradeSizeUsd * 0.5;
   if (confidence >= 60) return maxTradeSizeUsd * 0.25;
-  return 0; // Below 60% confidence, no trade
+  return 0;
 }

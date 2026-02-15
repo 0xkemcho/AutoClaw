@@ -38,8 +38,13 @@ export class YieldStrategy implements AgentStrategy {
   type = 'yield' as const;
 
   async fetchData(config: AgentConfigRow, _context: StrategyContext): Promise<YieldData> {
-    // Fetch Ichi vault opportunities from Merkl
-    const opportunities = await fetchYieldOpportunities('ichi');
+    // Fetch all opportunities from Merkl API (doesn't support protocol filter)
+    const allOpportunities = await fetchYieldOpportunities();
+
+    // Filter client-side for Ichi protocol (matches POC pattern)
+    const opportunities = allOpportunities.filter(opp =>
+      opp.protocol?.toLowerCase().includes('ichi')
+    );
 
     // Fetch claimable rewards for this wallet
     const claimableRewards = config.server_wallet_address
@@ -70,6 +75,7 @@ export class YieldStrategy implements AgentStrategy {
       portfolioValueUsd: context.portfolioValueUsd,
       guardrails,
       customPrompt: config.custom_prompt,
+      walletAddress: config.wallet_address,  // Enable real-time reasoning stream
     });
 
     return {

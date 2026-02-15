@@ -1,7 +1,8 @@
-import { generateText, Output } from 'ai';
+import { streamText, Output } from 'ai';
 import { createGeminiProvider } from 'ai-sdk-provider-gemini-cli';
 import { z } from 'zod';
-import type { YieldOpportunity, YieldSignal, YieldAnalysisResult, YieldGuardrails } from '@autoclaw/shared';
+import type { YieldOpportunity, YieldSignal, YieldAnalysisResult, YieldGuardrails, ProgressReasoningData } from '@autoclaw/shared';
+import { emitProgress } from './agent-events';
 
 const gemini = createGeminiProvider({
   authType: (process.env.GEMINI_CLI_AUTH_TYPE as 'oauth-personal') || 'oauth-personal',
@@ -32,23 +33,51 @@ interface YieldAnalysisInput {
   portfolioValueUsd: number;
   guardrails: YieldGuardrails;
   customPrompt?: string | null;
+  walletAddress?: string;  // For emitting progress events
 }
 
 export async function analyzeYieldOpportunities(input: YieldAnalysisInput): Promise<YieldAnalysisResult> {
   try {
-    const result = await generateText({
+    let cumulativeReasoning = '';
+
+    // Stream the LLM response to capture reasoning in real-time
+    const stream = streamText({
       model: gemini('gemini-2.5-flash'),
       output: Output.object({ schema: YieldAnalysisSchema }),
       system: buildYieldSystemPrompt(input),
       prompt: buildYieldAnalysisPrompt(input),
     });
 
-    if (!result.output) {
-      console.error('[yield-analyzer] LLM returned no output');
-      return { signals: [], strategySummary: 'Analysis failed: no output from LLM', sourcesUsed: 0 };
+    // Emit reasoning chunks as they arrive
+    if (input.walletAddress) {
+      for await (const chunk of stream.textStream) {
+        cumulativeReasoning += chunk;
+
+        // Emit progress event with reasoning chunk
+        emitProgress(
+          input.walletAddress,
+          'analyzing_yields',
+          'Thinking...',
+          {
+            reasoning_chunk: chunk,
+            cumulative_reasoning: cumulativeReasoning,
+            stage: 'analyzing'
+          } as ProgressReasoningData,
+          'yield'
+        );
+      }
     }
 
-    const signals: YieldSignal[] = result.output.signals.map((s) => ({
+    // Wait for the final result and extract output
+    const final = await stream;
+    const result = await final.output;
+
+    if (!result) {
+      console.error('[yield-analyzer] LLM returned no structured output');
+      return { signals: [], strategySummary: 'Analysis failed: no structured output from LLM', sourcesUsed: 0 };
+    }
+
+    const signals: YieldSignal[] = result.signals.map((s: any) => ({
       vaultAddress: s.vaultAddress,
       vaultName: s.vaultName,
       action: s.action,
@@ -62,7 +91,7 @@ export async function analyzeYieldOpportunities(input: YieldAnalysisInput): Prom
 
     return {
       signals,
-      strategySummary: result.output.strategySummary,
+      strategySummary: result.strategySummary,
       sourcesUsed: input.opportunities.length,
     };
   } catch (err) {

@@ -3,6 +3,7 @@ import { celoClient } from '../lib/celo-client';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import { MENTO_TOKEN_ADDRESSES, USDC_CELO_ADDRESS, USDT_CELO_ADDRESS } from '@autoclaw/shared';
 import { logTimeline } from './agent-cron';
+import { executeTrade } from './trade-executor';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 
@@ -32,13 +33,13 @@ function balanceKey(wallet: string, symbol: string): string {
 export async function checkForDeposits(): Promise<void> {
   const { data: configs, error } = await supabaseAdmin
     .from('agent_configs')
-    .select('wallet_address, server_wallet_address')
+    .select('wallet_address, server_wallet_address, server_wallet_id')
     .not('server_wallet_address', 'is', null);
 
   if (error || !configs) return;
 
   for (const rawConfig of configs) {
-    const config = rawConfig as Pick<AgentConfigRow, 'wallet_address' | 'server_wallet_address'>;
+    const config = rawConfig as Pick<AgentConfigRow, 'wallet_address' | 'server_wallet_address' | 'server_wallet_id'>;
     const serverAddress = config.server_wallet_address as Address;
     if (!serverAddress) continue;
 
@@ -74,7 +75,46 @@ export async function checkForDeposits(): Promise<void> {
             },
           });
 
-          // TODO (Part 2): Auto-convert USDC/USDT to USDm via Mento Broker
+          // Auto-convert USDC/USDT deposits to USDm via Mento Broker
+          if (
+            (token.symbol === 'USDC' || token.symbol === 'USDT') &&
+            config.server_wallet_id
+          ) {
+            try {
+              const result = await executeTrade({
+                serverWalletId: config.server_wallet_id,
+                serverWalletAddress: serverAddress,
+                currency: token.symbol,
+                direction: 'sell',
+                amountUsd: depositFormatted,
+              });
+
+              await logTimeline(config.wallet_address, 'funding', {
+                summary: `Auto-converted ${depositFormatted.toFixed(2)} ${token.symbol} → USDm`,
+                detail: {
+                  token: token.symbol,
+                  amount: depositFormatted,
+                  rawAmount: depositAmount.toString(),
+                  txHash: result.txHash,
+                  rate: result.rate,
+                },
+                txHash: result.txHash,
+              });
+            } catch (conversionErr) {
+              console.error(
+                `Failed to auto-convert ${token.symbol} to USDm for ${serverAddress}:`,
+                conversionErr,
+              );
+              await logTimeline(config.wallet_address, 'funding', {
+                summary: `Auto-conversion of ${depositFormatted.toFixed(2)} ${token.symbol} → USDm failed`,
+                detail: {
+                  token: token.symbol,
+                  amount: depositFormatted,
+                  error: conversionErr instanceof Error ? conversionErr.message : String(conversionErr),
+                },
+              });
+            }
+          }
         }
       } catch (err) {
         // Silently skip individual token balance checks
