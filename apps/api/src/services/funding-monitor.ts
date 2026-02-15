@@ -66,6 +66,7 @@ export async function checkForDeposits(): Promise<void> {
           const depositAmount = balance - previous;
           const depositFormatted = Number(depositAmount) / 10 ** token.decimals;
 
+          const agentType = (config as any).agent_type ?? 'fx';
           await logTimeline(config.wallet_address, 'funding', {
             summary: `Received ${depositFormatted.toFixed(2)} ${token.symbol}`,
             detail: {
@@ -73,7 +74,7 @@ export async function checkForDeposits(): Promise<void> {
               amount: depositFormatted,
               rawAmount: depositAmount.toString(),
             },
-          });
+          }, undefined, agentType);
 
           // Auto-convert USDC/USDT deposits to USDm via Mento Broker
           if (
@@ -99,7 +100,7 @@ export async function checkForDeposits(): Promise<void> {
                   rate: result.rate,
                 },
                 txHash: result.txHash,
-              });
+              }, undefined, agentType);
             } catch (conversionErr) {
               console.error(
                 `Failed to auto-convert ${token.symbol} to USDm for ${serverAddress}:`,
@@ -112,7 +113,7 @@ export async function checkForDeposits(): Promise<void> {
                   amount: depositFormatted,
                   error: conversionErr instanceof Error ? conversionErr.message : String(conversionErr),
                 },
-              });
+              }, undefined, agentType);
             }
           }
         }

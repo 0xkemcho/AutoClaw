@@ -70,9 +70,10 @@ async function agentTick(): Promise<void> {
         }
       } catch (err) {
         console.error(`Agent cycle failed for ${config.wallet_address}:`, err);
+        const agentType = (config as any).agent_type ?? 'fx';
         await logTimeline(config.wallet_address, 'system', {
           summary: `Agent cycle failed: ${formatExecutionError(err)}`,
-        });
+        }, undefined, agentType);
 
         // Failure — retry in 5 minutes instead of full interval
         const retryRun = new Date(Date.now() + 5 * 60 * 1000).toISOString();
@@ -108,7 +109,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
 
   try {
     // 1. Log cycle start
-    await logTimeline(walletAddress, 'system', { summary: `${agentType.toUpperCase()} agent cycle started` }, runId);
+    await logTimeline(walletAddress, 'system', { summary: `${agentType.toUpperCase()} agent cycle started` }, runId, agentType);
 
     // 2. Fetch positions and portfolio value
     console.log(`[agent:${walletAddress.slice(0, 8)}:${agentType}] Fetching positions...`);
@@ -150,7 +151,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
       await logTimeline(walletAddress, 'analysis', {
         summary: `${agentType.toUpperCase()}: No signals generated. ${summary}`,
         detail: { summary, sourcesUsed },
-      }, runId);
+      }, runId, agentType);
       emitProgress(walletAddress, 'complete', summary || 'No actionable signals.', {
         signalCount: 0, tradeCount: 0, blockedCount: 0,
       });
@@ -161,7 +162,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
     await logTimeline(walletAddress, 'analysis', {
       summary: `${agentType.toUpperCase()}: ${signals.length} signals. ${summary}`,
       detail: { summary, signalCount: signals.length, signals, sourcesUsed },
-    }, runId);
+    }, runId, agentType);
 
     // Skip execution if wallet is empty (exploration mode only)
     if (portfolioValue === 0) {
@@ -176,14 +177,14 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
       await logTimeline(walletAddress, 'system', {
         summary: 'Wallet empty - add funds to execute trades',
         detail: { signals, portfolioValue: 0 },
-      }, runId);
+      }, runId, agentType);
       return;
     }
 
     // 5. STRATEGY: Check guardrails and execute each signal
     const guardrailStep = progressSteps[2] ?? ('checking_signals' as ProgressStep);
     const executeStep = progressSteps[3] ?? ('executing_trades' as ProgressStep);
-    const tradesToday = await getTradeCountToday(walletAddress);
+    const tradesToday = await getTradeCountToday(walletAddress, agentType);
 
     // Build price map for guardrails
     const positionPrices: Record<string, number> = {};
@@ -236,7 +237,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
         await logTimeline(walletAddress, 'guardrail', {
           summary: `Blocked ${signalLabel} ${signalAction} — ${check.blockedReason}`,
           detail: { rule: check.ruleName, signal },
-        }, runId);
+        }, runId, agentType);
         continue;
       }
 
@@ -255,7 +256,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
             detail: { signal, result },
             txHash: result.txHash,
             amountUsd: result.amountUsd,
-          }, runId);
+          }, runId, agentType);
 
           // Submit ERC-8004 reputation feedback (non-blocking)
           if (config.agent_8004_id && result.txHash) {
@@ -276,7 +277,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
           await logTimeline(walletAddress, 'system', {
             summary: `Execution failed for ${signalLabel}: ${formatExecutionError(result.error)}`,
             detail: { signal, error: result.error },
-          }, runId);
+          }, runId, agentType);
         }
       } catch (execErr) {
         emitProgress(walletAddress, executeStep,
@@ -285,7 +286,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
         await logTimeline(walletAddress, 'system', {
           summary: `Execution error for ${signalLabel}: ${formatExecutionError(execErr)}`,
           detail: { signal, error: execErr instanceof Error ? execErr.message : String(execErr) },
-        }, runId);
+        }, runId, agentType);
       }
     }
 
@@ -304,13 +305,13 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
     await logTimeline(walletAddress, 'system', {
       summary: `Agent cycle failed: ${formatExecutionError(error)}`,
       detail: { error: error instanceof Error ? error.message : String(error) },
-    }, runId);
+    }, runId, agentType);
   }
 }
 
 /**
- * Insert an event into the agent_timeline table.
- * Falls back to inserting without run_id if the column doesn't exist yet.
+ * Insert an event into the appropriate agent timeline table.
+ * Routes to fx_agent_timeline or yield_agent_timeline based on agentType.
  */
 export async function logTimeline(
   walletAddress: string,
@@ -326,7 +327,10 @@ export async function logTimeline(
     txHash?: string;
   },
   runId?: string,
+  agentType: 'fx' | 'yield' = 'fx',
 ): Promise<void> {
+  const tableName = agentType === 'yield' ? 'yield_agent_timeline' : 'fx_agent_timeline';
+
   const baseRow: TimelineInsert = {
     wallet_address: walletAddress,
     event_type: eventType,
@@ -340,27 +344,12 @@ export async function logTimeline(
     tx_hash: fields.txHash ?? null,
   };
 
-  // Try with run_id first (requires migration), fall back without it
-  if (runId) {
-    const rowWithRunId = { ...baseRow, run_id: runId } as TimelineInsert;
-    const { error } = await supabaseAdmin.from('agent_timeline').insert(rowWithRunId);
+  const rowWithRunId = runId ? { ...baseRow, run_id: runId } as TimelineInsert : baseRow;
 
-    if (error) {
-      if (error.code === 'PGRST204' || error.message?.includes('run_id')) {
-        // run_id column doesn't exist yet — retry without it
-        const { error: retryError } = await supabaseAdmin.from('agent_timeline').insert(baseRow);
-        if (retryError) {
-          console.error('Failed to log timeline event (fallback):', retryError);
-        }
-      } else {
-        console.error('Failed to log timeline event:', error);
-      }
-    }
-  } else {
-    const { error } = await supabaseAdmin.from('agent_timeline').insert(baseRow);
-    if (error) {
-      console.error('Failed to log timeline event:', error);
-    }
+  const { error } = await supabaseAdmin.from(tableName).insert(rowWithRunId);
+
+  if (error) {
+    console.error(`Failed to log timeline event to ${tableName}:`, error);
   }
 }
 
@@ -398,12 +387,14 @@ async function getOnChainBalances(serverWalletAddress: string): Promise<WalletBa
  * Get count of trades made today for a given wallet.
  * Throws on database error so callers know guardrails can't be checked.
  */
-export async function getTradeCountToday(walletAddress: string): Promise<number> {
+export async function getTradeCountToday(walletAddress: string, agentType: 'fx' | 'yield' = 'fx'): Promise<number> {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
+  const tableName = agentType === 'yield' ? 'yield_agent_timeline' : 'fx_agent_timeline';
+
   const { count, error } = await supabaseAdmin
-    .from('agent_timeline')
+    .from(tableName)
     .select('*', { count: 'exact', head: true })
     .eq('wallet_address', walletAddress)
     .eq('event_type', 'trade' as TimelineInsert['event_type'])
