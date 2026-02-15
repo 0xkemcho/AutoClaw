@@ -3,6 +3,7 @@ import { parseUnits, formatUnits, type Address, type PublicClient } from 'viem';
 import { authMiddleware } from '../middleware/auth';
 import { celoClient } from '../lib/celo-client';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
+// Force cache bust for Vercel build
 import {
   getQuote,
   checkAllowance,
