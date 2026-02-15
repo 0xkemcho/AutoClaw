@@ -34,11 +34,29 @@ In Vercel's fresh install environment, TypeScript sometimes resolves `ReadContra
 
 The issue is **non-deterministic** - it depends on which viem version TypeScript happens to resolve first when checking `ReadContractParameters` types.
 
-## Solution: Use getErc20Balance Helper ✅
+## Solution 1: Lock viem to Single Version ✅ (FINAL)
 
-**Status**: Applied and working
+**Status**: Applied - viem locked to `2.39.0` everywhere
 
-Replace all `celoClient.readContract()` calls with `getErc20Balance()` from `@autoclaw/contracts`:
+Pin viem to exactly the same version across all packages to eliminate type resolution conflicts:
+
+```json
+// apps/api/package.json
+"viem": "2.39.0"  // matches thirdweb dependency
+
+// packages/contracts/package.json
+"viem": "2.39.0"
+```
+
+This ensures TypeScript always resolves `ReadContractParameters` from the same viem version, regardless of install order or pnpm hoisting behavior.
+
+**Why 2.39.0?** This is the version thirdweb uses, so locking to it means fewer duplicate viem installations.
+
+## Solution 2: Use getErc20Balance Helper (ALSO APPLIED)
+
+**Status**: Applied for robustness
+
+Replace `celoClient.readContract()` calls with `getErc20Balance()` from `@autoclaw/contracts`:
 
 ```typescript
 import { getErc20Balance } from '@autoclaw/contracts';
