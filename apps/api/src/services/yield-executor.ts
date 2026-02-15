@@ -14,7 +14,10 @@ import { USDC_CELO_ADDRESS, USDT_CELO_ADDRESS } from '@autoclaw/shared';
 import type { YieldExecutionResult } from '@autoclaw/shared';
 import { IchiVaultAdapter } from './vault-adapters/ichi';
 import { celoClient } from '../lib/celo-client';
-import { getAgentWalletClient } from '../lib/privy-wallet';
+import {
+  createServerWalletClient,
+  sendTransactionFromServerWallet,
+} from '../lib/thirdweb-wallet';
 
 const DEFAULT_SLIPPAGE_PCT = 0.5;
 const ichiAdapter = new IchiVaultAdapter();
@@ -35,7 +38,7 @@ export async function executeYieldDeposit(params: {
   const { serverWalletId, serverWalletAddress, vaultAddress, amountUsd } = params;
 
   try {
-    const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
+    const walletClient = createServerWalletClient(serverWalletAddress);
     const walletAddr = serverWalletAddress as Address;
 
     // 1. Get vault info to determine deposit token
@@ -127,10 +130,9 @@ export async function executeYieldDeposit(params: {
           });
           if (intermediateAllowance < currentAmountIn) {
             const approveTx = buildApproveTx({ token: hop.tokenIn, spender: BROKER_ADDRESS });
-            const approveHash = await walletClient.sendTransaction({
+            const approveHash = await sendTransactionFromServerWallet(serverWalletAddress, {
               to: approveTx.to,
               data: approveTx.data,
-              chain: walletClient.chain,
             });
             await celoClient.waitForTransactionReceipt({ hash: approveHash });
           }
@@ -143,10 +145,9 @@ export async function executeYieldDeposit(params: {
           });
           if (allowance < amountIn) {
             const approveTx = buildApproveTx({ token: sourceToken.address, spender: BROKER_ADDRESS });
-            const approveHash = await walletClient.sendTransaction({
+            const approveHash = await sendTransactionFromServerWallet(serverWalletAddress, {
               to: approveTx.to,
               data: approveTx.data,
-              chain: walletClient.chain,
             });
             await celoClient.waitForTransactionReceipt({ hash: approveHash });
           }
@@ -158,10 +159,9 @@ export async function executeYieldDeposit(params: {
           args: [BIPOOL_MANAGER_ADDRESS, hop.exchangeId, hop.tokenIn, hop.tokenOut, currentAmountIn, hopMinOut],
         });
 
-        const swapHash = await walletClient.sendTransaction({
+        const swapHash = await sendTransactionFromServerWallet(serverWalletAddress, {
           to: BROKER_ADDRESS,
           data,
-          chain: walletClient.chain,
         });
         const swapReceipt = await celoClient.waitForTransactionReceipt({ hash: swapHash });
         if (swapReceipt.status === 'reverted') {
@@ -213,7 +213,7 @@ export async function executeYieldWithdraw(params: {
   const { serverWalletId, serverWalletAddress, vaultAddress, sharesPct = 100 } = params;
 
   try {
-    const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
+    const walletClient = createServerWalletClient(serverWalletAddress);
     const walletAddr = serverWalletAddress as Address;
 
     // Get current shares

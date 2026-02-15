@@ -10,6 +10,7 @@ import {
   buildSwapInTxs,
   applySlippage,
   BROKER_ADDRESS,
+  erc20Abi,
 } from '@autoclaw/contracts';
 import {
   BASE_TOKENS,
@@ -419,6 +420,53 @@ export async function tradeRoutes(app: FastifyInstance) {
     },
   );
 
+  // GET /api/trade/balance — real-time on-chain balance for send flow (avoids stale Dune data)
+  app.get(
+    '/api/trade/balance',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const query = request.query as { token?: string; agent_type?: string };
+      const token = query.token;
+      const agentType = query.agent_type === 'yield' ? 'yield' : 'fx';
+
+      if (!token || !ALL_SWAP_TOKENS.has(token)) {
+        return reply.status(400).send({
+          error: `Invalid token. Must be one of: ${[...ALL_SWAP_TOKENS].join(', ')}`,
+        });
+      }
+
+      const { data: agent, error: agentError } = await supabaseAdmin
+        .from('agent_configs')
+        .select('server_wallet_address')
+        .eq('wallet_address', walletAddress)
+        .eq('agent_type', agentType)
+        .maybeSingle();
+
+      if (agentError || !agent?.server_wallet_address) {
+        return reply.status(404).send({
+          error: `${agentType === 'yield' ? 'Yield' : 'FX'} agent wallet not configured.`,
+        });
+      }
+
+      const tokenAddress = getTokenAddress(token);
+      if (!tokenAddress) {
+        return reply.status(400).send({ error: `Unknown token: ${token}` });
+      }
+
+      const decimals = getTokenDecimals(token);
+      const balance = await celoClient.readContract({
+        address: tokenAddress as Address,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [agent.server_wallet_address as Address],
+      });
+
+      const balanceHuman = Number(formatUnits(balance, decimals));
+      return { balance: balanceHuman };
+    },
+  );
+
   // POST /api/trade/send — send tokens from agent wallet to recipient
   app.post(
     '/api/trade/send',
@@ -429,9 +477,10 @@ export async function tradeRoutes(app: FastifyInstance) {
         token?: string;
         amount?: number;
         recipient?: string;
+        agent_type?: 'fx' | 'yield';
       };
 
-      const { token, amount, recipient } = body;
+      const { token, amount, recipient, agent_type: requestedAgentType = 'fx' } = body;
 
       if (!token || !ALL_SWAP_TOKENS.has(token)) {
         return reply.status(400).send({
@@ -445,27 +494,19 @@ export async function tradeRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: 'Invalid recipient address' });
       }
 
+      const agentType = requestedAgentType === 'yield' ? 'yield' : 'fx';
+
       try {
-        let { data: agent } = await supabaseAdmin
+        const { data: agent, error: agentError } = await supabaseAdmin
           .from('agent_configs')
           .select('server_wallet_id, server_wallet_address')
           .eq('wallet_address', walletAddress)
-          .eq('agent_type', 'fx')
+          .eq('agent_type', agentType)
           .maybeSingle();
 
-        if (!agent?.server_wallet_id || !agent?.server_wallet_address) {
-          const fallback = await supabaseAdmin
-            .from('agent_configs')
-            .select('server_wallet_id, server_wallet_address')
-            .eq('wallet_address', walletAddress)
-            .eq('agent_type', 'yield')
-            .maybeSingle();
-          agent = fallback.data;
-        }
-
-        if (!agent?.server_wallet_id || !agent?.server_wallet_address) {
+        if (agentError || !agent?.server_wallet_id || !agent?.server_wallet_address) {
           return reply.status(400).send({
-            error: 'Agent wallet not configured. Complete onboarding first.',
+            error: `${agentType === 'yield' ? 'Yield' : 'FX'} agent wallet not configured. Complete onboarding first.`,
           });
         }
 

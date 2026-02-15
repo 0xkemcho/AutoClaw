@@ -31,3 +31,6 @@ supabase/.temp/
 
 # ERC-8004 script state
 scripts/erc8004/.state.json
+
+# Thirdweb PoC state
+scripts/thirdweb-poc/state.json

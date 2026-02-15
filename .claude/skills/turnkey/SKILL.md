@@ -1,99 +1,53 @@
 ---
 name: turnkey
-description: 'Privy server wallets for server-side wallet creation and signing. Use when working with Privy wallets, server-side transaction signing, custodial wallets, or automated trading wallets. Triggers on: "privy", "server wallet", "custodial wallet", "privy signing", "automated wallet", "@privy-io/node".'
+description: 'Thirdweb server wallets for server-side wallet creation and gasless transaction execution. Use when working with thirdweb server wallets, EIP-7702 gasless transactions, custodial wallets, or automated trading wallets. Triggers on: "thirdweb server wallet", "server wallet", "custodial wallet", "gasless", "sendSponsoredTransaction", "createServerWallet".'
 ---
 
 ## Overview
 
-Privy provides server-side wallet management for AutoClaw. Use it for:
-- Creating application-owned wallets on the server (no private key exposure)
-- Signing transactions server-side for automated trading
-- Integration with viem via `@privy-io/node/viem`
-
-## Installation
-
-```bash
-pnpm add @privy-io/node
-```
-
-## Authentication
-
-Privy uses App ID + App Secret from the Privy dashboard (console.privy.io).
-
-```ts
-import { PrivyClient } from '@privy-io/node';
-
-const privy = new PrivyClient({
-  appId: process.env.PRIVY_APP_ID!,
-  appSecret: process.env.PRIVY_APP_SECRET!,
-});
-```
+AutoClaw uses thirdweb server wallets (replacing Privy). Use for:
+- Creating application-owned wallets via thirdweb API
+- Gasless transaction execution (EIP-7702)
+- EIP-712 signing for ERC-8004 agent linking
 
 ## Wallet Creation
 
 ```ts
-// Create an application-owned wallet (no Privy user needed)
-const wallet = await privy.wallets().create({
-  chain_type: 'ethereum',
-  idempotency_key: `agent-${userId}`,
-});
+import { createServerWallet } from '../lib/thirdweb-wallet';
 
-const { id: walletId, address } = wallet;
+// Idempotent for same identifier
+const { address } = await createServerWallet(`agent-fx-${walletAddress.toLowerCase()}`);
 ```
 
-## Signing with Viem
+## Transaction Execution (Gasless)
 
 ```ts
-import { createWalletClient, http } from 'viem';
-import { celo } from 'viem/chains';
-import { createViemAccount } from '@privy-io/node/viem';
+import { sendTransactionFromServerWallet } from '../lib/thirdweb-wallet';
 
-const account = await createViemAccount(privy, {
-  walletId,
-  address: walletAddress as `0x${string}`,
-});
-
-const walletClient = createWalletClient({
-  account,
-  chain: celo,
-  transport: http(process.env.CELO_RPC_URL),
-});
-
-// Sign and send transactions
-const hash = await walletClient.sendTransaction({
+const hash = await sendTransactionFromServerWallet(serverWalletAddress, {
   to: '0x...',
   data: '0x...',
-  value: 0n,
+  value: 0n, // optional
 });
 ```
+
+## Identifier Conventions
+
+| Wallet | Identifier |
+|--------|------------|
+| ERC-8004 registrar | `erc8004-registrar` |
+| FX agent (per user) | `agent-fx-{walletAddress}` |
+| Yield agent (per user) | `agent-yield-{walletAddress}` |
 
 ## Environment Variables
 
 | Variable | Description |
-|---|---|
-| `PRIVY_APP_ID` | App ID from Privy dashboard |
-| `PRIVY_APP_SECRET` | App secret from Privy dashboard |
-
-## Integration with Mento Swaps
-
-For automated trading, combine Privy signing with Mento swap transactions:
-
-```ts
-import { buildSwapInTx } from '@autoclaw/contracts';
-
-const swapTx = buildSwapInTx({ route, tokenIn, tokenOut, amountIn, amountOutMin });
-
-const hash = await walletClient.sendTransaction({
-  to: swapTx.to,
-  data: swapTx.data,
-});
-```
+|----------|-------------|
+| `THIRDWEB_SECRET_KEY` | thirdweb API secret (wallet creation, sponsored txs) |
+| `THIRDWEB_ADMIN_PRIVATE_KEY` | SIWE auth only (not for server wallets) |
 
 ## Important Notes
 
-- Privy handles key custody — you never see the actual Ethereum private key
-- Never store Privy secrets in client-side code
-- Use `@privy-io/node/viem` for seamless viem integration on Celo
-- `createViemAccount` requires both `walletId` and `address`
-- Application wallets don't require a Privy user account
-- 50K free signatures/month, $0.01/signature after
+- Gas is sponsored by thirdweb — no fee buffer needed for Max button
+- Server wallets are created via REST API at api.thirdweb.com
+- `createServerWallet` is idempotent for the same identifier

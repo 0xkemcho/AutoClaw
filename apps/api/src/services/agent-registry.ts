@@ -1,46 +1,44 @@
-import { type Address, encodeFunctionData, createWalletClient, http, parseEventLogs } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { celo } from 'viem/chains';
+import { type Address, encodeFunctionData, parseEventLogs } from 'viem';
 import {
   identityRegistryAbi,
   reputationRegistryAbi,
   IDENTITY_REGISTRY_ADDRESS,
   REPUTATION_REGISTRY_ADDRESS,
-  USDM_ADDRESS,
 } from '@autoclaw/contracts';
 import { celoClient } from '../lib/celo-client';
-import { getAgentWalletClient } from '../lib/privy-wallet';
+import {
+  createServerWallet,
+  sendSponsoredTransaction,
+  signTypedData,
+  waitForTransactionHash,
+} from '../lib/thirdweb-wallet';
 import { emitProgress } from './agent-events';
 
 const ZERO_BYTES32 = ('0x' + '0'.repeat(64)) as `0x${string}`;
+const CELO_CHAIN_ID = 42220;
+
+let registrarAddressCache: string | null = null;
 
 /**
- * Get a viem WalletClient backed by the thirdweb admin private key.
- * Used for sponsored transactions where the platform pays gas fees.
+ * Get the ERC-8004 registrar server wallet address.
+ * Creates and caches on first use.
  */
-function getAdminWalletClient() {
-  const adminKey = process.env.THIRDWEB_ADMIN_PRIVATE_KEY;
-  if (!adminKey) throw new Error('THIRDWEB_ADMIN_PRIVATE_KEY is required');
-
-  const account = privateKeyToAccount(adminKey as `0x${string}`);
-  return createWalletClient({
-    account,
-    chain: celo,
-    transport: http(process.env.CELO_RPC_URL || 'https://forno.celo.org'),
-  });
+async function getRegistrarAddress(): Promise<string> {
+  if (registrarAddressCache) return registrarAddressCache;
+  const result = await createServerWallet('erc8004-registrar');
+  registrarAddressCache = result.address;
+  return registrarAddressCache;
 }
 
 /**
- * Register an agent on ERC-8004 fully server-side (sponsored).
- * The admin wallet pays gas for both register() and setAgentWallet().
+ * Register an agent on ERC-8004 fully server-side (gasless via thirdweb).
+ * The erc8004-registrar server wallet mints the NFT and links the agent wallet.
  *
  * Steps:
- * 1. Call register(agentURI) from the admin wallet
+ * 1. register(agentURI) via sendSponsoredTransaction from erc8004-registrar
  * 2. Parse Registered event to get the agentId
- * 3. Get EIP-712 signature from the server (Privy) wallet
- * 4. Call setAgentWallet(agentId, serverWallet, deadline, sig) from admin wallet
- *
- * Returns the agentId and tx hashes.
+ * 3. Get EIP-712 signature from the user's server wallet (thirdweb)
+ * 4. setAgentWallet(agentId, serverWallet, deadline, sig) via sendSponsoredTransaction
  */
 export async function registerAgentOnChain(params: {
   userWalletAddress: string;
@@ -49,9 +47,9 @@ export async function registerAgentOnChain(params: {
   metadataUrl: string;
 }): Promise<{ agentId: bigint; registerTxHash: string; linkTxHash: string }> {
   const { userWalletAddress, serverWalletId, serverWalletAddress, metadataUrl } = params;
-  const adminClient = getAdminWalletClient();
+  const registrarAddress = await getRegistrarAddress();
 
-  // Step 1: register(agentURI) — admin wallet is the tx sender (and NFT owner)
+  // Step 1: register(agentURI) — gasless via thirdweb
   emitProgress(userWalletAddress, 'registering_8004', 'Submitting registration transaction...', { agentId: undefined, txHash: undefined });
   console.log(`[8004] Registering agent for ${userWalletAddress} with URI: ${metadataUrl}`);
   const registerData = encodeFunctionData({
@@ -60,11 +58,13 @@ export async function registerAgentOnChain(params: {
     args: [metadataUrl],
   });
 
-  const registerHash = await adminClient.sendTransaction({
-    to: IDENTITY_REGISTRY_ADDRESS,
-    data: registerData,
+  const { transactionIds: registerIds } = await sendSponsoredTransaction({
+    chainId: CELO_CHAIN_ID,
+    from: registrarAddress,
+    transactions: [{ to: IDENTITY_REGISTRY_ADDRESS, data: registerData }],
   });
 
+  const registerHash = await waitForTransactionHash(registerIds[0]);
   emitProgress(userWalletAddress, 'registering_8004', 'Waiting for registration confirmation...', { txHash: registerHash });
 
   const registerReceipt = await celoClient.waitForTransactionReceipt({ hash: registerHash });
@@ -85,21 +85,20 @@ export async function registerAgentOnChain(params: {
     throw new Error(`No Registered event found in tx ${registerHash}`);
   }
 
-  const agentId = (logs[0] as any).args.agentId as bigint;
+  const agentId = (logs[0] as { args: { agentId: bigint } }).args.agentId;
   console.log(`[8004] Agent registered: id=${agentId}, tx=${registerHash}`);
 
   // Step 3: Get EIP-712 signature from server wallet for setAgentWallet
   emitProgress(userWalletAddress, 'linking_wallet', `Agent #${agentId} registered! Linking server wallet...`, { agentId: Number(agentId), txHash: registerHash });
 
-  const ownerAddress = adminClient.account.address;
   const { signature, deadline } = await prepareAgentWalletLink(
     serverWalletId,
     serverWalletAddress,
     agentId,
-    ownerAddress,
+    registrarAddress,
   );
 
-  // Step 4: setAgentWallet(agentId, serverWallet, deadline, signature)
+  // Step 4: setAgentWallet(agentId, serverWallet, deadline, signature) — gasless
   console.log(`[8004] Linking server wallet ${serverWalletAddress} to agent ${agentId}`);
   const linkData = encodeFunctionData({
     abi: identityRegistryAbi,
@@ -107,11 +106,13 @@ export async function registerAgentOnChain(params: {
     args: [agentId, serverWalletAddress as Address, deadline, signature],
   });
 
-  const linkHash = await adminClient.sendTransaction({
-    to: IDENTITY_REGISTRY_ADDRESS,
-    data: linkData,
+  const { transactionIds: linkIds } = await sendSponsoredTransaction({
+    chainId: CELO_CHAIN_ID,
+    from: registrarAddress,
+    transactions: [{ to: IDENTITY_REGISTRY_ADDRESS, data: linkData }],
   });
 
+  const linkHash = await waitForTransactionHash(linkIds[0]);
   emitProgress(userWalletAddress, 'linking_wallet', 'Waiting for wallet link confirmation...', { agentId: Number(agentId), txHash: linkHash });
 
   const linkReceipt = await celoClient.waitForTransactionReceipt({ hash: linkHash });
@@ -127,42 +128,41 @@ export async function registerAgentOnChain(params: {
 
 /**
  * Sign EIP-712 typed data with the server wallet to authorize linking
- * the wallet to an ERC-8004 agent identity. The frontend will submit
- * the signature to the on-chain IdentityRegistry.setAgentWallet().
+ * the wallet to an ERC-8004 agent identity. Uses thirdweb signTypedData.
  */
 export async function prepareAgentWalletLink(
-  serverWalletId: string,
+  _serverWalletId: string,
   serverWalletAddress: string,
   agentId: bigint,
   ownerAddress: string,
 ): Promise<{ signature: `0x${string}`; deadline: bigint; serverWalletAddress: string }> {
-  const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
-
-  // Get current block timestamp and set a 290-second deadline
   const block = await celoClient.getBlock();
   const deadline = block.timestamp + 290n;
 
-  const signature = await walletClient.signTypedData({
-    domain: {
-      name: 'ERC8004IdentityRegistry',
-      version: '1',
-      chainId: 42220,
-      verifyingContract: IDENTITY_REGISTRY_ADDRESS,
-    },
-    types: {
-      AgentWalletSet: [
-        { name: 'agentId', type: 'uint256' },
-        { name: 'newWallet', type: 'address' },
-        { name: 'owner', type: 'address' },
-        { name: 'deadline', type: 'uint256' },
-      ],
-    },
-    primaryType: 'AgentWalletSet',
-    message: {
-      agentId,
-      newWallet: serverWalletAddress as Address,
-      owner: ownerAddress as Address,
-      deadline,
+  const signature = await signTypedData({
+    from: serverWalletAddress,
+    typedData: {
+      domain: {
+        name: 'ERC8004IdentityRegistry',
+        version: '1',
+        chainId: 42220,
+        verifyingContract: IDENTITY_REGISTRY_ADDRESS,
+      },
+      types: {
+        AgentWalletSet: [
+          { name: 'agentId', type: 'uint256' },
+          { name: 'newWallet', type: 'address' },
+          { name: 'owner', type: 'address' },
+          { name: 'deadline', type: 'uint256' },
+        ],
+      },
+      primaryType: 'AgentWalletSet',
+      message: {
+        agentId,
+        newWallet: serverWalletAddress as Address,
+        owner: ownerAddress as Address,
+        deadline,
+      },
     },
   });
 
@@ -171,7 +171,7 @@ export async function prepareAgentWalletLink(
 
 /**
  * Submit trade feedback to the ERC-8004 ReputationRegistry.
- * Called after each successful trade execution to build on-chain reputation.
+ * Called after each successful trade execution. Gasless via thirdweb.
  */
 export async function submitTradeFeedback(params: {
   serverWalletId: string;
@@ -182,9 +182,7 @@ export async function submitTradeFeedback(params: {
   direction: string;
   tradeTxHash: string;
 }): Promise<string> {
-  const { serverWalletId, serverWalletAddress, agentId, reasoning, currency, direction, tradeTxHash } = params;
-
-  const walletClient = await getAgentWalletClient(serverWalletId, serverWalletAddress);
+  const { serverWalletAddress, agentId, reasoning, currency, direction, tradeTxHash } = params;
 
   const feedbackURI = `reasoning: ${reasoning} | tx: ${tradeTxHash}`;
   console.log(`[8004] Submitting reputation feedback: agent=${agentId}, score=100, ${currency} ${direction}`);
@@ -198,19 +196,19 @@ export async function submitTradeFeedback(params: {
       0,
       currency,
       direction,
-      'https://autoclaw.xyz',
+      'https://autoclaw.co',
       feedbackURI,
       ZERO_BYTES32,
     ],
   });
 
-  const hash = await walletClient.sendTransaction({
-    to: REPUTATION_REGISTRY_ADDRESS,
-    data,
-    chain: walletClient.chain,
-    feeCurrency: USDM_ADDRESS,
+  const { transactionIds } = await sendSponsoredTransaction({
+    chainId: CELO_CHAIN_ID,
+    from: serverWalletAddress,
+    transactions: [{ to: REPUTATION_REGISTRY_ADDRESS, data }],
   });
 
+  const hash = await waitForTransactionHash(transactionIds[0]);
   const receipt = await celoClient.waitForTransactionReceipt({ hash });
   if (receipt.status === 'reverted') {
     throw new Error(`Reputation feedback reverted (tx: ${hash})`);

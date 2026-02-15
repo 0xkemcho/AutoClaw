@@ -46,6 +46,7 @@ interface PortfolioCardProps {
   isLoading: boolean;
   serverWalletAddress: string | null;
   marketTokens?: TokenInfo[];
+  agentType?: 'fx' | 'yield';
 }
 
 /* ------------------------------------------------------------------ */
@@ -136,6 +137,7 @@ export function PortfolioCard({
   isLoading,
   serverWalletAddress,
   marketTokens,
+  agentType = 'fx',
 }: PortfolioCardProps) {
   const [copied, setCopied] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
@@ -266,6 +268,7 @@ export function PortfolioCard({
             open={sendOpen}
             onOpenChange={setSendOpen}
             holdings={holdings}
+            agentType={agentType}
           />
         </CardContent>
       </Card>
@@ -376,6 +379,7 @@ export function PortfolioCard({
           open={sendOpen}
           onOpenChange={setSendOpen}
           holdings={holdings}
+          agentType={agentType}
         />
       </CardContent>
     </Card>
