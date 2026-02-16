@@ -1,7 +1,7 @@
 import { encodeFunctionData, type Address } from 'viem';
-import { brokerAbi } from './abis/broker';
-import { BIPOOL_MANAGER_ADDRESS, BROKER_ADDRESS } from './addresses';
-import type { ExchangeRoute } from './exchanges';
+import { brokerAbi } from './abis/broker.js';
+import { BIPOOL_MANAGER_ADDRESS, BROKER_ADDRESS } from './addresses.js';
+import type { ExchangeRoute } from './exchanges.js';
 
 export interface SwapTxData {
   to: Address;

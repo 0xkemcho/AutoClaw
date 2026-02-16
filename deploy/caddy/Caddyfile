@@ -1,0 +1,3 @@
+backend.autoclaw.co {
+    reverse_proxy localhost:4000
+}

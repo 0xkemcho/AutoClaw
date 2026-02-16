@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { thirdwebAuth } from '../lib/thirdweb';
-import { authMiddleware } from '../middleware/auth';
+import { thirdwebAuth } from '../lib/thirdweb.js';
+import { authMiddleware } from '../middleware/auth.js';
 import { createSupabaseAdmin } from '@autoclaw/db';
 
 const supabaseAdmin = createSupabaseAdmin(

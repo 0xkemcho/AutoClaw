@@ -1,7 +1,7 @@
 import { type Address } from 'viem';
 import { createSupabaseAdmin } from '@autoclaw/db';
-import { IchiVaultAdapter } from './vault-adapters/ichi';
-import { celoClient } from '../lib/celo-client';
+import { IchiVaultAdapter } from './vault-adapters/ichi.js';
+import { celoClient } from '../lib/celo-client.js';
 import type { PublicClient } from 'viem';
 import type { YieldOpportunity } from '@autoclaw/shared';
 

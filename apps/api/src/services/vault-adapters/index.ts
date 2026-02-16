@@ -1,2 +1,2 @@
-export type { VaultAdapter, VaultInfo, VaultPosition, DepositParams, WithdrawParams, TxResult } from './types';
-export { IchiVaultAdapter } from './ichi';
+export type { VaultAdapter, VaultInfo, VaultPosition, DepositParams, WithdrawParams, TxResult } from './types.js';
+export { IchiVaultAdapter } from './ichi.js';

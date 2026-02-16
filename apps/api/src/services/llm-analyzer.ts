@@ -1,7 +1,7 @@
 import { generateText, Output } from 'ai';
 import { createGeminiProvider } from 'ai-sdk-provider-gemini-cli';
 import { z } from 'zod';
-import type { NewsArticle } from './news-fetcher';
+import type { NewsArticle } from './news-fetcher.js';
 
 const gemini = createGeminiProvider({
   authType: (process.env.GEMINI_CLI_AUTH_TYPE as 'oauth-personal') || 'oauth-personal',

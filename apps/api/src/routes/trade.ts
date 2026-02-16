@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { parseUnits, formatUnits, type Address, type PublicClient } from 'viem';
-import { authMiddleware } from '../middleware/auth';
-import { celoClient } from '../lib/celo-client';
+import { authMiddleware } from '../middleware/auth.js';
+import { celoClient } from '../lib/celo-client.js';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 // Force cache bust for Vercel build
 import {
@@ -23,7 +23,7 @@ import {
   TOKEN_METADATA,
   type SupportedToken,
 } from '@autoclaw/shared';
-import { executeSwap, sendTokens } from '../services/trade-executor';
+import { executeSwap, sendTokens } from '../services/trade-executor.js';
 
 const supabaseAdmin = createSupabaseAdmin(
   process.env.SUPABASE_URL!,

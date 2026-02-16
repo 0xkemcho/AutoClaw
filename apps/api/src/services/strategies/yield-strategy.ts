@@ -2,12 +2,12 @@ import type { GuardrailCheck } from '@autoclaw/shared';
 import type { YieldOpportunity, YieldSignal, YieldGuardrails, DEFAULT_YIELD_GUARDRAILS } from '@autoclaw/shared';
 import { USDC_CELO_ADDRESS } from '@autoclaw/shared';
 import { findRoute } from '@autoclaw/contracts';
-import { fetchYieldOpportunities, fetchClaimableRewards } from '../merkl-client';
-import { analyzeYieldOpportunities } from '../yield-analyzer';
-import { executeYieldDeposit, executeYieldWithdraw } from '../yield-executor';
-import { checkYieldGuardrails } from '../yield-guardrails';
-import { IchiVaultAdapter } from '../vault-adapters/ichi';
-import { celoClient } from '../../lib/celo-client';
+import { fetchYieldOpportunities, fetchClaimableRewards } from '../merkl-client.js';
+import { analyzeYieldOpportunities } from '../yield-analyzer.js';
+import { executeYieldDeposit, executeYieldWithdraw } from '../yield-executor.js';
+import { checkYieldGuardrails } from '../yield-guardrails.js';
+import { IchiVaultAdapter } from '../vault-adapters/ichi.js';
+import { celoClient } from '../../lib/celo-client.js';
 import type { Address } from 'viem';
 import type { PublicClient } from 'viem';
 import type {
@@ -18,7 +18,7 @@ import type {
   ExecutionResult,
   WalletContext,
   GuardrailContext,
-} from './types';
+} from './types.js';
 
 interface YieldData {
   opportunities: YieldOpportunity[];

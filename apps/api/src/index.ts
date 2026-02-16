@@ -2,15 +2,15 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
-import { authRoutes } from './routes/auth';
-import { userRoutes } from './routes/user';
-import { marketRoutes } from './routes/market';
-import { tradeRoutes } from './routes/trade';
-import { agentRoutes } from './routes/agent';
-import { wsRoutes } from './routes/ws';
-import { yieldAgentRoutes } from './routes/yield-agent';
-import { startPriceSnapshotCron } from './services/snapshot-cron';
-import { startAgentCron } from './services/agent-cron';
+import { authRoutes } from './routes/auth.js';
+import { userRoutes } from './routes/user.js';
+import { marketRoutes } from './routes/market.js';
+import { tradeRoutes } from './routes/trade.js';
+import { agentRoutes } from './routes/agent.js';
+import { wsRoutes } from './routes/ws.js';
+import { yieldAgentRoutes } from './routes/yield-agent.js';
+import { startPriceSnapshotCron } from './services/snapshot-cron.js';
+import { startAgentCron } from './services/agent-cron.js';
 
 const PORT = parseInt(process.env.PORT || '4000', 10);
 

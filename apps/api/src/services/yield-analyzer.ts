@@ -2,7 +2,7 @@ import { streamText, Output } from 'ai';
 import { createGeminiProvider } from 'ai-sdk-provider-gemini-cli';
 import { z } from 'zod';
 import type { YieldOpportunity, YieldSignal, YieldAnalysisResult, YieldGuardrails, ProgressReasoningData } from '@autoclaw/shared';
-import { emitProgress } from './agent-events';
+import { emitProgress } from './agent-events.js';
 
 const gemini = createGeminiProvider({
   authType: (process.env.GEMINI_CLI_AUTH_TYPE as 'oauth-personal') || 'oauth-personal',

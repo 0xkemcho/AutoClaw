@@ -5,14 +5,14 @@ import {
   IDENTITY_REGISTRY_ADDRESS,
   REPUTATION_REGISTRY_ADDRESS,
 } from '@autoclaw/contracts';
-import { celoClient } from '../lib/celo-client';
+import { celoClient } from '../lib/celo-client.js';
 import {
   createServerWallet,
   sendSponsoredTransaction,
   signTypedData,
   waitForTransactionHash,
-} from '../lib/thirdweb-wallet';
-import { emitProgress } from './agent-events';
+} from '../lib/thirdweb-wallet.js';
+import { emitProgress } from './agent-events.js';
 
 const ZERO_BYTES32 = ('0x' + '0'.repeat(64)) as `0x${string}`;
 const CELO_CHAIN_ID = 42220;

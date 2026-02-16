@@ -3,19 +3,19 @@ import { type Address, formatUnits } from 'viem';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import { parseFrequencyToMs, type AgentFrequency, type ProgressStep, ALL_TOKEN_ADDRESSES, TOKEN_METADATA } from '@autoclaw/shared';
 import { getErc20Balance } from '@autoclaw/contracts';
-import { getPositions, calculatePortfolioValue, updatePositionAfterTrade } from './position-tracker';
+import { getPositions, calculatePortfolioValue, updatePositionAfterTrade } from './position-tracker.js';
 import {
   upsertYieldPositionAfterDeposit,
   clearYieldPositionAfterWithdraw,
   syncYieldPositionsFromChain,
-} from './yield-position-tracker';
-import { calculateTradeAmount } from './rules-engine';
-import { emitProgress } from './agent-events';
-import { submitTradeFeedback } from './agent-registry';
-import { getStrategy } from './strategies';
-import type { WalletBalance } from './strategies/types';
-import { celoClient } from '../lib/celo-client';
-import { formatExecutionError } from '../lib/format-error';
+} from './yield-position-tracker.js';
+import { calculateTradeAmount } from './rules-engine.js';
+import { emitProgress } from './agent-events.js';
+import { submitTradeFeedback } from './agent-registry.js';
+import { getStrategy } from './strategies/index.js';
+import type { WalletBalance } from './strategies/types.js';
+import { celoClient } from '../lib/celo-client.js';
+import { formatExecutionError } from '../lib/format-error.js';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 type TimelineInsert = Database['public']['Tables']['agent_timeline']['Insert'];

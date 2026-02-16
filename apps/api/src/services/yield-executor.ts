@@ -12,12 +12,12 @@ import {
 } from '@autoclaw/contracts';
 import { USDC_CELO_ADDRESS, USDT_CELO_ADDRESS } from '@autoclaw/shared';
 import type { YieldExecutionResult } from '@autoclaw/shared';
-import { IchiVaultAdapter } from './vault-adapters/ichi';
-import { celoClient } from '../lib/celo-client';
+import { IchiVaultAdapter } from './vault-adapters/ichi.js';
+import { celoClient } from '../lib/celo-client.js';
 import {
   createServerWalletClient,
   sendTransactionFromServerWallet,
-} from '../lib/thirdweb-wallet';
+} from '../lib/thirdweb-wallet.js';
 
 const DEFAULT_SLIPPAGE_PCT = 0.5;
 const ichiAdapter = new IchiVaultAdapter();

@@ -1,10 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware } from '../middleware/auth.js';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import { frequencyToMs, parseFrequencyToMs, type AgentFrequency, MENTO_TOKENS, COMMODITY_TOKENS } from '@autoclaw/shared';
-import { runAgentCycle } from '../services/agent-cron';
-import { getWalletBalances } from '../services/dune-balances';
-import { prepareAgentWalletLink, getAgentReputation, registerAgentOnChain } from '../services/agent-registry';
+import { runAgentCycle } from '../services/agent-cron.js';
+import { getWalletBalances } from '../services/dune-balances.js';
+import { prepareAgentWalletLink, getAgentReputation, registerAgentOnChain } from '../services/agent-registry.js';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 type AgentTimelineRow = Database['public']['Tables']['agent_timeline']['Row'];

@@ -1,21 +1,21 @@
 import type { FastifyInstance } from 'fastify';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware } from '../middleware/auth.js';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import { frequencyToMs, parseFrequencyToMs, DEFAULT_YIELD_GUARDRAILS, type RiskProfile } from '@autoclaw/shared';
-import { runAgentCycle } from '../services/agent-cron';
-import { fetchYieldOpportunities, fetchClaimableRewards } from '../services/merkl-client';
-import { getWalletBalances } from '../services/dune-balances';
-import { executeYieldWithdraw } from '../services/yield-executor';
+import { runAgentCycle } from '../services/agent-cron.js';
+import { fetchYieldOpportunities, fetchClaimableRewards } from '../services/merkl-client.js';
+import { getWalletBalances } from '../services/dune-balances.js';
+import { executeYieldWithdraw } from '../services/yield-executor.js';
 import {
   clearYieldPositionAfterWithdraw,
   fullSyncYieldPositionsFromChain,
   syncYieldPositionsFromChain,
-} from '../services/yield-position-tracker';
-import { convertWalletToUsdc } from '../services/convert-to-usdc';
-import { IchiVaultAdapter } from '../services/vault-adapters/ichi';
-import { celoClient } from '../lib/celo-client';
-import { createServerWallet } from '../lib/thirdweb-wallet';
-import { registerAgentOnChain } from '../services/agent-registry';
+} from '../services/yield-position-tracker.js';
+import { convertWalletToUsdc } from '../services/convert-to-usdc.js';
+import { IchiVaultAdapter } from '../services/vault-adapters/ichi.js';
+import { celoClient } from '../lib/celo-client.js';
+import { createServerWallet } from '../lib/thirdweb-wallet.js';
+import { registerAgentOnChain } from '../services/agent-registry.js';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 type AgentTimelineRow = Database['public']['Tables']['agent_timeline']['Row'];

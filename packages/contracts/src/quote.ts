@@ -1,7 +1,7 @@
 import { formatUnits, type Address, type PublicClient } from 'viem';
-import { brokerAbi } from './abis/broker';
-import { BIPOOL_MANAGER_ADDRESS, BROKER_ADDRESS } from './addresses';
-import { findRoute, type ExchangeRoute } from './exchanges';
+import { brokerAbi } from './abis/broker.js';
+import { BIPOOL_MANAGER_ADDRESS, BROKER_ADDRESS } from './addresses.js';
+import { findRoute, type ExchangeRoute } from './exchanges.js';
 
 export interface QuoteResult {
   amountOut: bigint;

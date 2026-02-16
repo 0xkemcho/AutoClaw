@@ -1,10 +1,10 @@
-export type { AgentStrategy, AgentConfigRow, StrategyContext, WalletBalance, StrategyAnalysisResult, ExecutionResult, WalletContext, GuardrailContext } from './types';
-export { FxStrategy } from './fx-strategy';
-export { YieldStrategy } from './yield-strategy';
+export type { AgentStrategy, AgentConfigRow, StrategyContext, WalletBalance, StrategyAnalysisResult, ExecutionResult, WalletContext, GuardrailContext } from './types.js';
+export { FxStrategy } from './fx-strategy.js';
+export { YieldStrategy } from './yield-strategy.js';
 
-import type { AgentStrategy } from './types';
-import { FxStrategy } from './fx-strategy';
-import { YieldStrategy } from './yield-strategy';
+import type { AgentStrategy } from './types.js';
+import { FxStrategy } from './fx-strategy.js';
+import { YieldStrategy } from './yield-strategy.js';
 
 const strategies: Record<string, AgentStrategy> = {
   fx: new FxStrategy(),

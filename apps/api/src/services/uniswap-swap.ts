@@ -12,8 +12,8 @@ import {
   checkAllowance,
   buildApproveTx,
 } from '@autoclaw/contracts';
-import { celoClient } from '../lib/celo-client';
-import { sendTransactionFromServerWallet } from '../lib/thirdweb-wallet';
+import { celoClient } from '../lib/celo-client.js';
+import { sendTransactionFromServerWallet } from '../lib/thirdweb-wallet.js';
 
 const FEE_TIERS = [3000, 500, 10000] as const; // 0.3%, 0.05%, 1% - try most common first
 

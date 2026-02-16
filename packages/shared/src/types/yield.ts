@@ -1,4 +1,4 @@
-import type { RiskProfile } from './user';
+import type { RiskProfile } from './user.js';
 
 export interface YieldGuardrails {
   minAprThreshold: number;        // Don't enter vaults below X% APR

@@ -1,9 +1,9 @@
 import { type Address, erc20Abi } from 'viem';
-import { celoClient } from '../lib/celo-client';
+import { celoClient } from '../lib/celo-client.js';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import { MENTO_TOKEN_ADDRESSES, USDC_CELO_ADDRESS, USDT_CELO_ADDRESS } from '@autoclaw/shared';
-import { logTimeline } from './agent-cron';
-import { executeTrade } from './trade-executor';
+import { logTimeline } from './agent-cron.js';
+import { executeTrade } from './trade-executor.js';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 

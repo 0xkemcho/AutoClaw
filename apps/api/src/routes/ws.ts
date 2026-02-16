@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { thirdwebAuth } from '../lib/thirdweb';
-import { agentEvents, type ProgressEvent } from '../services/agent-events';
+import { thirdwebAuth } from '../lib/thirdweb.js';
+import { agentEvents, type ProgressEvent } from '../services/agent-events.js';
 
 export async function wsRoutes(app: FastifyInstance) {
   app.get('/api/ws', { websocket: true }, (socket) => {

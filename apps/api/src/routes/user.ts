@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware } from '../middleware/auth.js';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
-import { computeRiskScore, scoreToProfile } from '../lib/risk-scoring';
-import { createServerWallet } from '../lib/thirdweb-wallet';
+import { computeRiskScore, scoreToProfile } from '../lib/risk-scoring.js';
+import { createServerWallet } from '../lib/thirdweb-wallet.js';
 import { DEFAULT_GUARDRAILS, type RiskAnswers, type RiskProfile } from '@autoclaw/shared';
 
 const supabaseAdmin = createSupabaseAdmin(

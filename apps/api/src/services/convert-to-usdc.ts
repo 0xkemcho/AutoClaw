@@ -9,13 +9,13 @@ import {
   USDC_CELO_ADDRESS,
 } from '@autoclaw/shared';
 import { findRoute, applySlippage } from '@autoclaw/contracts';
-import { getWalletBalances } from './dune-balances';
-import { executeSwap } from './trade-executor';
+import { getWalletBalances } from './dune-balances.js';
+import { executeSwap } from './trade-executor.js';
 import {
   getUniswapQuote,
   executeUniswapSwap,
-} from './uniswap-swap';
-import { celoClient } from '../lib/celo-client';
+} from './uniswap-swap.js';
+import { celoClient } from '../lib/celo-client.js';
 
 const CONVERT_EXTRA_TOKENS = ['WETH', 'WBTC', 'CELO', 'stCELO'] as const;
 const UNISWAP_FALLBACK_TOKENS = new Set<string>(CONVERT_EXTRA_TOKENS);

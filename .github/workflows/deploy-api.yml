@@ -1,0 +1,33 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            set -e
+            cd /opt/autoclaw
+            git fetch origin main
+            git reset --hard origin/main
+            pnpm install --frozen-lockfile
+            pnpm --filter @autoclaw/api build
+            pm2 restart autoclaw-api --update-env || pm2 start dist/index.js --name autoclaw-api --cwd /opt/autoclaw/apps/api
+            pm2 save

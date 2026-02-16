@@ -12,7 +12,7 @@ import type {
 	VaultInfo,
 	VaultPosition,
 	WithdrawParams,
-} from "./types";
+} from "./types.js";
 
 const HYSTERESIS_MAX_RETRIES = 3;
 const HYSTERESIS_RETRY_DELAY_MS = 10_000;

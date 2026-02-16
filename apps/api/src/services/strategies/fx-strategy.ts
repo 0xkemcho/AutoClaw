@@ -1,9 +1,9 @@
 import type { GuardrailCheck } from '@autoclaw/shared';
 import { MENTO_TOKENS, DEFAULT_GUARDRAILS } from '@autoclaw/shared';
-import { fetchFxNews } from '../news-fetcher';
-import { analyzeFxNews } from '../llm-analyzer';
-import { executeTrade } from '../trade-executor';
-import { checkGuardrails, calculateTradeAmount } from '../rules-engine';
+import { fetchFxNews } from '../news-fetcher.js';
+import { analyzeFxNews } from '../llm-analyzer.js';
+import { executeTrade } from '../trade-executor.js';
+import { checkGuardrails, calculateTradeAmount } from '../rules-engine.js';
 import type {
   AgentStrategy,
   AgentConfigRow,
@@ -12,7 +12,7 @@ import type {
   ExecutionResult,
   WalletContext,
   GuardrailContext,
-} from './types';
+} from './types.js';
 
 interface FxSignal {
   currency: string;

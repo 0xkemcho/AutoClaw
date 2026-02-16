@@ -12,8 +12,8 @@ import {
   erc20Abi,
 } from '@autoclaw/contracts';
 import { getTokenAddress, getTokenDecimals, USDC_CELO_ADDRESS, USDT_CELO_ADDRESS } from '@autoclaw/shared';
-import { celoClient } from '../lib/celo-client';
-import { sendTransactionFromServerWallet } from '../lib/thirdweb-wallet';
+import { celoClient } from '../lib/celo-client.js';
+import { sendTransactionFromServerWallet } from '../lib/thirdweb-wallet.js';
 
 // Stable base tokens the wallet might hold, in priority order.
 // The first one with sufficient balance is used as the source for buys.

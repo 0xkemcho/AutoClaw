@@ -1,11 +1,11 @@
-export { brokerAbi } from './abis/broker';
-export { biPoolManagerAbi } from './abis/bipool-manager';
-export { erc20Abi } from './abis/erc20';
-export { quoterV2Abi, swapRouter02Abi } from './abis/uniswap';
-export { identityRegistryAbi } from './abis/identity-registry';
-export { reputationRegistryAbi } from './abis/reputation-registry';
-export { ichiVaultAbi } from './abis/ichi-vault';
-export { merklDistributorAbi } from './abis/merkl-distributor';
+export { brokerAbi } from './abis/broker.js';
+export { biPoolManagerAbi } from './abis/bipool-manager.js';
+export { erc20Abi } from './abis/erc20.js';
+export { quoterV2Abi, swapRouter02Abi } from './abis/uniswap.js';
+export { identityRegistryAbi } from './abis/identity-registry.js';
+export { reputationRegistryAbi } from './abis/reputation-registry.js';
+export { ichiVaultAbi } from './abis/ichi-vault.js';
+export { merklDistributorAbi } from './abis/merkl-distributor.js';
 
 export {
   BROKER_ADDRESS,
@@ -21,15 +21,15 @@ export {
   ICHI_USDT_WETH_VAULT,
   UNISWAP_QUOTER_V2,
   UNISWAP_SWAP_ROUTER_02,
-} from './addresses';
+} from './addresses.js';
 
-export { getRoutes, findRoute, clearRouteCache } from './exchanges';
-export type { ExchangeRoute } from './exchanges';
+export { getRoutes, findRoute, clearRouteCache } from './exchanges.js';
+export type { ExchangeRoute } from './exchanges.js';
 
-export { getQuote } from './quote';
-export type { QuoteResult } from './quote';
+export { getQuote } from './quote.js';
+export type { QuoteResult } from './quote.js';
 
-export { checkAllowance, buildApproveTx, getErc20Balance } from './allowance';
+export { checkAllowance, buildApproveTx, getErc20Balance } from './allowance.js';
 
-export { buildSwapInTx, buildSwapInTxs, applySlippage } from './swap';
-export type { SwapTxData } from './swap';
+export { buildSwapInTx, buildSwapInTxs, applySlippage } from './swap.js';
+export type { SwapTxData } from './swap.js';

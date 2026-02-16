@@ -1,5 +1,5 @@
 import { createSupabaseAdmin } from '@autoclaw/db';
-import { fetchAllPrices } from './price-service';
+import { fetchAllPrices } from './price-service.js';
 
 const supabaseAdmin = createSupabaseAdmin(
   process.env.SUPABASE_URL!,

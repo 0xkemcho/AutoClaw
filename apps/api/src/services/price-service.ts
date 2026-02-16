@@ -1,5 +1,5 @@
 import { parseUnits, formatUnits, type Address } from 'viem';
-import { celoClient } from '../lib/celo-client';
+import { celoClient } from '../lib/celo-client.js';
 import {
   MENTO_TOKENS,
   MENTO_TOKEN_ADDRESSES,

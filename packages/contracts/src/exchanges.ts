@@ -1,6 +1,6 @@
 import type { Address, PublicClient } from 'viem';
-import { biPoolManagerAbi } from './abis/bipool-manager';
-import { BIPOOL_MANAGER_ADDRESS, CELO_ADDRESS, USDM_ADDRESS } from './addresses';
+import { biPoolManagerAbi } from './abis/bipool-manager.js';
+import { BIPOOL_MANAGER_ADDRESS, CELO_ADDRESS, USDM_ADDRESS } from './addresses.js';
 
 export interface ExchangeRoute {
   exchangeId: `0x${string}`;

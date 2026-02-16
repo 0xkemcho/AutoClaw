@@ -5,8 +5,8 @@ import {
   type TokenInfo,
   type SupportedToken,
 } from '@autoclaw/shared';
-import { priceCache, PRICE_CACHE_TTL_MS } from '../lib/cache';
-import { fetchAllPrices } from './price-service';
+import { priceCache, PRICE_CACHE_TTL_MS } from '../lib/cache.js';
+import { fetchAllPrices } from './price-service.js';
 
 const supabaseAdmin = createSupabaseAdmin(
   process.env.SUPABASE_URL!,

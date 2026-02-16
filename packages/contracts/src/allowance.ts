@@ -4,8 +4,8 @@ import {
   type Address,
   type PublicClient,
 } from 'viem';
-import { erc20Abi } from './abis/erc20';
-import { MAX_UINT256 } from './addresses';
+import { erc20Abi } from './abis/erc20.js';
+import { MAX_UINT256 } from './addresses.js';
 
 /**
  * Minimal client interface for eth_call. Avoids viem's strict ReadContractParameters
