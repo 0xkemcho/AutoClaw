@@ -78,7 +78,8 @@ export async function executeYieldDeposit(params: {
         return {
           success: false,
           action: 'deposit',
-          error: `Insufficient balance: need $${amountUsd.toFixed(2)}. Wallet: ${walletStr}`,
+          vaultAddress,
+          error: `Insufficient stable balance: need $${amountUsd.toFixed(2)} in USDC, USDT, or USDm. Wallet: ${walletStr}`,
         };
       }
 
@@ -94,7 +95,7 @@ export async function executeYieldDeposit(params: {
           success: false,
           action: 'deposit',
           vaultAddress,
-          error: `No swap route from ${sourceToken.symbol} to this vault's deposit token. This vault may require a token not available via Mento (e.g. USDF). Try a vault that accepts USDC or USDT directly.`,
+          error: `No swap route from ${sourceToken.symbol} to vault deposit token. This vault may require USDF or another token not on Mento. Use a vault that accepts USDC/USDT directly or has a Mento route.`,
         };
       }
 
@@ -166,7 +167,12 @@ export async function executeYieldDeposit(params: {
         });
         const swapReceipt = await celoClient.waitForTransactionReceipt({ hash: swapHash });
         if (swapReceipt.status === 'reverted') {
-          return { success: false, action: 'deposit', error: 'Swap reverted during deposit preparation' };
+          return {
+            success: false,
+            action: 'deposit',
+            vaultAddress,
+            error: `Swap reverted (tx: ${swapHash}). Likely slippage exceeded or insufficient liquidity. Try a smaller amount or different vault.`,
+          };
         }
       }
     }
@@ -179,10 +185,20 @@ export async function executeYieldDeposit(params: {
       args: [walletAddr],
     });
 
+    const amountToDeposit = actualBalance > depositAmount ? depositAmount : actualBalance;
+    if (amountToDeposit === 0n) {
+      return {
+        success: false,
+        action: 'deposit',
+        vaultAddress,
+        error: 'Post-swap deposit token balance is zero. Swap may have failed or produced insufficient output.',
+      };
+    }
+
     // 4. Deposit into vault
     const result = await ichiAdapter.deposit({
       vaultAddress,
-      amount: actualBalance > depositAmount ? depositAmount : actualBalance,
+      amount: amountToDeposit,
       depositor: walletAddr,
       walletClient,
       publicClient: celoClient as unknown as PublicClient,

@@ -17,7 +17,6 @@ import { FundingBanner } from '@/app/(app)/dashboard/_components/funding-banner'
 import { useYieldAgentStatus } from '@/hooks/use-yield-agent';
 import { usePortfolio } from '@/hooks/use-portfolio';
 import { useAgentProgress } from '@/hooks/use-agent-progress';
-import { ReasoningView } from '@/components/reasoning-view';
 import { cn } from '@/lib/utils';
 
 export function YieldAgentDashboard() {
@@ -108,20 +107,6 @@ export function YieldAgentDashboard() {
                     <YieldAgentControlCard />
                     <YieldPortfolioGuardrailsCard />
                 </div>
-
-                {/* Reasoning View */}
-                {progress.isRunning &&
-                    (progress.reasoning || progress.currentStep === 'analyzing_yields') && (
-                    <ReasoningView
-                    reasoning={progress.reasoning}
-                    isActive={progress.currentStep === 'analyzing_yields'}
-                    stageMessage={
-                        !progress.reasoning && progress.currentStep === 'analyzing_yields'
-                        ? progress.stepMessage
-                        : undefined
-                    }
-                    />
-                )}
 
                 {/* Live Feed & Activity */}
                 <div className="flex flex-col gap-6">

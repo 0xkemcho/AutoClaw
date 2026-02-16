@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api-client';
+import { usePathname } from 'next/navigation';
+import { api, ApiError } from '@/lib/api-client';
 import { useAuth } from '@/providers/auth-provider';
 
 interface Holding {
@@ -40,16 +41,41 @@ export const portfolioKeys = {
   positions: () => [...portfolioKeys.all, 'positions'] as const,
 };
 
+const EMPTY_PORTFOLIO: PortfolioResponse = {
+  totalValueUsd: 0,
+  totalPnl: null,
+  totalPnlPct: null,
+  holdings: [],
+};
+
+const YIELD_PAGE_SYNC_MS = 10_000;
+const DEFAULT_SYNC_MS = 30_000;
+
 export function usePortfolio(agentType: 'fx' | 'yield' = 'fx') {
   const { isAuthenticated } = useAuth();
+  const pathname = usePathname();
+  const onYieldPage = pathname?.startsWith('/yield-agent') ?? false;
+  const refetchInterval =
+    agentType === 'yield' && onYieldPage ? YIELD_PAGE_SYNC_MS : DEFAULT_SYNC_MS;
+
   return useQuery({
     queryKey: portfolioKeys.summary(agentType),
-    queryFn: () =>
-      api.get<PortfolioResponse>(
-        `/api/agent/portfolio?agent_type=${agentType}`,
-      ),
-    refetchInterval: 30_000,
+    queryFn: async () => {
+      try {
+        return await api.get<PortfolioResponse>(
+          `/api/agent/portfolio?agent_type=${agentType}`,
+        );
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          return EMPTY_PORTFOLIO;
+        }
+        throw err;
+      }
+    },
+    refetchInterval,
     enabled: isAuthenticated,
+    retry: (failureCount, error) =>
+      error instanceof ApiError && error.status === 404 ? false : failureCount < 2,
   });
 }
 

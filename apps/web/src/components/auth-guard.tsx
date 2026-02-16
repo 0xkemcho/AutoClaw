@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/providers/auth-provider';
 
 interface AuthGuardProps {
@@ -12,6 +12,7 @@ interface AuthGuardProps {
 export function AuthGuard({ children, requireOnboarded = true }: AuthGuardProps) {
   const { isAuthenticated, isLoading, isOnboarded } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (isLoading) return;
@@ -21,10 +22,10 @@ export function AuthGuard({ children, requireOnboarded = true }: AuthGuardProps)
       return;
     }
 
-    if (requireOnboarded && isOnboarded === false) {
-      router.replace('/onboarding');
+    if (requireOnboarded && isOnboarded === false && pathname !== '/overview') {
+      router.replace('/overview');
     }
-  }, [isAuthenticated, isLoading, isOnboarded, requireOnboarded, router]);
+  }, [isAuthenticated, isLoading, isOnboarded, requireOnboarded, router, pathname]);
 
   if (isLoading) {
     return (
@@ -34,7 +35,7 @@ export function AuthGuard({ children, requireOnboarded = true }: AuthGuardProps)
     );
   }
   if (!isAuthenticated) return null;
-  if (requireOnboarded && !isOnboarded) return null;
+  if (requireOnboarded && !isOnboarded && pathname !== '/overview') return null;
 
   return <>{children}</>;
 }

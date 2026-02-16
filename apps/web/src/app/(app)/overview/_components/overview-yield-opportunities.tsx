@@ -49,7 +49,7 @@ export function OverviewYieldOpportunities() {
 
   if (opportunities.length === 0) {
     return (
-      <Card className="border-border/50 bg-card shadow-sm dark:bg-[#18181b]">
+      <Card className="border-border/50 bg-card shadow-sm dark:bg-[#18181b] gap-0">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase text-muted-foreground">
             <Sprout className="size-4 text-primary" />
@@ -64,7 +64,7 @@ export function OverviewYieldOpportunities() {
   }
 
   return (
-    <Card className="border-border/50 bg-card shadow-sm dark:bg-[#18181b]">
+    <Card className="border-border/50 bg-card shadow-sm dark:bg-[#18181b] gap-0">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase text-muted-foreground">
           <Sprout className="size-4 text-primary" />

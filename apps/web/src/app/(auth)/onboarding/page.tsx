@@ -45,10 +45,10 @@ function OnboardingContent() {
   } | null>(null);
   const [lastAnswers, setLastAnswers] = useState<RiskAnswers | null>(null);
 
-  // If already onboarded and no specific agent requested, redirect to FX agent
+  // If already onboarded and no specific agent requested, redirect to overview
   useEffect(() => {
     if (isOnboarded && !preselectedAgent) {
-      router.replace('/fx-agent');
+      router.replace('/overview');
     }
   }, [isOnboarded, preselectedAgent, router]);
 
@@ -125,7 +125,7 @@ function OnboardingContent() {
     } catch {
       // Non-fatal
     }
-    router.push('/fx-agent');
+    router.push('/overview');
   }, [refreshSession, router]);
 
   // Called when registration completes (or is skipped) — marks onboarding done

@@ -1,7 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { usePathname } from 'next/navigation';
 import { api, ApiError } from '@/lib/api-client';
 import { useAuth } from '@/providers/auth-provider';
 import { portfolioKeys } from './use-portfolio';
+
+const YIELD_PAGE_SYNC_MS = 10_000;
 
 interface YieldAgentConfig {
   id: string;
@@ -104,10 +107,14 @@ export const yieldAgentKeys = {
 
 export function useYieldAgentStatus() {
   const { isAuthenticated } = useAuth();
+  const pathname = usePathname();
+  const onYieldPage = pathname?.startsWith('/yield-agent') ?? false;
+
   return useQuery({
     queryKey: yieldAgentKeys.status(),
     queryFn: () =>
       api.get<YieldAgentStatusResponse>('/api/yield-agent/status'),
+    refetchInterval: onYieldPage ? YIELD_PAGE_SYNC_MS : false,
     enabled: isAuthenticated,
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.status === 404) return false;
@@ -117,12 +124,28 @@ export function useYieldAgentStatus() {
 }
 
 export function useYieldPositions() {
+  const { isAuthenticated } = useAuth();
+  const pathname = usePathname();
+  const onYieldPage = pathname?.startsWith('/yield-agent') ?? false;
+
   return useQuery({
     queryKey: yieldAgentKeys.positions(),
-    queryFn: () =>
-      api.get<{ positions: YieldPositionResponse[] }>(
-        '/api/yield-agent/positions',
-      ),
+    queryFn: async () => {
+      try {
+        return await api.get<{ positions: YieldPositionResponse[] }>(
+          '/api/yield-agent/positions',
+        );
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          return { positions: [] };
+        }
+        throw err;
+      }
+    },
+    refetchInterval: onYieldPage ? YIELD_PAGE_SYNC_MS : false,
+    enabled: isAuthenticated,
+    retry: (failureCount, error) =>
+      error instanceof ApiError && error.status === 404 ? false : failureCount < 2,
   });
 }
 
@@ -148,6 +171,9 @@ export function useYieldRewards() {
 }
 
 export function useYieldTimeline(filters?: YieldTimelineFilters) {
+  const pathname = usePathname();
+  const onYieldPage = pathname?.startsWith('/yield-agent') ?? false;
+
   return useQuery({
     queryKey: yieldAgentKeys.timeline(filters),
     queryFn: () =>
@@ -158,6 +184,7 @@ export function useYieldTimeline(filters?: YieldTimelineFilters) {
           offset: filters?.offset,
         },
       }),
+    refetchInterval: onYieldPage ? YIELD_PAGE_SYNC_MS : false,
   });
 }
 

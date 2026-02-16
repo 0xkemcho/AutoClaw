@@ -1,6 +1,6 @@
 import type { GuardrailCheck } from '@autoclaw/shared';
 import type { YieldOpportunity, YieldSignal, YieldGuardrails, DEFAULT_YIELD_GUARDRAILS } from '@autoclaw/shared';
-import { USDC_CELO_ADDRESS } from '@autoclaw/shared';
+import { USDC_CELO_ADDRESS, ALL_TOKEN_ADDRESSES } from '@autoclaw/shared';
 import { findRoute } from '@autoclaw/contracts';
 import { fetchYieldOpportunities, fetchClaimableRewards } from '../merkl-client.js';
 import { analyzeYieldOpportunities } from '../yield-analyzer.js';
@@ -20,24 +20,38 @@ import type {
   GuardrailContext,
 } from './types.js';
 
+function getTokenSymbolByAddress(address: string): string {
+  const addr = address.toLowerCase();
+  for (const [symbol, a] of Object.entries(ALL_TOKEN_ADDRESSES)) {
+    if (a?.toLowerCase() === addr) return symbol;
+  }
+  return 'Unknown';
+}
+
+/** Enriched opportunity with swap-executability metadata for the analyzer */
+export interface YieldOpportunityWithSwapMeta extends YieldOpportunity {
+  depositTokenSymbol: string;
+  routeFromUSDC: boolean;
+}
+
 interface YieldData {
-  opportunities: YieldOpportunity[];
+  opportunities: YieldOpportunityWithSwapMeta[];
   claimableRewards: Array<{ token: { symbol: string; address: string }; claimableAmount: string }>;
 }
 
 const ichiAdapter = new IchiVaultAdapter();
 
 /**
- * Filter vault opportunities to only those where a swap route exists from USDC
- * to the vault's deposit token (via Mento). Excludes vaults that require USDF or
- * other tokens not in Mento.
+ * Filter vault opportunities to those where a swap route exists from USDC
+ * to the vault's deposit token (via Mento). Adds swap-executability metadata
+ * for each vault (deposit token symbol, routeFromUSDC).
  */
 async function filterVaultsByRouteAvailability(
   opportunities: YieldOpportunity[],
-): Promise<YieldOpportunity[]> {
+): Promise<YieldOpportunityWithSwapMeta[]> {
   const publicClient = celoClient as unknown as PublicClient;
   const results = await Promise.allSettled(
-    opportunities.map(async (opp) => {
+    opportunities.map(async (opp): Promise<YieldOpportunityWithSwapMeta | null> => {
       const vaultAddr = opp.vaultAddress as Address;
       if (!vaultAddr || !vaultAddr.startsWith('0x') || vaultAddr.length !== 42) {
         return null;
@@ -49,14 +63,22 @@ async function filterVaultsByRouteAvailability(
         depositToken,
         publicClient,
       );
-      return route && route.length > 0 ? opp : null;
+      if (!route || route.length === 0) return null;
+      const depositTokenSymbol = getTokenSymbolByAddress(depositToken);
+      return {
+        ...opp,
+        depositTokenSymbol,
+        routeFromUSDC: true,
+      };
     }),
   );
 
   return results
-    .filter((r): r is PromiseFulfilledResult<YieldOpportunity | null> => r.status === 'fulfilled')
+    .filter(
+      (r): r is PromiseFulfilledResult<YieldOpportunityWithSwapMeta | null> => r.status === 'fulfilled',
+    )
     .map((r) => r.value)
-    .filter((opp): opp is YieldOpportunity => opp !== null);
+    .filter((opp): opp is YieldOpportunityWithSwapMeta => opp !== null);
 }
 
 function getGuardrails(config: AgentConfigRow): YieldGuardrails {

@@ -13,17 +13,15 @@ import { FaqSection } from './_components/faq-section';
 import { CtaSection } from './_components/cta-section';
 
 export default function LandingPage() {
-  const { isAuthenticated, isLoading, isOnboarded } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (isLoading) return;
-    if (isAuthenticated && isOnboarded) {
-      router.replace('/fx-agent');
-    } else if (isAuthenticated && isOnboarded === false) {
-      router.replace('/onboarding');
+    if (isAuthenticated) {
+      router.replace('/overview');
     }
-  }, [isAuthenticated, isLoading, isOnboarded, router]);
+  }, [isAuthenticated, isLoading, router]);
 
   if (isLoading) return null;
   if (isAuthenticated) return null;

@@ -27,8 +27,14 @@ const YieldAnalysisSchema = z.object({
 
 export type { YieldAnalysisResult };
 
+/** Opportunity with optional swap-executability metadata from strategy layer */
+interface YieldOpportunityForAnalysis extends YieldOpportunity {
+  depositTokenSymbol?: string;
+  routeFromUSDC?: boolean;
+}
+
 interface YieldAnalysisInput {
-  opportunities: YieldOpportunity[];
+  opportunities: YieldOpportunityForAnalysis[];
   currentPositions: Array<{ vaultAddress: string; depositAmountUsd: number; currentApr: number | null }>;
   portfolioValueUsd: number;
   guardrails: YieldGuardrails;
@@ -193,6 +199,8 @@ export function buildYieldSystemPrompt(input: YieldAnalysisInput): string {
     '5. Never suggest more vaults than maxVaultCount',
     '6. Set confidence 0-100 based on data quality and risk assessment',
     '7. Only signals with confidence >= 60 will be acted upon',
+    '8. **Swap-then-deposit**: When a vault requires a token (e.g. USD₮, WETH) the wallet does not hold, if the opportunity has routeFromUSDC=true and the wallet has enough USDC, USDT, or USDm, recommend DEPOSIT (not hold). The system will swap the stable to the deposit token and then deposit. Only recommend hold for token mismatch when no swap route exists or stable balance is insufficient.',
+    '9. Never suggest swapping from volatile assets (WETH, WBTC, CELO, etc.) — only USDC, USDT, and USDm are used as swap sources.',
     customPrompt ? `\nUser instructions: ${customPrompt}` : '',
   ].join('\n');
 }
@@ -204,9 +212,13 @@ export function buildYieldAnalysisPrompt(input: YieldAnalysisInput): string {
     return 'No vault opportunities available. Return empty signals array and a brief strategy summary.';
   }
 
-  const vaultList = opportunities.slice(0, 20).map((o, i) =>
-    `${i + 1}. ${o.name} (${o.vaultAddress})\n   APR: ${o.apr.toFixed(1)}%, TVL: $${o.tvl.toLocaleString()}, Protocol: ${o.protocol}, Tokens: ${o.tokens.map(t => t.symbol).join('/')}`
-  ).join('\n');
+  const vaultList = opportunities.slice(0, 20).map((o, i) => {
+    const depositToken = (o as YieldOpportunityForAnalysis).depositTokenSymbol ?? 'see Tokens';
+    const swapNote = (o as YieldOpportunityForAnalysis).routeFromUSDC === true
+      ? ', swap-from-USDC: yes (system can swap USDC/USDT/USDm to deposit token)'
+      : '';
+    return `${i + 1}. ${o.name} (${o.vaultAddress})\n   APR: ${o.apr.toFixed(1)}%, TVL: $${o.tvl.toLocaleString()}, Protocol: ${o.protocol}, Tokens: ${o.tokens.map(t => t.symbol).join('/')}\n   Deposit token: ${depositToken}${swapNote}`;
+  }).join('\n');
 
   return `Analyze these ${Math.min(opportunities.length, 20)} vault opportunities and generate yield signals:\n\n${vaultList}`;
 }

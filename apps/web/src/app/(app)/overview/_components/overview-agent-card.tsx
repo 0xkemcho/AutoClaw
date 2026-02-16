@@ -17,12 +17,18 @@ import { formatUsd } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAgentStatus, useToggleAgent, useRunNow } from '@/hooks/use-agent';
-import { useYieldAgentStatus, useToggleYieldAgent, useRunYieldNow } from '@/hooks/use-yield-agent';
+import {
+  useYieldAgentStatus,
+  useYieldPositions,
+  useToggleYieldAgent,
+  useRunYieldNow,
+} from '@/hooks/use-yield-agent';
 import { usePortfolio } from '@/hooks/use-portfolio';
 import { useAgentReputation, useYieldReputation } from '@/hooks/use-reputation';
 import { useAgentProgress } from '@/hooks/use-agent-progress';
 
 const ERC8004_SCAN_BASE = 'https://www.8004scan.io/agents/celo';
+const isLpToken = (symbol: string) => /VAULT|LP|UNIV3/i.test(symbol);
 
 interface OverviewAgentCardProps {
   agentType: 'fx' | 'yield';
@@ -33,11 +39,13 @@ export function OverviewAgentCard({ agentType }: OverviewAgentCardProps) {
   const title = isFx ? 'FX Agent' : 'Yield Agent';
   const Icon = isFx ? Activity : Sprout;
   const href = isFx ? '/fx-agent' : '/yield-agent';
+  const onboardingHref = isFx ? '/onboarding?agent=fx' : '/onboarding?agent=yield';
 
   const { data: fxAgent, isLoading: fxStatusLoading } = useAgentStatus();
   const { data: yieldAgent, isLoading: yieldStatusLoading } = useYieldAgentStatus();
   const { data: fxPortfolio } = usePortfolio('fx');
   const { data: yieldPortfolio } = usePortfolio('yield');
+  const { data: yieldPositionsData } = useYieldPositions();
   const { isRunning } = useAgentProgress();
 
   const toggleFxMutation = useToggleAgent();
@@ -66,6 +74,41 @@ export function OverviewAgentCard({ agentType }: OverviewAgentCardProps) {
   const pnlColor = hasPnl ? (pnl >= 0 ? 'text-green-500' : 'text-red-500') : 'text-muted-foreground';
   const pnlBg = hasPnl ? (pnl >= 0 ? 'bg-green-500/10' : 'bg-red-500/10') : 'bg-muted/50';
   const pnlSign = hasPnl && pnl >= 0 ? '+' : hasPnl && pnl < 0 ? '' : '';
+
+  // Balance: FX = totalValueUsd; Yield = liquid holdings + vault positions
+  const balance =
+    isFx
+      ? (fxPortfolio?.totalValueUsd ?? 0)
+      : (yieldPortfolio?.holdings ?? [])
+          .filter((h) => !isLpToken(h.tokenSymbol))
+          .reduce((s, h) => s + (h.valueUsd || 0), 0) +
+        (yieldPositionsData?.positions ?? []).reduce(
+          (s, p) => s + Number(p.depositAmountUsd ?? 0),
+          0,
+        );
+
+  // Top positions: FX = holdings; Yield = holdings (non-LP) + vault positions
+  const topHoldings = isFx
+    ? (fxPortfolio?.holdings ?? []).filter((h) => (h.valueUsd || 0) > 0.01)
+    : (yieldPortfolio?.holdings ?? []).filter(
+        (h) => !isLpToken(h.tokenSymbol) && (h.valueUsd || 0) > 0.01,
+      );
+  const topVaultPositions =
+    !isFx && (yieldPositionsData?.positions ?? []).length > 0
+      ? (yieldPositionsData?.positions ?? [])
+          .filter((p) => Number(p.depositAmountUsd ?? 0) > 0.01)
+          .slice(0, 3)
+      : [];
+  const positionItems = [
+    ...topHoldings
+      .sort((a, b) => (b.valueUsd || 0) - (a.valueUsd || 0))
+      .slice(0, isFx ? 4 : 2)
+      .map((h) => ({ label: h.tokenSymbol, value: h.valueUsd || 0 })),
+    ...topVaultPositions.map((p) => ({
+      label: p.protocol || 'Vault',
+      value: Number(p.depositAmountUsd ?? 0),
+    })),
+  ];
 
   const [isActive, setIsActive] = useState(active);
   useEffect(() => {
@@ -120,7 +163,7 @@ export function OverviewAgentCard({ agentType }: OverviewAgentCardProps) {
           </div>
         </div>
         <Button variant="outline" size="sm" className="mt-4" asChild>
-          <Link href={href}>Set up {title}</Link>
+          <Link href={onboardingHref}>Start {title}</Link>
         </Button>
       </Card>
     );
@@ -157,6 +200,12 @@ export function OverviewAgentCard({ agentType }: OverviewAgentCardProps) {
       {/* Stats Grid */}
       <div className="mb-5 grid grid-cols-2 gap-4 rounded-lg bg-secondary/20 p-3">
         <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-medium uppercase text-muted-foreground">Balance</span>
+          <span className="font-mono text-lg font-semibold tabular-nums text-foreground">
+            {formatUsd(balance)}
+          </span>
+        </div>
+        <div className="flex flex-col gap-1">
           <span className="text-[10px] font-medium uppercase text-muted-foreground">24h PnL</span>
           <div className="flex items-baseline gap-1.5">
             {hasPnl ? (
@@ -175,7 +224,6 @@ export function OverviewAgentCard({ agentType }: OverviewAgentCardProps) {
             )}
           </div>
         </div>
-
         <div className="flex flex-col gap-1">
           <span className="text-[10px] font-medium uppercase text-muted-foreground">Identity</span>
           {agent8004Id ? (
@@ -198,7 +246,24 @@ export function OverviewAgentCard({ agentType }: OverviewAgentCardProps) {
             <span className="text-xs text-muted-foreground italic">Not registered</span>
           )}
         </div>
-      </div>
+        {positionItems.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-medium uppercase text-muted-foreground">Positions</span>
+            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+              {positionItems.map((item, i) => (
+                <span key={`${item.label}-${i}`} className="tabular-nums">
+                  {item.label}: {formatUsd(item.value)}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-medium uppercase text-muted-foreground">Positions</span>
+            <span className="text-xs text-muted-foreground italic">No positions</span>
+          </div>
+        )}
+        </div>
 
       {/* Footer Actions */}
       <div className="flex gap-2">

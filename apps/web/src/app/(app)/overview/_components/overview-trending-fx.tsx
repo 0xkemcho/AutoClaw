@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { TokenLogo } from '@/components/token-logo';
 import { formatUsd } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { SupportedToken } from '@autoclaw/shared';
+import type { SupportedToken } from '@autoclaw/shared';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { OverviewTrendingFxAnalysis } from '@/hooks/use-overview';
@@ -23,9 +23,12 @@ interface TrendingTokenDisplay {
   hasAnalysis: boolean;
 }
 
+const SENTIMENT_THRESHOLD = 0.3;
+
 function mergeMarketWithSignals(
   tokens: { symbol: SupportedToken; priceUsd: number; change24hPct: number }[],
   analysis: OverviewTrendingFxAnalysis | null,
+  tokenNews: Record<string, string> = {},
 ): TrendingTokenDisplay[] {
   const top5 = [...tokens]
     .sort((a, b) => Math.abs(b.change24hPct) - Math.abs(a.change24hPct))
@@ -41,23 +44,34 @@ function mergeMarketWithSignals(
 
   return top5.map((t) => {
     const signal = signalMap.get(t.symbol);
-    const direction = signal?.direction ?? 'hold';
-    const confidence = signal?.confidence ?? 50;
-    const reasoning = signal?.reasoning ?? '';
-
-    const sentiment: 'Positive' | 'Negative' | 'Neutral' =
-      confidence >= 70 ? 'Positive' : confidence <= 40 ? 'Negative' : 'Neutral';
-    const signalLabel: 'Buy' | 'Sell' | 'Hold' =
-      direction === 'buy' ? 'Buy' : direction === 'sell' ? 'Sell' : 'Hold';
-
     const hasAnalysis = !!signal;
-    const headline = hasAnalysis
-      ? (reasoning.length > 60 ? reasoning.slice(0, 60) + '...' : reasoning) ||
-        marketSummary.slice(0, 60)
-      : 'Market data';
-    const summary = hasAnalysis
-      ? reasoning || marketSummary
-      : 'Price and 24h change';
+
+    let sentiment: 'Positive' | 'Negative' | 'Neutral';
+    let signalLabel: 'Buy' | 'Sell' | 'Hold';
+    let headline: string;
+    let summary: string;
+
+    if (hasAnalysis && signal) {
+      const { direction, confidence, reasoning } = signal;
+      sentiment =
+        confidence >= 70 ? 'Positive' : confidence <= 40 ? 'Negative' : 'Neutral';
+      signalLabel =
+        direction === 'buy' ? 'Buy' : direction === 'sell' ? 'Sell' : 'Hold';
+      const reasonLine = (reasoning || marketSummary || '').trim();
+      headline =
+        reasonLine.length > 60 ? reasonLine.slice(0, 60) + '...' : reasonLine || 'Market analysis';
+      summary = reasonLine || marketSummary;
+    } else {
+      sentiment =
+        t.change24hPct > SENTIMENT_THRESHOLD
+          ? 'Positive'
+          : t.change24hPct < -SENTIMENT_THRESHOLD
+            ? 'Negative'
+            : 'Neutral';
+      signalLabel = 'Hold';
+      headline = (tokenNews[t.symbol] || '').trim();
+      summary = headline;
+    }
 
     return {
       symbol: t.symbol,
@@ -78,6 +92,7 @@ export function OverviewTrendingFx() {
   const tokens = useMemo(() => {
     const marketTokens = data?.tokens ?? [];
     const analysis = data?.analysis ?? null;
+    const tokenNews = data?.tokenNews ?? {};
     return mergeMarketWithSignals(
       marketTokens.map((t) => ({
         symbol: t.symbol,
@@ -85,8 +100,9 @@ export function OverviewTrendingFx() {
         change24hPct: t.change24hPct,
       })),
       analysis,
+      tokenNews,
     );
-  }, [data?.tokens, data?.analysis]);
+  }, [data?.tokens, data?.analysis, data?.tokenNews]);
 
   if (isLoading) {
     return (
@@ -111,7 +127,7 @@ export function OverviewTrendingFx() {
 
   if (tokens.length === 0) {
     return (
-      <Card className="border-border/50 bg-card shadow-sm dark:bg-[#18181b]">
+      <Card className="border-border/50 bg-card shadow-sm dark:bg-[#18181b] gap-0">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase text-muted-foreground">
             <TrendingUp className="size-4 text-primary" />
@@ -126,7 +142,7 @@ export function OverviewTrendingFx() {
   }
 
   return (
-    <Card className="border-border/50 bg-card shadow-sm dark:bg-[#18181b]">
+    <Card className="border-border/50 bg-card shadow-sm dark:bg-[#18181b] gap-0">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm font-medium uppercase text-muted-foreground">
           <TrendingUp className="size-4 text-primary" />
@@ -174,10 +190,21 @@ export function OverviewTrendingFx() {
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-sm font-semibold text-foreground">{token.headline}</div>
-                  <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                    {token.summary}
-                  </p>
+                  {token.headline ? (
+                    <>
+                      <div className="text-sm font-semibold text-foreground">
+                        {token.headline}
+                      </div>
+                      <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {token.summary}
+                      </p>
+                    </>
+                  ) : (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-4/5" shimmer />
+                      <Skeleton className="h-3 w-full" shimmer />
+                    </div>
+                  )}
                 </div>
               </div>
             );

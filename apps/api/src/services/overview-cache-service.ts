@@ -1,6 +1,7 @@
 import { createSupabaseAdmin } from '@autoclaw/db';
 import { getMarketTokens } from './market-data-service.js';
 import { fetchYieldOpportunities } from './merkl-client.js';
+import { fetchNewsForTokens, type TokenNewsResult } from './token-news-service.js';
 
 const supabaseAdmin = createSupabaseAdmin(
   process.env.SUPABASE_URL!,
@@ -18,6 +19,7 @@ interface CachedAnalysis {
 export async function getCachedTrendingFx(): Promise<{
   tokens: Awaited<ReturnType<typeof getMarketTokens>>;
   analysis: CachedAnalysis | null;
+  tokenNews: TokenNewsResult;
   updatedAt: string;
 }> {
   const cacheKey = 'trending_fx';
@@ -31,11 +33,26 @@ export async function getCachedTrendingFx(): Promise<{
     .maybeSingle();
 
   if (row?.payload && typeof row.payload === 'object' && 'tokens' in row.payload) {
-    return {
-      tokens: row.payload.tokens as Awaited<ReturnType<typeof getMarketTokens>>,
-      analysis: (row.payload.analysis as CachedAnalysis | null) ?? null,
-      updatedAt: row.cached_at,
-    };
+    const payload = row.payload as Record<string, unknown>;
+    const tokens = payload.tokens as Awaited<ReturnType<typeof getMarketTokens>>;
+    const tokenNews = (payload.tokenNews as TokenNewsResult) ?? {};
+
+    const top5Symbols = Array.isArray(tokens)
+      ? [...tokens]
+          .sort((a, b) => Math.abs(b.change24hPct) - Math.abs(a.change24hPct))
+          .slice(0, 5)
+          .map((t) => t.symbol)
+      : [];
+    const hasAnyNews = top5Symbols.some((s) => (tokenNews[s] ?? '').trim().length > 0);
+
+    if (hasAnyNews || top5Symbols.length === 0) {
+      return {
+        tokens,
+        analysis: (payload.analysis as CachedAnalysis | null) ?? null,
+        tokenNews,
+        updatedAt: row.cached_at,
+      };
+    }
   }
 
   const [tokens, analysisRow] = await Promise.all([
@@ -56,19 +73,26 @@ export async function getCachedTrendingFx(): Promise<{
       }
     : null;
 
+  const top5Symbols = [...tokens]
+    .sort((a, b) => Math.abs(b.change24hPct) - Math.abs(a.change24hPct))
+    .slice(0, 5)
+    .map((t) => t.symbol);
+
+  const tokenNews = top5Symbols.length > 0 ? await fetchNewsForTokens(top5Symbols) : {};
+
   const now = new Date().toISOString();
   await supabaseAdmin
     .from('overview_cache')
     .upsert(
       {
         cache_key: cacheKey,
-        payload: { tokens, analysis },
+        payload: { tokens, analysis, tokenNews },
         cached_at: now,
       },
       { onConflict: 'cache_key' },
     );
 
-  return { tokens, analysis, updatedAt: now };
+  return { tokens, analysis, tokenNews, updatedAt: now };
 }
 
 export async function getCachedYieldOpportunities(): Promise<{
