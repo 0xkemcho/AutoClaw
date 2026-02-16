@@ -3,12 +3,12 @@
 import { useMemo, useState } from 'react';
 import {
   ArrowDownLeft,
-  PieChart,
-  Wallet,
   ArrowUpRight,
-  Vault,
-  Percent,
   Layers,
+  Percent,
+  PieChart,
+  Vault,
+  Wallet,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,7 +50,6 @@ export function YieldPortfolioGuardrailsCard() {
   const config = agent?.config;
   const strategy = config?.strategyParams;
   const holdings = portfolio?.holdings ?? [];
-  const totalValue = portfolio?.totalValueUsd ?? 0;
   const serverWalletAddress = config?.serverWalletAddress ?? '';
 
   // Wallet Balances: liquid tokens only (exclude LP), filter dust
@@ -228,17 +227,6 @@ export function YieldPortfolioGuardrailsCard() {
                       </div>
                     </div>
                   ))}
-                </div>
-              )}
-
-              {Number.isFinite(totalValue) && totalValue > 0 && (
-                <div className="mt-3 border-t border-border/50 pt-2 flex items-center justify-between px-1">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Total Value Estimate
-                  </span>
-                  <span className="font-mono text-sm font-bold text-foreground">
-                    {formatUsd(totalValue)}
-                  </span>
                 </div>
               )}
             </div>

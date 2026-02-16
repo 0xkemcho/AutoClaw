@@ -4,15 +4,28 @@ import * as React from 'react';
 import { ChevronDown, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePortfolio } from '@/hooks/use-portfolio';
+import { useYieldPositions } from '@/hooks/use-yield-agent';
 import { formatUsd } from '@/lib/format';
 import { SidebarGroup, SidebarGroupLabel } from '@/components/ui/sidebar';
+
+const isLpToken = (symbol: string) => /VAULT|LP|UNIV3/i.test(symbol);
 
 export function SidebarPortfolio() {
   const [isOpen, setIsOpen] = React.useState(false);
   const { data: fxData, isLoading: fxLoading } = usePortfolio('fx');
   const { data: yieldData, isLoading: yieldLoading } = usePortfolio('yield');
+  const { data: yieldPositionsData } = useYieldPositions();
 
-  const totalValue = (fxData?.totalValueUsd || 0) + (yieldData?.totalValueUsd || 0);
+  // Total Balance = FX token value + Yield wallet balance + Yield vault positions
+  const fxTotal = fxData?.totalValueUsd ?? 0;
+  const yieldLiquidTotal = (yieldData?.holdings ?? [])
+    .filter((h) => !isLpToken(h.tokenSymbol))
+    .reduce((s, h) => s + (h.valueUsd || 0), 0);
+  const yieldVaultTotal = (yieldPositionsData?.positions ?? []).reduce(
+    (s, p) => s + Number(p.depositAmountUsd ?? 0),
+    0,
+  );
+  const totalValue = fxTotal + yieldLiquidTotal + yieldVaultTotal;
   const isLoading = fxLoading || yieldLoading;
 
   // Filter out very small balances to keep the list clean
@@ -84,7 +97,7 @@ export function SidebarPortfolio() {
                 <div className="rounded-md border bg-sidebar-accent/20 p-3 min-h-[4.5rem] text-xs">
                   <div className="flex items-center justify-between font-medium mb-2">
                     <span className="text-muted-foreground">Yield Agent</span>
-                    <span>{formatUsd(yieldData?.totalValueUsd || 0)}</span>
+                    <span>{formatUsd(yieldLiquidTotal + yieldVaultTotal)}</span>
                   </div>
                   {yieldHoldings.length > 0 ? (
                     <div className="space-y-1">
