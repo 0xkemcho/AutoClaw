@@ -24,11 +24,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { exportTimelineToCsv } from '@/lib/csv-export';
 
 export function YieldAgentTimeline() {
-  const { data: timelineData, isLoading } = useYieldTimeline({ limit: 50 });
+  const { data: timelineData, isLoading } = useYieldTimeline({ limit: 100 });
   const events = timelineData?.entries ?? [];
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
+
+  const handleDownloadCsv = () => {
+    exportTimelineToCsv(
+      events as Record<string, unknown>[],
+      `yield-agent-timeline-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+  };
 
   return (
     <>
@@ -57,7 +65,12 @@ export function YieldAgentTimeline() {
           </div>
           <div className="flex items-center gap-3">
              <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline-block">{events.length} events</span>
-             <button type="button" className="text-emerald-500 hover:text-emerald-400 text-sm font-medium flex items-center gap-1.5">
+             <button
+               type="button"
+               onClick={handleDownloadCsv}
+               disabled={events.length === 0}
+               className="text-emerald-500 hover:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-1.5"
+             >
                 <FileDown className="size-4" />
                 <span className="hidden sm:inline">CSV</span>
              </button>

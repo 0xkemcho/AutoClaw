@@ -23,11 +23,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { exportTimelineToCsv } from '@/lib/csv-export';
 
 export function FxAgentTimeline() {
-  const { data: timelineData, isLoading } = useTimeline({ limit: 50 });
+  const { data: timelineData, isLoading } = useTimeline({ limit: 100 });
   const events = timelineData?.entries ?? [];
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
+
+  const handleDownloadCsv = () => {
+    exportTimelineToCsv(
+      events as Record<string, unknown>[],
+      `fx-agent-timeline-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+  };
 
   return (
     <>
@@ -45,18 +53,23 @@ export function FxAgentTimeline() {
                 />
              </div>
              {/* Filters */}
-             <button className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#131418] border border-gray-200 dark:border-[#27272a] rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1e2025] transition-colors h-9">
+             <button type="button" className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#131418] border border-gray-200 dark:border-[#27272a] rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1e2025] transition-colors h-9">
                 <Filter className="text-gray-400 size-4" />
                 <span>Filter</span>
              </button>
-             <button className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#131418] border border-gray-200 dark:border-[#27272a] rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1e2025] transition-colors h-9">
+             <button type="button" className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#131418] border border-gray-200 dark:border-[#27272a] rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1e2025] transition-colors h-9">
                 <Calendar className="text-gray-400 size-4" />
                 <span>24h</span>
              </button>
           </div>
           <div className="flex items-center gap-3">
              <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline-block">{events.length} events</span>
-             <button className="text-emerald-500 hover:text-emerald-400 text-sm font-medium flex items-center gap-1.5">
+             <button
+               type="button"
+               onClick={handleDownloadCsv}
+               disabled={events.length === 0}
+               className="text-emerald-500 hover:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-1.5"
+             >
                 <FileDown className="size-4" />
                 <span className="hidden sm:inline">CSV</span>
              </button>
@@ -251,6 +264,7 @@ function TimelineRow({ event, onViewLogs }: { event: any, onViewLogs: () => void
        {/* Actions */}
        <td className="pr-4 pl-4 py-3 text-center">
           <button
+            type="button"
             onClick={onViewLogs}
             className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
             title="View Logs"
