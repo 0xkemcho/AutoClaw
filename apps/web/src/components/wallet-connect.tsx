@@ -38,6 +38,8 @@ export function WalletConnect() {
       chain={celo}
       connectModal={{ size: 'compact' }}
       theme={amberTheme}
+      connectButton={{ className: '!w-full justify-center' }}
+      detailsButton={{ className: '!w-full justify-center' }}
       auth={{
         getLoginPayload: async ({ address }) => {
           const payload = await generatePayload({ address });

@@ -92,8 +92,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="px-0 py-2">
-        <div className="w-full [&>button]:w-full">
+      <SidebarFooter className="px-2 py-2">
+        <div className="w-full [&>button]:w-full [&>button]:px-3">
           <WalletConnect />
         </div>
       </SidebarFooter>
