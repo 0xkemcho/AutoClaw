@@ -5,6 +5,7 @@ import websocket from '@fastify/websocket';
 import { authRoutes } from './routes/auth.js';
 import { userRoutes } from './routes/user.js';
 import { marketRoutes } from './routes/market.js';
+import { overviewRoutes } from './routes/overview.js';
 import { tradeRoutes } from './routes/trade.js';
 import { agentRoutes } from './routes/agent.js';
 import { wsRoutes } from './routes/ws.js';
@@ -78,6 +79,7 @@ app.get('/api/health', async () => {
 await app.register(authRoutes);
 await app.register(userRoutes);
 await app.register(marketRoutes);
+await app.register(overviewRoutes);
 await app.register(tradeRoutes);
 await app.register(agentRoutes);
 await app.register(wsRoutes);

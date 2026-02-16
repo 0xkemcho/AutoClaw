@@ -47,6 +47,16 @@
   --font-mono: var(--font-jetbrains-mono);
   --animate-marquee: marquee 240s linear infinite;
   --animate-marquee-reverse: marquee-reverse 240s linear infinite;
+  --animate-shimmer: shimmer 2s ease-in-out infinite;
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
 }
 
 :root {

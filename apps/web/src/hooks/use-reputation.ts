@@ -15,3 +15,12 @@ export function useAgentReputation(agent8004Id: number | null) {
     staleTime: 60_000, // 1 minute
   });
 }
+
+export function useYieldReputation(agent8004Id: number | null) {
+  return useQuery<ReputationData>({
+    queryKey: ['yield-agent-reputation', agent8004Id],
+    queryFn: () => api.get<ReputationData>('/api/yield-agent/reputation'),
+    enabled: !!agent8004Id,
+    staleTime: 60_000, // 1 minute
+  });
+}

@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { TrendingUp, Sprout, ArrowLeftRight } from 'lucide-react';
+import { TrendingUp, Sprout, ArrowLeftRight, LayoutDashboard } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import {
   Sidebar,
@@ -28,6 +28,11 @@ const WalletConnect = dynamic(
 
 // Menu items.
 const items = [
+  {
+    title: 'Overview',
+    url: '/overview',
+    icon: LayoutDashboard,
+  },
   {
     title: 'FX Agent',
     url: '/fx-agent',
@@ -53,7 +58,7 @@ export function AppSidebar() {
     <Sidebar collapsible="offcanvas">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
-          <Link href="/fx-agent" aria-label="AutoClaw home">
+          <Link href="/overview" aria-label="AutoClaw home">
             <div className="group-data-[collapsible=icon]:hidden">
               <Logo size="sm" showWordmark={true} className="text-white" />
             </div>

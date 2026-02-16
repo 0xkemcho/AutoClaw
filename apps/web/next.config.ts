@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   async redirects() {
     return [
-      { source: '/dashboard', destination: '/fx-agent', permanent: true },
+      { source: '/dashboard', destination: '/overview', permanent: true },
       { source: '/timeline', destination: '/fx-agent?tab=timeline', permanent: true },
       { source: '/settings', destination: '/fx-agent?tab=settings', permanent: true },
     ];

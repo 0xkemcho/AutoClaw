@@ -679,6 +679,24 @@ export type Database = {
           },
         ]
       }
+      overview_cache: {
+        Row: {
+          cache_key: string
+          payload: Record<string, unknown>
+          cached_at: string
+        }
+        Insert: {
+          cache_key: string
+          payload: Record<string, unknown>
+          cached_at?: string
+        }
+        Update: {
+          cache_key?: string
+          payload?: Record<string, unknown>
+          cached_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

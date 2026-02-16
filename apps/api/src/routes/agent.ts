@@ -408,16 +408,16 @@ export async function agentRoutes(app: FastifyInstance) {
         if (validType === 'yield') {
           const { data: yieldPositions } = await supabaseAdmin
             .from('yield_positions')
-            .select('deposit_amount_usd, token_address, token_symbol')
+            .select('vault_address, deposit_amount_usd')
             .eq('wallet_address', walletAddress)
             .gt('lp_shares', 0);
-          
+
           if (yieldPositions) {
             for (const p of yieldPositions) {
               const val = Number(p.deposit_amount_usd ?? 0);
               vaultValueUsd += val;
-              if (p.token_address) {
-                yieldPositionMap.set(p.token_address.toLowerCase(), val);
+              if (p.vault_address) {
+                yieldPositionMap.set(p.vault_address.toLowerCase(), val);
               }
             }
           }
@@ -431,15 +431,17 @@ export async function agentRoutes(app: FastifyInstance) {
           let valueUsd = b.value_usd || 0;
 
           let isYieldPosition = false;
+          let yieldCostBasis: number | null = null;
           if (validType === 'yield') {
-             const trackedVal = yieldPositionMap.get(b.address.toLowerCase());
-             if (trackedVal !== undefined) {
-               isYieldPosition = true;
-               // If Dune has no value, use the tracked deposit value
-               if (!valueUsd) {
-                 valueUsd = trackedVal;
-               }
-             }
+            const trackedVal = yieldPositionMap.get(b.address.toLowerCase());
+            if (trackedVal !== undefined) {
+              isYieldPosition = true;
+              yieldCostBasis = trackedVal; // deposit_amount_usd = cost basis
+              // If Dune has no value, use the tracked deposit value
+              if (!valueUsd) {
+                valueUsd = trackedVal;
+              }
+            }
           }
 
           // Only add to totalValueUsd if it's NOT a yield position (since those are already in vaultValueUsd)
@@ -447,7 +449,8 @@ export async function agentRoutes(app: FastifyInstance) {
             totalValueUsd += valueUsd;
           }
           const avgEntryRate = entryRateMap.get(b.symbol) ?? null;
-          const costBasis = avgEntryRate != null ? avgEntryRate * balance : null;
+          const fxCostBasis = avgEntryRate != null ? avgEntryRate * balance : null;
+          const costBasis = fxCostBasis ?? yieldCostBasis ?? null;
           const pnl = costBasis != null ? valueUsd - costBasis : 0;
           if (costBasis != null) hasAnyTrackedPosition = true;
           totalPnl += pnl;

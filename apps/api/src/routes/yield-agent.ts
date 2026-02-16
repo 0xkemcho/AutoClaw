@@ -15,7 +15,7 @@ import { convertWalletToUsdc } from '../services/convert-to-usdc.js';
 import { IchiVaultAdapter } from '../services/vault-adapters/ichi.js';
 import { celoClient } from '../lib/celo-client.js';
 import { createServerWallet } from '../lib/thirdweb-wallet.js';
-import { registerAgentOnChain } from '../services/agent-registry.js';
+import { registerAgentOnChain, getAgentReputation } from '../services/agent-registry.js';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 type AgentTimelineRow = Database['public']['Tables']['agent_timeline']['Row'];
@@ -112,6 +112,40 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
           lastCheckedAt: p.last_checked_at,
         })),
       };
+    },
+  );
+
+  // GET /api/yield-agent/reputation
+  app.get(
+    '/api/yield-agent/reputation',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+
+      const { data: configData, error: fetchError } = await supabaseAdmin
+        .from('agent_configs')
+        .select('agent_8004_id')
+        .eq('wallet_address', walletAddress)
+        .eq('agent_type', 'yield')
+        .single();
+
+      if (fetchError || !configData) {
+        return reply.status(404).send({ error: 'Yield agent not configured' });
+      }
+
+      const agent8004Id = (configData as Pick<AgentConfigRow, 'agent_8004_id'>).agent_8004_id;
+
+      if (agent8004Id == null) {
+        return { feedbackCount: 0, summaryValue: 0, summaryDecimals: 0 };
+      }
+
+      try {
+        const reputation = await getAgentReputation(BigInt(agent8004Id));
+        return reputation;
+      } catch (err) {
+        console.error('Failed to fetch yield agent reputation:', err);
+        return reply.status(500).send({ error: 'Failed to fetch reputation' });
+      }
     },
   );
 
