@@ -23,13 +23,28 @@ export const overviewKeys = {
   yieldOpportunities: () => [...overviewKeys.all, 'yield-opportunities'] as const,
 };
 
+export interface OverviewTrendingFxAnalysis {
+  detail?: {
+    signals?: Array<{
+      currency: string;
+      direction: string;
+      confidence: number;
+      reasoning: string;
+    }>;
+    marketSummary?: string;
+  };
+  summary?: string;
+}
+
 export function useOverviewTrendingFx() {
   return useQuery({
     queryKey: overviewKeys.trendingFx(),
     queryFn: () =>
-      api.get<{ tokens: MarketTokensResponse['tokens']; updatedAt: string }>(
-        '/api/overview/trending-fx',
-      ),
+      api.get<{
+        tokens: MarketTokensResponse['tokens'];
+        analysis: OverviewTrendingFxAnalysis | null;
+        updatedAt: string;
+      }>('/api/overview/trending-fx'),
     staleTime: 60 * 60_000, // 1h - matches DB cache TTL
   });
 }

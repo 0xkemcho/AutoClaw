@@ -9,7 +9,17 @@ const supabaseAdmin = createSupabaseAdmin(
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-export async function getCachedTrendingFx(): Promise<{ tokens: Awaited<ReturnType<typeof getMarketTokens>>; updatedAt: string }> {
+/** Latest FX analysis from any user (market analysis is global) */
+interface CachedAnalysis {
+  detail?: { signals?: Array<{ currency: string; direction: string; confidence: number; reasoning: string }>; marketSummary?: string };
+  summary?: string;
+}
+
+export async function getCachedTrendingFx(): Promise<{
+  tokens: Awaited<ReturnType<typeof getMarketTokens>>;
+  analysis: CachedAnalysis | null;
+  updatedAt: string;
+}> {
   const cacheKey = 'trending_fx';
   const oneHourAgo = new Date(Date.now() - CACHE_TTL_MS).toISOString();
 
@@ -20,27 +30,45 @@ export async function getCachedTrendingFx(): Promise<{ tokens: Awaited<ReturnTyp
     .gte('cached_at', oneHourAgo)
     .maybeSingle();
 
-  if (row?.payload) {
+  if (row?.payload && typeof row.payload === 'object' && 'tokens' in row.payload) {
     return {
-      tokens: row.payload.tokens,
+      tokens: row.payload.tokens as Awaited<ReturnType<typeof getMarketTokens>>,
+      analysis: (row.payload.analysis as CachedAnalysis | null) ?? null,
       updatedAt: row.cached_at,
     };
   }
 
-  const tokens = await getMarketTokens();
+  const [tokens, analysisRow] = await Promise.all([
+    getMarketTokens(),
+    supabaseAdmin
+      .from('fx_agent_timeline')
+      .select('detail, summary')
+      .eq('event_type', 'analysis')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const analysis: CachedAnalysis | null = analysisRow.data
+    ? {
+        detail: analysisRow.data.detail as CachedAnalysis['detail'],
+        summary: analysisRow.data.summary ?? undefined,
+      }
+    : null;
+
   const now = new Date().toISOString();
   await supabaseAdmin
     .from('overview_cache')
     .upsert(
       {
         cache_key: cacheKey,
-        payload: { tokens },
+        payload: { tokens, analysis },
         cached_at: now,
       },
       { onConflict: 'cache_key' },
     );
 
-  return { tokens, updatedAt: now };
+  return { tokens, analysis, updatedAt: now };
 }
 
 export async function getCachedYieldOpportunities(): Promise<{
@@ -57,9 +85,11 @@ export async function getCachedYieldOpportunities(): Promise<{
     .gte('cached_at', oneHourAgo)
     .maybeSingle();
 
-  if (row?.payload) {
+  if (row?.payload && typeof row.payload === 'object' && 'opportunities' in row.payload) {
     return {
-      opportunities: row.payload.opportunities,
+      opportunities: row.payload.opportunities as Awaited<
+        ReturnType<typeof fetchYieldOpportunities>
+      >,
       updatedAt: row.cached_at,
     };
   }

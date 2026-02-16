@@ -162,7 +162,7 @@ export function OverviewAgentCard({ agentType }: OverviewAgentCardProps) {
             {hasPnl ? (
               <>
                 <span className={cn('font-mono text-lg font-semibold tabular-nums', pnlColor)}>
-                  {pnlSign}{formatUsd(pnl!)}
+                  {pnlSign}{formatUsd(pnl as number)}
                 </span>
                 <span className={cn('rounded px-1 text-[10px] font-medium', pnlBg, pnlColor)}>
                   {pnlPct != null ? `${pnlSign}${pnlPct.toFixed(2)}%` : ''}

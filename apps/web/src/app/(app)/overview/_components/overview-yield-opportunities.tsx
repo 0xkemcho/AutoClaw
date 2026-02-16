@@ -76,34 +76,34 @@ export function OverviewYieldOpportunities() {
           {opportunities.map((opp, i) => (
             <div
               key={opp.id}
-              className="flex items-center justify-between px-6 py-3 transition-colors hover:bg-muted/50"
+              className="flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-muted/50"
             >
-              <div className="flex items-center gap-3">
-                <div className="flex size-6 items-center justify-center rounded-full bg-secondary text-xs font-medium text-muted-foreground">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium text-muted-foreground">
                   {i + 1}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                   {opp.protocolLogo && (
                     <img
                       src={opp.protocolLogo}
                       alt={opp.protocol}
-                      className="size-8 rounded-full object-contain bg-white/5 p-0.5"
+                      className="size-8 shrink-0 rounded-full object-contain bg-white/5 p-0.5"
                     />
                   )}
-                  <div>
-                    <div className="text-sm font-medium">{opp.name}</div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{opp.name}</div>
                     <div className="text-xs text-muted-foreground">{opp.protocol}</div>
                   </div>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="shrink-0 text-right">
                 <Badge
                   variant="outline"
-                  className="mb-0.5 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
+                  className="border-primary/20 bg-primary/5 text-primary hover:bg-primary/10"
                 >
                   {opp.apr.toFixed(2)}% APR
                 </Badge>
-                <div className="text-[10px] text-muted-foreground">TVL: {formatUsd(opp.tvl)}</div>
+                <div className="mt-1 text-xs text-muted-foreground">TVL: {formatUsd(opp.tvl)}</div>
               </div>
             </div>
           ))}

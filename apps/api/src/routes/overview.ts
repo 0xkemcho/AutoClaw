@@ -7,8 +7,8 @@ import {
 export async function overviewRoutes(app: FastifyInstance) {
   app.get('/api/overview/trending-fx', async (_request, reply) => {
     try {
-      const { tokens, updatedAt } = await getCachedTrendingFx();
-      return { tokens, updatedAt };
+      const { tokens, analysis, updatedAt } = await getCachedTrendingFx();
+      return { tokens, analysis, updatedAt };
     } catch (err) {
       app.log.error(err, 'Failed to fetch trending FX');
       return reply.status(500).send({ error: 'Failed to fetch trending FX data' });

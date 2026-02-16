@@ -9,8 +9,8 @@ import { cn } from '@/lib/utils';
 import { SupportedToken } from '@autoclaw/shared';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { OverviewTrendingFxAnalysis } from '@/hooks/use-overview';
 import { useOverviewTrendingFx } from '@/hooks/use-overview';
-import { useTimeline } from '@/hooks/use-timeline';
 
 interface TrendingTokenDisplay {
   symbol: SupportedToken;
@@ -20,26 +20,19 @@ interface TrendingTokenDisplay {
   sentiment: 'Positive' | 'Negative' | 'Neutral';
   headline: string;
   summary: string;
-}
-
-interface AnalysisSignal {
-  currency: string;
-  direction: string;
-  confidence: number;
-  reasoning: string;
+  hasAnalysis: boolean;
 }
 
 function mergeMarketWithSignals(
   tokens: { symbol: SupportedToken; priceUsd: number; change24hPct: number }[],
-  analysisEntry: { detail?: { signals?: AnalysisSignal[]; marketSummary?: string }; summary?: string } | null,
+  analysis: OverviewTrendingFxAnalysis | null,
 ): TrendingTokenDisplay[] {
-  // Top 5 by absolute 24h change
   const top5 = [...tokens]
     .sort((a, b) => Math.abs(b.change24hPct) - Math.abs(a.change24hPct))
     .slice(0, 5);
 
-  const signals = analysisEntry?.detail?.signals ?? [];
-  const marketSummary = analysisEntry?.detail?.marketSummary ?? analysisEntry?.summary ?? '';
+  const signals = analysis?.detail?.signals ?? [];
+  const marketSummary = analysis?.detail?.marketSummary ?? analysis?.summary ?? '';
 
   const signalMap = new Map<string, (typeof signals)[0]>();
   for (const s of signals) {
@@ -57,12 +50,14 @@ function mergeMarketWithSignals(
     const signalLabel: 'Buy' | 'Sell' | 'Hold' =
       direction === 'buy' ? 'Buy' : direction === 'sell' ? 'Sell' : 'Hold';
 
-    const headline = signal
-      ? (reasoning.length > 60 ? reasoning.slice(0, 60) + '...' : reasoning) || marketSummary.slice(0, 60)
+    const hasAnalysis = !!signal;
+    const headline = hasAnalysis
+      ? (reasoning.length > 60 ? reasoning.slice(0, 60) + '...' : reasoning) ||
+        marketSummary.slice(0, 60)
       : 'Market data';
-    const summary = signal
+    const summary = hasAnalysis
       ? reasoning || marketSummary
-      : 'No recent FX analysis.';
+      : 'Price and 24h change';
 
     return {
       symbol: t.symbol,
@@ -72,31 +67,26 @@ function mergeMarketWithSignals(
       sentiment,
       headline: headline.slice(0, 80),
       summary: summary.slice(0, 200),
+      hasAnalysis,
     };
   });
 }
 
 export function OverviewTrendingFx() {
-  const { data: marketData, isLoading: marketLoading } = useOverviewTrendingFx();
-  const { data: timelineData } = useTimeline({
-    type: 'analysis',
-    limit: 50,
-  });
+  const { data, isLoading } = useOverviewTrendingFx();
 
   const tokens = useMemo(() => {
-    const marketTokens = marketData?.tokens ?? [];
-    const latestAnalysis = timelineData?.entries?.find((e) => e.eventType === 'analysis') ?? null;
+    const marketTokens = data?.tokens ?? [];
+    const analysis = data?.analysis ?? null;
     return mergeMarketWithSignals(
       marketTokens.map((t) => ({
         symbol: t.symbol,
         priceUsd: t.priceUsd,
         change24hPct: t.change24hPct,
       })),
-      latestAnalysis as { detail?: { signals?: AnalysisSignal[]; marketSummary?: string }; summary?: string } | null,
+      analysis,
     );
-  }, [marketData?.tokens, timelineData?.entries]);
-
-  const isLoading = marketLoading;
+  }, [data?.tokens, data?.analysis]);
 
   if (isLoading) {
     return (

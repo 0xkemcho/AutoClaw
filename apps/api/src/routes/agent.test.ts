@@ -658,8 +658,9 @@ describe('GET /api/agent/portfolio', () => {
     const body = res.json();
     expect(body.totalValueUsd).toBe(10);
     expect(body.holdings).toHaveLength(1);
-    expect(body.holdings[0]).toEqual({
+    expect(body.holdings[0]).toMatchObject({
       tokenSymbol: 'USDC',
+      tokenAddress: '0xUSDC',
       balance: 10, // 10000000 / 10^6
       priceUsd: 1.0,
       valueUsd: 10,
