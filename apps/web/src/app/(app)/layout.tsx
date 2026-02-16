@@ -30,7 +30,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {children}
             </PageTransition>
           </main>
-          <AppBottomBar />
+          {/* <AppBottomBar /> */}
         </SidebarInset>
       </SidebarProvider>
     </AuthGuard>

@@ -41,6 +41,7 @@ export interface ProgressState {
   stepMessage: string;
   steps: StepEntry[];
   reasoning: string;  // Accumulated reasoning from LLM
+  clear: () => void;
 }
 
 const IDLE_STATE: ProgressState = {
@@ -50,6 +51,7 @@ const IDLE_STATE: ProgressState = {
   stepMessage: '',
   steps: [],
   reasoning: '',
+  clear: () => {},
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -179,12 +181,14 @@ export function useAgentProgress(): ProgressState {
             queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
 
             // Clear steps after a delay so user sees the completion state
+            /* REMOVED: Auto-reset logic to allow manual closing
             setTimeout(() => {
               setState(prev => prev.currentStep === step
                 ? IDLE_STATE
                 : prev
               );
             }, 3000);
+            */
           } else {
             // Non-terminal step — reset the stale timer
             resetStaleTimer();
@@ -234,5 +238,9 @@ export function useAgentProgress(): ProgressState {
     };
   }, [connect]);
 
-  return state;
+  const clear = useCallback(() => {
+    setState(IDLE_STATE);
+  }, []);
+
+  return { ...state, clear };
 }

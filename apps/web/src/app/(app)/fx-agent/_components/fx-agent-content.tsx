@@ -1,21 +1,16 @@
 'use client';
 
-import { Suspense, useCallback } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { TrendingUp, Info } from 'lucide-react';
 import { useMotionSafe } from '@/lib/motion';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
 import { CardSpotlight } from '@/components/ui/card-spotlight';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DashboardContent } from '@/app/(app)/dashboard/_components/dashboard-content';
-import { TimelineContent } from '@/app/(app)/timeline/_components/timeline-content';
-import { SettingsContent } from '@/app/(app)/settings/_components/settings-content';
+import { Card, CardContent } from '@/components/ui/card';
+import { FxAgentDashboard } from './fx-agent-dashboard';
 import { useAgentStatus } from '@/hooks/use-agent';
-
-const DEFAULT_TAB = 'agent';
 
 /* ------------------------------------------------------------------ */
 /*  Hero CTA for users with no FX agent configured                     */
@@ -101,120 +96,72 @@ function FxHero() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main tabbed layout                                                 */
-/* ------------------------------------------------------------------ */
+function FxAgentWrapper() {
+    const { data, isLoading, isError } = useAgentStatus();
+    const router = useRouter();
 
-function FxAgentTabs() {
-  const m = useMotionSafe();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  const { data, isLoading, isError } = useAgentStatus();
-
-  const activeTab = searchParams.get('tab') ?? DEFAULT_TAB;
-
-  const handleTabChange = useCallback(
-    (value: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-
-      if (value === DEFAULT_TAB) {
-        params.delete('tab');
-      } else {
-        params.set('tab', value);
-      }
-
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname);
-    },
-    [searchParams, router, pathname],
-  );
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <Skeleton className="mx-auto h-7 w-48" />
-          <Skeleton className="mx-auto mt-2 h-4 w-72" />
-        </div>
-        <Card>
-          <CardContent className="space-y-4 p-6">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-4 w-64" />
-            <div className="flex gap-3">
-              <Skeleton className="h-9 w-24" />
-              <Skeleton className="h-9 w-24" />
+    // Loading state
+    if (isLoading) {
+        return (
+        <div className="space-y-6">
+            <div className="text-center">
+            <Skeleton className="mx-auto h-7 w-48" />
+            <Skeleton className="mx-auto mt-2 h-4 w-72" />
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // No FX agent configured — show hero CTA
-  if (!data || isError) {
-    return <FxHero />;
-  }
-
-  return (
-    <motion.div
-      {...m.fadeIn}
-      transition={{ duration: m.duration.normal }}
-      className="space-y-6"
-    >
-      <div className="text-center">
-        <h1 className="text-2xl font-bold">FX Trading Agent</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Autonomous FX stablecoin trading on Celo
-        </p>
-      </div>
-
-      {!data.config.agent8004Id && (
-        <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-          <Info className="size-4 shrink-0 text-primary" />
-          <p className="flex-1 text-sm text-muted-foreground">
-            Your agent isn&apos;t registered on ERC-8004 yet.{' '}
-            <span className="text-primary">Registration is free (gasless).</span>
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push('/onboarding?agent=fx&step=register')}
-          >
-            Register Now
-          </Button>
+            <Card>
+            <CardContent className="space-y-4 p-6">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-4 w-64" />
+                <div className="flex gap-3">
+                <Skeleton className="h-9 w-24" />
+                <Skeleton className="h-9 w-24" />
+                </div>
+            </CardContent>
+            </Card>
         </div>
-      )}
+        );
+    }
 
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList>
-          <TabsTrigger value="agent">Agent</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
+    // No FX agent configured — show hero CTA
+    if (!data || isError) {
+        return <FxHero />;
+    }
 
-        <TabsContent value="agent" className="mt-4">
-          <DashboardContent />
-        </TabsContent>
+    return (
+        <div className="space-y-6">
+             <div className="text-center">
+                <h1 className="text-2xl font-bold">FX Trading Agent</h1>
+                <p className="mt-1.5 text-sm text-muted-foreground">
+                Autonomous FX stablecoin trading on Celo
+                </p>
+            </div>
 
-        <TabsContent value="timeline" className="mt-4">
-          <TimelineContent />
-        </TabsContent>
+            {!data.config.agent8004Id && (
+                <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                <Info className="size-4 shrink-0 text-primary" />
+                <p className="flex-1 text-sm text-muted-foreground">
+                    Your agent isn&apos;t registered on ERC-8004 yet.{' '}
+                    <span className="text-primary">Registration is free (gasless).</span>
+                </p>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/onboarding?agent=fx&step=register')}
+                >
+                    Register Now
+                </Button>
+                </div>
+            )}
 
-        <TabsContent value="settings" className="mt-4">
-          <SettingsContent />
-        </TabsContent>
-      </Tabs>
-    </motion.div>
-  );
+            <FxAgentDashboard />
+        </div>
+    );
 }
 
 export function FxAgentContent() {
   return (
     <Suspense>
-      <FxAgentTabs />
+      <FxAgentWrapper />
     </Suspense>
   );
 }

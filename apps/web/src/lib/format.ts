@@ -56,3 +56,9 @@ export function shortenAddress(address: string, chars = 4): string {
   if (!address) return '';
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
 }
+
+/** Format token amount with suffixed zeros (6 decimals) so small amounts don't look like zero: "0.001700" */
+export function formatTokenAmount(value: number, decimals = 6): string {
+  if (!Number.isFinite(value)) return '0.000000';
+  return value.toFixed(decimals);
+}

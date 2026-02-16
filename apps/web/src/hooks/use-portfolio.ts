@@ -4,6 +4,7 @@ import { useAuth } from '@/providers/auth-provider';
 
 interface Holding {
   tokenSymbol: string;
+  tokenAddress?: string;
   balance: number;
   priceUsd: number;
   valueUsd: number;
