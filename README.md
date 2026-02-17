@@ -128,6 +128,8 @@ Ask it why your agent sold EURm, where yield is highest right now, or what's mov
 
 **Human verification:** SelfClaw integration provides ZK passport proof (Self.xyz, NFC chip, 180+ countries), published on-chain via ERC-8004. Agents carry cryptographic proof of human backing.
 
+**TEE (Trusted Execution Environment):** Agent execution runs inside a TEE powered by [Phala Network](https://phala.network). Every agent run produces a cryptographic attestation — a signed proof that the agent logic executed in a secure, tamper-proof enclave. Attestations are generated per run, linked to timeline events and on-chain transactions, and are independently verifiable. This ensures that no one — not even AutoClaw operators — can tamper with agent decisions or trade execution after the fact.
+
 ---
 
 ## Stack
@@ -142,6 +144,7 @@ Ask it why your agent sold EURm, where yield is highest right now, or what's mov
 | **Yield** | ICHI vaults, Uniswap LP, Merkl reward campaigns |
 | **Chat AI** | CoinGecko (prices), Parallel AI (news), Grok (sentiment), Firecrawl (governance) |
 | **Identity** | ERC-8004 (on-chain agent registry), SelfClaw (ZK human verification) |
+| **TEE** | Phala Network — secure enclave execution with per-run cryptographic attestations |
 | **Gas** | EIP-7702 gasless transactions via thirdweb |
 
 ---
