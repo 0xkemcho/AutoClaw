@@ -6,7 +6,7 @@ interface AgentConfigResponse {
   id: string;
   active: boolean;
   frequency: number;
-  maxTradeSizeUsd: number;
+  maxTradeSizePct: number;
   maxAllocationPct: number;
   stopLossPct: number;
   dailyTradeLimit: number;
@@ -69,7 +69,7 @@ export function useUpdateSettings() {
   return useMutation({
     mutationFn: (settings: {
       frequency?: number;
-      maxTradeSizeUsd?: number;
+      maxTradeSizePct?: number;
       maxAllocationPct?: number;
       stopLossPct?: number;
       dailyTradeLimit?: number;

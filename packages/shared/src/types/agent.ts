@@ -59,7 +59,7 @@ export interface AgentConfig {
   serverWalletId: string | null;
   active: boolean;
   frequency: AgentFrequency;
-  maxTradeSizeUsd: number;
+  maxTradeSizePct: number;
   maxAllocationPct: number;
   stopLossPct: number;
   dailyTradeLimit: number;
@@ -305,7 +305,8 @@ export const DEFAULT_GUARDRAILS: Record<
   'conservative' | 'moderate' | 'aggressive',
   {
     frequency: AgentFrequency;
-    maxTradeSizeUsd: number;
+    /** Max trade size as % of available buying power (1-100) */
+    maxTradeSizePct: number;
     maxAllocationPct: number;
     stopLossPct: number;
     dailyTradeLimit: number;
@@ -313,21 +314,21 @@ export const DEFAULT_GUARDRAILS: Record<
 > = {
   conservative: {
     frequency: 24,
-    maxTradeSizeUsd: 50,
+    maxTradeSizePct: 5,
     maxAllocationPct: 15,
     stopLossPct: 5,
     dailyTradeLimit: 2,
   },
   moderate: {
     frequency: 4,
-    maxTradeSizeUsd: 200,
+    maxTradeSizePct: 25,
     maxAllocationPct: 25,
     stopLossPct: 10,
     dailyTradeLimit: 5,
   },
   aggressive: {
     frequency: 1,
-    maxTradeSizeUsd: 500,
+    maxTradeSizePct: 50,
     maxAllocationPct: 40,
     stopLossPct: 20,
     dailyTradeLimit: 10,

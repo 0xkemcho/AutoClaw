@@ -120,12 +120,13 @@ export class FxStrategy implements AgentStrategy {
     return checkGuardrails({
       signal: { currency: s.currency, direction: s.direction as 'buy' | 'sell', confidence: s.confidence, reasoning: s.reasoning },
       config: {
-        maxTradeSizeUsd: config.max_trade_size_usd ?? defaults.maxTradeSizeUsd,
+        maxTradeSizePct: config.max_trade_size_pct ?? defaults.maxTradeSizePct,
         maxAllocationPct: config.max_allocation_pct ?? defaults.maxAllocationPct,
         stopLossPct: config.stop_loss_pct ?? defaults.stopLossPct,
         dailyTradeLimit: config.daily_trade_limit ?? defaults.dailyTradeLimit,
         allowedCurrencies,
         blockedCurrencies: (config.blocked_currencies ?? []) as string[],
+        availableBuyingPowerUsd: context.availableBuyingPowerUsd,
       },
       positions: context.positions.map((p: any) => ({
         tokenSymbol: p.token_symbol ?? p.tokenSymbol,
@@ -136,6 +137,7 @@ export class FxStrategy implements AgentStrategy {
       tradesToday: context.dailyTradeCount,
       tradeAmountUsd: s.amountUsd,
       positionPrices: context.positionPrices,
+      availableBuyingPowerUsd: context.availableBuyingPowerUsd,
     });
   }
 

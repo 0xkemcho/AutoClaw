@@ -55,7 +55,7 @@ export function Navbar() {
               size="sm"
               className="rounded-full h-10 px-5 font-semibold"
           >
-            Ape In
+            Get Started
           </ConnectCTA>
         </div>
 
@@ -78,7 +78,7 @@ export function Navbar() {
                 </button>
               ))}
               <ConnectCTA className="mt-4 rounded-full">
-                Ape In
+                Get Started
                 <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
               </ConnectCTA>
             </div>

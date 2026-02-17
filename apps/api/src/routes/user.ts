@@ -94,7 +94,7 @@ export async function userRoutes(app: FastifyInstance) {
               server_wallet_id: identifier,
               active: false,
               frequency: String(defaults.frequency),
-              max_trade_size_usd: defaults.maxTradeSizeUsd,
+              max_trade_size_pct: defaults.maxTradeSizePct,
               max_allocation_pct: defaults.maxAllocationPct,
               stop_loss_pct: defaults.stopLossPct,
               daily_trade_limit: defaults.dailyTradeLimit,

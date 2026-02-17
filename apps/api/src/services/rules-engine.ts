@@ -1,12 +1,15 @@
 import type { Signal, GuardrailCheck } from '@autoclaw/shared';
 
 interface AgentConfigForRules {
-  maxTradeSizeUsd: number;
+  /** Max trade size as % of available buying power (1-100). Computed maxTradeUsd = availableBuyingPowerUsd * (pct/100). */
+  maxTradeSizePct: number;
   maxAllocationPct: number;
   stopLossPct: number;
   dailyTradeLimit: number;
   allowedCurrencies: string[];
   blockedCurrencies: string[];
+  /** For buys: max $ = availableBuyingPowerUsd * (maxTradeSizePct/100). For sells: use position-based cap. */
+  availableBuyingPowerUsd?: number;
 }
 
 interface PositionForRules {
@@ -27,8 +30,10 @@ export function checkGuardrails(params: {
   tradesToday: number;
   tradeAmountUsd: number;
   positionPrices?: Record<string, number>;
+  /** For buys: sum of USDC+USDT+USDm. For sells: used to derive position value. */
+  availableBuyingPowerUsd?: number;
 }): GuardrailCheck {
-  const { signal, config, positions, portfolioValueUsd, tradesToday, tradeAmountUsd, positionPrices } = params;
+  const { signal, config, positions, portfolioValueUsd, tradesToday, tradeAmountUsd, positionPrices, availableBuyingPowerUsd } = params;
 
   // 1. Currency must be allowed and not blocked
   if (config.allowedCurrencies.length > 0 && !config.allowedCurrencies.includes(signal.currency)) {
@@ -56,11 +61,32 @@ export function checkGuardrails(params: {
     };
   }
 
-  // 3. Max trade size
-  if (tradeAmountUsd > config.maxTradeSizeUsd) {
+  // 3. Max trade size (% of available balance for buys, % of position for sells)
+  const pct = config.maxTradeSizePct;
+  let maxTradeUsd: number;
+  if (signal.direction === 'buy') {
+    const base = config.availableBuyingPowerUsd ?? availableBuyingPowerUsd ?? 0;
+    maxTradeUsd = base * (pct / 100);
+  } else {
+    const position = positions.find((p) => p.tokenSymbol === signal.currency);
+    const priceUsd = positionPrices?.[signal.currency] ?? 1;
+    const positionValueUsd = (position?.balance ?? 0) * priceUsd;
+    if (positionValueUsd <= 0) {
+      // No position to sell — block (execution would fail anyway)
+      if (tradeAmountUsd > 0) {
+        return {
+          passed: false,
+          blockedReason: `No position in ${signal.currency} to sell`,
+          ruleName: 'max_trade_size',
+        };
+      }
+    }
+    maxTradeUsd = positionValueUsd * (pct / 100);
+  }
+  if (maxTradeUsd > 0 && tradeAmountUsd > maxTradeUsd) {
     return {
       passed: false,
-      blockedReason: `Trade size $${tradeAmountUsd} exceeds max $${config.maxTradeSizeUsd}`,
+      blockedReason: `Trade size $${tradeAmountUsd.toFixed(2)} exceeds max ${pct}% ($${maxTradeUsd.toFixed(2)})`,
       ruleName: 'max_trade_size',
     };
   }

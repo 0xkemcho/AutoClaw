@@ -25,9 +25,9 @@ describe('parseFrequencyToMs', () => {
 
 describe('DEFAULT_GUARDRAILS', () => {
   describe('conservative profile', () => {
-    it('has the strictest limits (lowest maxTradeSizeUsd, maxAllocationPct, dailyTradeLimit)', () => {
+    it('has the strictest limits (lowest maxTradeSizePct, maxAllocationPct, dailyTradeLimit)', () => {
       const { conservative } = DEFAULT_GUARDRAILS;
-      expect(conservative.maxTradeSizeUsd).toBe(50);
+      expect(conservative.maxTradeSizePct).toBe(5);
       expect(conservative.maxAllocationPct).toBe(15);
       expect(conservative.dailyTradeLimit).toBe(2);
     });
@@ -40,7 +40,7 @@ describe('DEFAULT_GUARDRAILS', () => {
   describe('moderate profile', () => {
     it('has middle-ground limits', () => {
       const { moderate } = DEFAULT_GUARDRAILS;
-      expect(moderate.maxTradeSizeUsd).toBe(200);
+      expect(moderate.maxTradeSizePct).toBe(25);
       expect(moderate.maxAllocationPct).toBe(25);
       expect(moderate.dailyTradeLimit).toBe(5);
     });
@@ -53,7 +53,7 @@ describe('DEFAULT_GUARDRAILS', () => {
   describe('aggressive profile', () => {
     it('has the most permissive limits', () => {
       const { aggressive } = DEFAULT_GUARDRAILS;
-      expect(aggressive.maxTradeSizeUsd).toBe(500);
+      expect(aggressive.maxTradeSizePct).toBe(50);
       expect(aggressive.maxAllocationPct).toBe(40);
       expect(aggressive.dailyTradeLimit).toBe(10);
     });
@@ -69,7 +69,7 @@ describe('DEFAULT_GUARDRAILS', () => {
       (profile) => {
         const guardrail = DEFAULT_GUARDRAILS[profile];
         expect(guardrail).toHaveProperty('frequency');
-        expect(guardrail).toHaveProperty('maxTradeSizeUsd');
+        expect(guardrail).toHaveProperty('maxTradeSizePct');
         expect(guardrail).toHaveProperty('maxAllocationPct');
         expect(guardrail).toHaveProperty('stopLossPct');
         expect(guardrail).toHaveProperty('dailyTradeLimit');
@@ -82,7 +82,7 @@ describe('DEFAULT_GUARDRAILS', () => {
       '%s profile has all positive numeric values',
       (profile) => {
         const guardrail = DEFAULT_GUARDRAILS[profile];
-        expect(guardrail.maxTradeSizeUsd).toBeGreaterThan(0);
+        expect(guardrail.maxTradeSizePct).toBeGreaterThan(0);
         expect(guardrail.maxAllocationPct).toBeGreaterThan(0);
         expect(guardrail.stopLossPct).toBeGreaterThan(0);
         expect(guardrail.dailyTradeLimit).toBeGreaterThan(0);
@@ -91,12 +91,12 @@ describe('DEFAULT_GUARDRAILS', () => {
   });
 
   describe('ordering across profiles', () => {
-    it('maxTradeSizeUsd increases from conservative to moderate to aggressive', () => {
-      expect(DEFAULT_GUARDRAILS.conservative.maxTradeSizeUsd).toBeLessThan(
-        DEFAULT_GUARDRAILS.moderate.maxTradeSizeUsd,
+    it('maxTradeSizePct increases from conservative to moderate to aggressive', () => {
+      expect(DEFAULT_GUARDRAILS.conservative.maxTradeSizePct).toBeLessThan(
+        DEFAULT_GUARDRAILS.moderate.maxTradeSizePct,
       );
-      expect(DEFAULT_GUARDRAILS.moderate.maxTradeSizeUsd).toBeLessThan(
-        DEFAULT_GUARDRAILS.aggressive.maxTradeSizeUsd,
+      expect(DEFAULT_GUARDRAILS.moderate.maxTradeSizePct).toBeLessThan(
+        DEFAULT_GUARDRAILS.aggressive.maxTradeSizePct,
       );
     });
 

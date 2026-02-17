@@ -86,6 +86,12 @@ export async function executeTrade(params: {
 }): Promise<TradeResult> {
   const { serverWalletId, serverWalletAddress, currency, direction, amountUsd } = params;
 
+  if (amountUsd == null || typeof amountUsd !== 'number' || amountUsd <= 0) {
+    throw new Error(
+      `Invalid trade amount for ${currency}: amountUsd must be a positive number (got ${String(amountUsd)})`,
+    );
+  }
+
   const targetAddress = getTokenAddress(currency) as Address;
   if (!targetAddress) {
     throw new Error(`Unknown token address for currency: ${currency}`);

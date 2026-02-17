@@ -54,7 +54,7 @@ interface AgentStatusCardProps {
     id: string;
     active: boolean;
     frequency: number;
-    maxTradeSizeUsd: number;
+    maxTradeSizePct: number;
     maxAllocationPct: number;
     stopLossPct: number;
     dailyTradeLimit: number;

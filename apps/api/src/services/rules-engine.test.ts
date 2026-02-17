@@ -15,20 +15,22 @@ function makeSignal(overrides: Partial<{ currency: string; direction: 'buy' | 's
 }
 
 function makeConfig(overrides: Partial<{
-  maxTradeSizeUsd: number;
+  maxTradeSizePct: number;
   maxAllocationPct: number;
   stopLossPct: number;
   dailyTradeLimit: number;
   allowedCurrencies: string[];
   blockedCurrencies: string[];
+  availableBuyingPowerUsd: number;
 }> = {}) {
   return {
-    maxTradeSizeUsd: 1000,
+    maxTradeSizePct: 50,
     maxAllocationPct: 50,
     stopLossPct: 10,
     dailyTradeLimit: 10,
     allowedCurrencies: [] as string[],
     blockedCurrencies: [] as string[],
+    availableBuyingPowerUsd: 2000, // 50% of 2000 = 1000 max
     ...overrides,
   };
 }
@@ -41,6 +43,7 @@ function makeParams(overrides: Partial<{
   tradesToday: number;
   tradeAmountUsd: number;
   positionPrices: Record<string, number>;
+  availableBuyingPowerUsd: number;
 }> = {}) {
   return {
     signal: makeSignal(),
@@ -50,6 +53,7 @@ function makeParams(overrides: Partial<{
     tradesToday: 0,
     tradeAmountUsd: 500,
     positionPrices: {} as Record<string, number>,
+    availableBuyingPowerUsd: 2000,
     ...overrides,
   };
 }
@@ -174,7 +178,7 @@ describe('checkGuardrails', () => {
       const result = checkGuardrails(
         makeParams({
           tradeAmountUsd: 500,
-          config: makeConfig({ maxTradeSizeUsd: 1000 }),
+          config: makeConfig({ maxTradeSizePct: 50, availableBuyingPowerUsd: 2000 }),
         }),
       );
       expect(result.passed).toBe(true);
@@ -184,24 +188,24 @@ describe('checkGuardrails', () => {
       const result = checkGuardrails(
         makeParams({
           tradeAmountUsd: 1000,
-          config: makeConfig({ maxTradeSizeUsd: 1000 }),
+          config: makeConfig({ maxTradeSizePct: 50, availableBuyingPowerUsd: 2000 }),
         }),
       );
       expect(result.passed).toBe(true);
     });
 
-    it('blocks when trade amount exceeds the max', () => {
+    it('blocks when trade amount exceeds the max (% of available balance)', () => {
       const result = checkGuardrails(
         makeParams({
           tradeAmountUsd: 1500,
-          config: makeConfig({ maxTradeSizeUsd: 1000 }),
+          config: makeConfig({ maxTradeSizePct: 50, availableBuyingPowerUsd: 2000 }),
+          availableBuyingPowerUsd: 2000,
         }),
       );
-      expect(result).toEqual({
-        passed: false,
-        blockedReason: 'Trade size $1500 exceeds max $1000',
-        ruleName: 'max_trade_size',
-      });
+      expect(result.passed).toBe(false);
+      expect(result.blockedReason).toContain('Trade size $1500');
+      expect(result.blockedReason).toContain('exceeds max');
+      expect(result.ruleName).toBe('max_trade_size');
     });
   });
 
@@ -243,14 +247,14 @@ describe('checkGuardrails', () => {
     });
 
     it('skips allocation check for sell signals', () => {
-      // Same numbers that would fail for a buy, but direction is sell
+      // Sell: position 400 @ $1 = $400. maxTradeSizePct 50% => max $200. Use tradeAmountUsd=200.
       const result = checkGuardrails(
         makeParams({
           signal: makeSignal({ direction: 'sell', currency: 'CELO' }),
-          config: makeConfig({ maxAllocationPct: 50 }),
+          config: makeConfig({ maxAllocationPct: 50, maxTradeSizePct: 50 }),
           positions: [{ tokenSymbol: 'CELO', balance: 400, avgEntryRate: 0.9 }],
           portfolioValueUsd: 1000,
-          tradeAmountUsd: 500,
+          tradeAmountUsd: 200,
           positionPrices: { CELO: 1.0 },
         }),
       );
@@ -275,12 +279,15 @@ describe('checkGuardrails', () => {
 
   describe('stop-loss rule', () => {
     it('blocks sell when loss exceeds stop-loss threshold', () => {
+      // Position: 100 @ $0.85 = $85. maxTradeSizePct 50% => max $42.5. Use tradeAmountUsd=40.
+      // Loss: (0.85-1)/1 = -15% > -10% stop → block stop_loss
       const result = checkGuardrails(
         makeParams({
           signal: makeSignal({ direction: 'sell', currency: 'CELO' }),
-          config: makeConfig({ stopLossPct: 10 }),
+          config: makeConfig({ stopLossPct: 10, maxTradeSizePct: 50 }),
           positions: [{ tokenSymbol: 'CELO', balance: 100, avgEntryRate: 1.0 }],
           positionPrices: { CELO: 0.85 },
+          tradeAmountUsd: 40,
         }),
       );
       expect(result.passed).toBe(false);
@@ -288,26 +295,31 @@ describe('checkGuardrails', () => {
     });
 
     it('passes sell when loss is within stop-loss threshold', () => {
+      // Position: 100 @ $0.95 = $95. maxTradeSizePct 50% => max $47.5. Use tradeAmountUsd=40.
       const result = checkGuardrails(
         makeParams({
           signal: makeSignal({ direction: 'sell', currency: 'CELO' }),
-          config: makeConfig({ stopLossPct: 10 }),
+          config: makeConfig({ stopLossPct: 10, maxTradeSizePct: 50 }),
           positions: [{ tokenSymbol: 'CELO', balance: 100, avgEntryRate: 1.0 }],
           positionPrices: { CELO: 0.95 },
+          tradeAmountUsd: 40,
         }),
       );
       expect(result.passed).toBe(true);
     });
 
-    it('passes sell when no position exists', () => {
+    it('blocks sell when no position exists', () => {
       const result = checkGuardrails(
         makeParams({
           signal: makeSignal({ direction: 'sell', currency: 'CELO' }),
           config: makeConfig({ stopLossPct: 10 }),
           positions: [],
+          tradeAmountUsd: 100,
         }),
       );
-      expect(result.passed).toBe(true);
+      expect(result.passed).toBe(false);
+      expect(result.ruleName).toBe('max_trade_size');
+      expect(result.blockedReason).toContain('No position');
     });
   });
 
@@ -324,7 +336,7 @@ describe('checkGuardrails', () => {
             allowedCurrencies: ['CELO'],
             blockedCurrencies: ['SCAM'],
             dailyTradeLimit: 1,
-            maxTradeSizeUsd: 100,
+            maxTradeSizePct: 25,
           }),
           tradesToday: 5,
           tradeAmountUsd: 500,
@@ -345,7 +357,7 @@ describe('checkGuardrails', () => {
             allowedCurrencies: ['CELO'],
             blockedCurrencies: [],
             dailyTradeLimit: 10,
-            maxTradeSizeUsd: 1000,
+            maxTradeSizePct: 50,
             maxAllocationPct: 50,
           }),
           positions: [],

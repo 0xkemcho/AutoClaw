@@ -74,7 +74,7 @@ export async function agentRoutes(app: FastifyInstance) {
 					id: config.id,
 					active: config.active,
 					frequency: config.frequency,
-					maxTradeSizeUsd: config.max_trade_size_usd,
+					maxTradeSizePct: config.max_trade_size_pct,
 					maxAllocationPct: config.max_allocation_pct,
 					stopLossPct: config.stop_loss_pct,
 					dailyTradeLimit: config.daily_trade_limit,
@@ -343,7 +343,7 @@ export async function agentRoutes(app: FastifyInstance) {
 			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 			const body = request.body as {
 				frequency?: AgentFrequency;
-				maxTradeSizeUsd?: number;
+				maxTradeSizePct?: number;
 				maxAllocationPct?: number;
 				stopLossPct?: number;
 				dailyTradeLimit?: number;
@@ -382,25 +382,36 @@ export async function agentRoutes(app: FastifyInstance) {
 				}
 			}
 
-			// Validate frequency (1–24 integer hours)
+			// Validate frequency (1–24 integer hours). Accept number or numeric string.
+			let validatedFrequency: number | undefined;
 			if (body.frequency !== undefined) {
+				const freq =
+					typeof body.frequency === "number"
+						? body.frequency
+						: parseInt(String(body.frequency), 10);
 				if (
-					typeof body.frequency !== "number" ||
-					!Number.isInteger(body.frequency) ||
-					body.frequency < 1 ||
-					body.frequency > 24
+					Number.isNaN(freq) ||
+					!Number.isInteger(freq) ||
+					freq < 1 ||
+					freq > 24
 				) {
 					return reply
 						.status(400)
 						.send({ error: "frequency must be an integer between 1 and 24" });
 				}
+				validatedFrequency = freq;
 			}
 
-			// Validate numeric ranges
-			if (body.maxTradeSizeUsd !== undefined && body.maxTradeSizeUsd <= 0) {
-				return reply
-					.status(400)
-					.send({ error: "maxTradeSizeUsd must be positive" });
+			// Validate max trade size % (1-100)
+			if (body.maxTradeSizePct !== undefined) {
+				const pct = typeof body.maxTradeSizePct === "number"
+					? body.maxTradeSizePct
+					: parseInt(String(body.maxTradeSizePct), 10);
+				if (Number.isNaN(pct) || pct < 1 || pct > 100) {
+					return reply
+						.status(400)
+						.send({ error: "maxTradeSizePct must be between 1 and 100" });
+				}
 			}
 			if (
 				body.maxAllocationPct !== undefined &&
@@ -431,9 +442,15 @@ export async function agentRoutes(app: FastifyInstance) {
 				updated_at: new Date().toISOString(),
 			};
 
-			if (body.frequency) updates.frequency = body.frequency;
-			if (body.maxTradeSizeUsd !== undefined)
-				updates.max_trade_size_usd = body.maxTradeSizeUsd;
+			if (validatedFrequency !== undefined) updates.frequency = validatedFrequency;
+			if (body.maxTradeSizePct !== undefined) {
+				const pct = typeof body.maxTradeSizePct === "number"
+					? body.maxTradeSizePct
+					: parseInt(String(body.maxTradeSizePct), 10);
+				if (!Number.isNaN(pct) && pct >= 1 && pct <= 100) {
+					updates.max_trade_size_pct = pct;
+				}
+			}
 			if (body.maxAllocationPct !== undefined)
 				updates.max_allocation_pct = body.maxAllocationPct;
 			if (body.stopLossPct !== undefined)
@@ -453,10 +470,19 @@ export async function agentRoutes(app: FastifyInstance) {
 				.eq("wallet_address", walletAddress)
 				.eq("agent_type", "fx")
 				.select()
-				.single();
+				.maybeSingle();
 
-			if (error || !data) {
-				return reply.status(500).send({ error: "Failed to update settings" });
+			if (error) {
+				console.error("[agent/settings] Update failed:", error);
+				return reply.status(500).send({
+					error: "Failed to update settings",
+					details: error.message,
+				});
+			}
+			if (!data) {
+				return reply.status(404).send({
+					error: "FX agent not configured. Complete onboarding first.",
+				});
 			}
 
 			return { success: true };

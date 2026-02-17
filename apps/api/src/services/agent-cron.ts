@@ -254,11 +254,21 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
       }
     }
 
+    // FX: available buying power = sum of USDC + USDT + USDm (Option C base + Option D cap)
+    const BASE_STABLE_SYMBOLS = ['USDC', 'USDT', 'USDm'];
+    let availableBuyingPowerUsd =
+      agentType === 'fx'
+        ? walletBalances
+            .filter((b) => BASE_STABLE_SYMBOLS.includes(b.symbol))
+            .reduce((s, b) => s + b.valueUsd, 0)
+        : 0;
+
     const guardrailContext = {
       positions,
       portfolioValueUsd: portfolioValue,
       dailyTradeCount: tradesToday,
       positionPrices,
+      availableBuyingPowerUsd: agentType === 'fx' ? availableBuyingPowerUsd : undefined,
     };
 
     const wallet = {
@@ -279,6 +289,27 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
 
       // Skip low confidence
       if ((s.confidence ?? 0) < 60 && agentType === 'fx') continue;
+
+      // FX signals from LLM have allocationPct/confidence but not amountUsd — derive it before guardrails/execution
+      // Option C: maxTradeUsd = availableBuyingPowerUsd * (maxTradeSizePct/100)
+      if (agentType === 'fx' && (s.amountUsd == null || typeof s.amountUsd !== 'number')) {
+        const maxTradeSizePct = (config as any).max_trade_size_pct ?? 25;
+        const maxTradeUsd = availableBuyingPowerUsd * (maxTradeSizePct / 100);
+        s.amountUsd = calculateTradeAmount(s.confidence ?? 0, maxTradeUsd);
+      }
+
+      // Skip if no trade amount (e.g. confidence < 60 returned 0)
+      if (agentType === 'fx' && (!s.amountUsd || s.amountUsd <= 0)) continue;
+
+      // Option D: Cap buy amount by available balance (avoid "Insufficient balance" at execution)
+      if (agentType === 'fx' && signalAction === 'buy' && availableBuyingPowerUsd > 0) {
+        const capped = Math.min(s.amountUsd, availableBuyingPowerUsd);
+        if (capped < 1) {
+          emitProgress(walletAddress, executeStep, `Skipping ${signalLabel}: insufficient balance ($${availableBuyingPowerUsd.toFixed(2)} left)`);
+          continue;
+        }
+        s.amountUsd = capped;
+      }
 
       // Check guardrails
       emitProgress(walletAddress, guardrailStep, `Checking guardrails for ${signalLabel}...`);
@@ -343,6 +374,12 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
             guardrailContext.positions = guardrailContext.positions.filter(
               (p: any) => (p.vault_address ?? p.vaultAddress ?? '').toLowerCase() !== vaultKey,
             );
+          }
+
+          // Option D: Decrement available balance after successful buy
+          if (agentType === 'fx' && signalAction === 'buy' && result.amountUsd != null) {
+            availableBuyingPowerUsd -= result.amountUsd;
+            guardrailContext.availableBuyingPowerUsd = availableBuyingPowerUsd;
           }
 
           // Submit ERC-8004 reputation feedback (non-blocking)

@@ -38,7 +38,7 @@ export function PortfolioGuardrailsCard() {
   const dailyUsage = 0; // Mocked until backend provides real usage volume
   const dailyUsagePct = (dailyUsage / dailyLimit) * 100;
 
-  const maxTradeSize = config?.maxTradeSizeUsd ?? 2000;
+  const maxTradeSizePct = config?.maxTradeSizePct ?? 25;
 
   const stopLoss = config?.stopLossPct ?? 5; // Default 5% if missing
 
@@ -140,7 +140,7 @@ export function PortfolioGuardrailsCard() {
                           <ShieldCheck className="size-3.5 text-primary" />
                           <span>Max Trade Size</span>
                       </div>
-                      <span className="text-muted-foreground">{formatUsd(maxTradeSize)}</span>
+                      <span className="text-muted-foreground">{maxTradeSizePct}%</span>
                   </div>
                   <Progress value={10} className="h-1.5 bg-secondary text-primary" />
               </div>

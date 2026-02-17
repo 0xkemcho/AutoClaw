@@ -131,7 +131,7 @@ function makeConfigRow(overrides: Record<string, unknown> = {}) {
     wallet_address: '0xTEST_WALLET',
     active: true,
     frequency: 'daily',
-    max_trade_size_usd: 500,
+    max_trade_size_pct: 25,
     max_allocation_pct: 25,
     stop_loss_pct: 10,
     daily_trade_limit: 5,
@@ -212,7 +212,7 @@ describe('GET /api/agent/status', () => {
       id: 'cfg-1',
       active: true,
       frequency: 'daily',
-      maxTradeSizeUsd: 500,
+      maxTradeSizePct: 25,
       maxAllocationPct: 25,
       stopLossPct: 10,
       dailyTradeLimit: 5,
@@ -500,7 +500,7 @@ describe('PUT /api/agent/settings', () => {
       url: '/api/agent/settings',
       payload: {
         frequency: 1,
-        maxTradeSizeUsd: 1000,
+        maxTradeSizePct: 50,
         maxAllocationPct: 30,
         stopLossPct: 15,
         dailyTradeLimit: 10,
@@ -509,6 +509,37 @@ describe('PUT /api/agent/settings', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ success: true });
+  });
+
+  it('accepts frequency as number or string', async () => {
+    mockResultsRef.value['agent_configs'] = { data: makeConfigRow(), error: null };
+
+    const res = await inject({
+      method: 'PUT',
+      url: '/api/agent/settings',
+      payload: { frequency: '4' },
+    });
+    expect(res.statusCode).toBe(200);
+
+    const res2 = await inject({
+      method: 'PUT',
+      url: '/api/agent/settings',
+      payload: { frequency: 12 },
+    });
+    expect(res2.statusCode).toBe(200);
+  });
+
+  it('returns 404 when FX config does not exist', async () => {
+    mockResultsRef.value['agent_configs'] = { data: null, error: null };
+
+    const res = await inject({
+      method: 'PUT',
+      url: '/api/agent/settings',
+      payload: { frequency: 4 },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect((res.json() as { error: string }).error).toContain('FX agent not configured');
   });
 
   it('returns 500 on DB error', async () => {
@@ -521,7 +552,8 @@ describe('PUT /api/agent/settings', () => {
     });
 
     expect(res.statusCode).toBe(500);
-    expect(res.json()).toEqual({ error: 'Failed to update settings' });
+    const body = res.json() as { error: string; details?: string };
+    expect(body.error).toBe('Failed to update settings');
   });
 
   it('maps camelCase body fields to snake_case for DB update', async () => {
@@ -531,7 +563,7 @@ describe('PUT /api/agent/settings', () => {
       method: 'PUT',
       url: '/api/agent/settings',
       payload: {
-        maxTradeSizeUsd: 2000,
+        maxTradeSizePct: 75,
         stopLossPct: 5,
         customPrompt: 'Be conservative',
       },
@@ -543,7 +575,7 @@ describe('PUT /api/agent/settings', () => {
     expect(record).toBeDefined();
     const updateCall = record!.methods.find((m) => m.name === 'update');
     const payload = updateCall!.args[0] as Record<string, unknown>;
-    expect(payload.max_trade_size_usd).toBe(2000);
+    expect(payload.max_trade_size_pct).toBe(75);
     expect(payload.stop_loss_pct).toBe(5);
     expect(payload.custom_prompt).toBe('Be conservative');
     expect(payload.updated_at).toBeDefined();

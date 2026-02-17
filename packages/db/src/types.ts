@@ -29,7 +29,7 @@ export type Database = {
           id: string
           last_run_at: string | null
           max_allocation_pct: number | null
-          max_trade_size_usd: number | null
+          max_trade_size_pct: number | null
           next_run_at: string | null
           server_wallet_address: string | null
           server_wallet_id: string | null
@@ -52,7 +52,7 @@ export type Database = {
           id?: string
           last_run_at?: string | null
           max_allocation_pct?: number | null
-          max_trade_size_usd?: number | null
+          max_trade_size_pct?: number | null
           next_run_at?: string | null
           server_wallet_address?: string | null
           server_wallet_id?: string | null
@@ -75,7 +75,7 @@ export type Database = {
           id?: string
           last_run_at?: string | null
           max_allocation_pct?: number | null
-          max_trade_size_usd?: number | null
+          max_trade_size_pct?: number | null
           next_run_at?: string | null
           server_wallet_address?: string | null
           server_wallet_id?: string | null

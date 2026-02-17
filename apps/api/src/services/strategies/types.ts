@@ -41,6 +41,8 @@ export interface GuardrailContext {
   portfolioValueUsd: number;
   dailyTradeCount: number;
   positionPrices?: Record<string, number>;
+  /** Sum of USDC + USDT + USDm balances (for buy-cap and max trade % base) */
+  availableBuyingPowerUsd?: number;
 }
 
 /**
