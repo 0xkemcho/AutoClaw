@@ -18,7 +18,7 @@ export function SentimentCard({ result }: { result: SentimentResult }) {
       case 'positive': return 'text-emerald-400';
       case 'negative': return 'text-rose-400';
       case 'neutral': return 'text-zinc-400';
-      default: return 'text-amber-400';
+      default: return 'text-primary';
     }
   };
 
@@ -83,7 +83,7 @@ export function SentimentCard({ result }: { result: SentimentResult }) {
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-amber-400 hover:text-amber-300 underline flex items-center gap-1 truncate"
+                    className="text-xs text-primary hover:text-primary/80 underline flex items-center gap-1 truncate"
                   >
                     <ExternalLink className="h-3 w-3 shrink-0" />
                     <span className="truncate">{url}</span>

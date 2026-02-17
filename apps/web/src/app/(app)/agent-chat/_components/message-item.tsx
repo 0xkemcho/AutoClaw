@@ -36,7 +36,7 @@ export function MessageItem({ message, isStreaming }: MessageItemProps) {
             return (
               <div
                 key={index}
-                className="prose prose-invert prose-sm max-w-none leading-relaxed text-zinc-300 [&_a]:text-amber-400 [&_a]:underline [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:my-0.5 [&_pre]:bg-zinc-900 [&_pre]:rounded [&_pre]:p-3 [&_pre]:overflow-x-auto [&_code]:text-sm [&_code]:bg-zinc-900 [&_code]:px-1 [&_code]:rounded [&_table]:border-collapse [&_th]:border [&_th]:border-zinc-700 [&_th]:p-2 [&_td]:border [&_td]:border-zinc-700 [&_td]:p-2"
+                className="prose prose-invert prose-sm max-w-none leading-relaxed text-zinc-300 [&_a]:text-primary [&_a]:underline [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:my-0.5 [&_pre]:bg-zinc-900 [&_pre]:rounded [&_pre]:p-3 [&_pre]:overflow-x-auto [&_code]:text-sm [&_code]:bg-zinc-900 [&_code]:px-1 [&_code]:rounded [&_table]:border-collapse [&_th]:border [&_th]:border-zinc-700 [&_th]:p-2 [&_td]:border [&_td]:border-zinc-700 [&_td]:p-2"
               >
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{part.text}</ReactMarkdown>
               </div>

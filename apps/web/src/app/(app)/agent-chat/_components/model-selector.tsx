@@ -36,7 +36,7 @@ export function ModelSelector({ value, onValueChange }: ModelSelectorProps) {
           className="w-[200px] justify-between border-zinc-800 bg-zinc-900/50 text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100"
         >
           <div className="flex items-center gap-2">
-            <selectedModel.icon className="h-4 w-4 text-amber-400 shrink-0" />
+            <selectedModel.icon className="h-4 w-4 text-primary shrink-0" />
             <span className="text-sm font-medium truncate">{selectedModel.label}</span>
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -55,9 +55,9 @@ export function ModelSelector({ value, onValueChange }: ModelSelectorProps) {
             }}
             className="flex items-center gap-2 cursor-pointer focus:bg-zinc-800 focus:text-zinc-100"
           >
-            <model.icon className={cn('h-4 w-4 shrink-0', value === model.value ? 'text-amber-400' : 'text-zinc-500')} />
+            <model.icon className={cn('h-4 w-4 shrink-0', value === model.value ? 'text-primary' : 'text-zinc-500')} />
             <span className="flex-1">{model.label}</span>
-            {value === model.value && <Check className="h-4 w-4 text-amber-400 shrink-0" />}
+            {value === model.value && <Check className="h-4 w-4 text-primary shrink-0" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

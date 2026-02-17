@@ -137,7 +137,7 @@ export function ChatInterface({
             {messages.length === 0 && !isLoading ? (
               <div className="flex flex-col items-center justify-center h-[50vh] text-zinc-500 space-y-4">
                 <div className="p-4 rounded-full bg-zinc-900/50 border border-zinc-800">
-                  <SparklesIcon className="h-8 w-8 text-amber-500/50" />
+                  <SparklesIcon className="h-8 w-8 text-primary/50" />
                 </div>
                 <div className="text-center space-y-3">
                   <h3 className="font-medium text-zinc-300">Start a new conversation</h3>
@@ -159,8 +159,8 @@ export function ChatInterface({
                 ))}
                 {isLoading && (
                   <div className="flex gap-4 p-4 md:p-6 bg-zinc-900/30 rounded-lg">
-                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/10">
-                      <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
+                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     </div>
                     <div className="flex items-center gap-2 text-zinc-500">
                       <span className="text-sm">Thinking…</span>
@@ -202,7 +202,7 @@ export function ChatInterface({
               type="submit"
               disabled={isLoading || !input.trim()}
               size="icon"
-              className="absolute right-1.5 top-1.5 h-9 w-9 bg-amber-500 hover:bg-amber-600 text-black"
+              className="absolute right-1.5 top-1.5 h-9 w-9 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
@@ -224,8 +224,8 @@ function ToolStatusCard({ name, status, description }: { name: string; status: s
         <div className="text-xs text-muted-foreground">{description}</div>
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-        <span className="text-xs text-emerald-500 font-medium">{status}</span>
+        <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+        <span className="text-xs text-primary font-medium">{status}</span>
       </div>
     </div>
   );

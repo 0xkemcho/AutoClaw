@@ -26,7 +26,7 @@ export function GovernanceCard({ data }: { data: GovernanceData }) {
     <Card className="w-full max-w-md bg-zinc-900/50 border-zinc-800">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-zinc-200 flex items-center gap-2">
-          <Vote className="h-4 w-4 text-amber-400" />
+          <Vote className="h-4 w-4 text-primary" />
           Celo Governance
         </CardTitle>
       </CardHeader>
