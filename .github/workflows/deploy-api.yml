@@ -28,6 +28,6 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             pnpm install --frozen-lockfile
-            pnpm --filter @autoclaw/api build
+            pnpm exec turbo run build --filter=@autoclaw/api
             pm2 restart autoclaw-api --update-env || pm2 start dist/index.js --name autoclaw-api --cwd /opt/autoclaw/apps/api
             pm2 save
