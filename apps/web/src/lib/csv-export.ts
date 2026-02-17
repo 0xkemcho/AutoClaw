@@ -92,17 +92,17 @@ export function exportTimelineToCsv(
     return csvRow([
       timestamp,
       createdAt ?? '',
-      event.runId ?? '',
+      (event.runId as string) ?? '',
       getActionTitle(event),
-      event.eventType ?? '',
-      event.summary ?? event.title ?? '',
+      (event.eventType as string) ?? '',
+      (event.summary as string) ?? (event.title as string) ?? '',
       getImpactString(event),
       getStatusString(event),
-      event.currency ?? '',
-      event.amountUsd ?? '',
-      event.direction ?? '',
-      event.confidencePct ?? '',
-      event.txHash ?? '',
+      (event.currency as string) ?? '',
+      (event.amountUsd as number) ?? '',
+      (event.direction as string) ?? '',
+      (event.confidencePct as number) ?? '',
+      (event.txHash as string) ?? '',
     ]);
   });
   const csv = [csvRow(headers), ...rows].join('\n');

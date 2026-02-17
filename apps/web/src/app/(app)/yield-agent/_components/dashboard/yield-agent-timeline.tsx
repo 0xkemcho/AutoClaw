@@ -33,7 +33,7 @@ export function YieldAgentTimeline() {
 
   const handleDownloadCsv = () => {
     exportTimelineToCsv(
-      events as Record<string, unknown>[],
+      events as unknown as Record<string, unknown>[],
       `yield-agent-timeline-${new Date().toISOString().slice(0, 10)}.csv`,
     );
   };

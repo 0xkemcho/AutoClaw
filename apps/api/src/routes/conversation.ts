@@ -94,9 +94,27 @@ export async function conversationRoutes(app: FastifyInstance) {
       const walletAddress = request.user!.walletAddress;
       const { chatId } = request.params as { chatId: string };
 
-      const body = request.body as { content?: string; modelId?: string };
-      const content = typeof body?.content === 'string' ? body.content.trim() : '';
+      const body = request.body as { content?: string; modelId?: string; messages?: Array<{ role: string; parts?: Array<{ type: string; text?: string }> }> };
+      let content = typeof body?.content === 'string' ? body.content.trim() : '';
       const modelId = typeof body?.modelId === 'string' ? body.modelId : 'gemini-3-flash';
+
+      // Fallback: extract from AI SDK messages format if content not provided
+      if (!content && Array.isArray(body?.messages) && body.messages.length > 0) {
+        for (let i = body.messages.length - 1; i >= 0; i--) {
+          const m = body.messages[i];
+          if (m.role !== 'user') continue;
+          const parts = m.parts ?? [];
+          for (const p of parts) {
+            if (p.type === 'text' && typeof p.text === 'string') {
+              content = p.text.trim();
+              break;
+            }
+          }
+          if (content) break;
+        }
+      }
+
+      app.log.info({ chatId, contentLength: content.length, modelId: modelId.slice(0, 20) }, 'Conversation message received');
 
       if (!content) {
         return reply.status(400).send({ error: 'content is required' });

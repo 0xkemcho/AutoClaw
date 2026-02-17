@@ -32,7 +32,7 @@ export function FxAgentTimeline() {
 
   const handleDownloadCsv = () => {
     exportTimelineToCsv(
-      events as Record<string, unknown>[],
+      events as unknown as Record<string, unknown>[],
       `fx-agent-timeline-${new Date().toISOString().slice(0, 10)}.csv`,
     );
   };

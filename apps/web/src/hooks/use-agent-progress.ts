@@ -98,6 +98,7 @@ export function useAgentProgress(): ProgressState {
             },
           ],
           reasoning: '',
+          clear: () => {},
         };
       });
       // Refresh data in case the run did complete server-side
@@ -168,6 +169,7 @@ export function useAgentProgress(): ProgressState {
               stepMessage: msg.message ?? '',
               steps,
               reasoning: newReasoning,
+              clear: () => {},
             };
           });
 

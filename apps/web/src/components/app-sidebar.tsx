@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { TrendingUp, Sprout, ArrowLeftRight, LayoutDashboard } from 'lucide-react';
+import { TrendingUp, Sprout, ArrowLeftRight, LayoutDashboard, MessageSquareText } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import {
   Sidebar,
@@ -32,6 +32,11 @@ const items = [
     title: 'Overview',
     url: '/overview',
     icon: LayoutDashboard,
+  },
+  {
+    title: 'Agent Chat',
+    url: '/agent-chat',
+    icon: MessageSquareText,
   },
   {
     title: 'FX Agent',
