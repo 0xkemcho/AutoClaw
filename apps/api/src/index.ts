@@ -10,6 +10,7 @@ import { tradeRoutes } from './routes/trade.js';
 import { agentRoutes } from './routes/agent.js';
 import { wsRoutes } from './routes/ws.js';
 import { yieldAgentRoutes } from './routes/yield-agent.js';
+import { conversationRoutes } from './routes/conversation.js';
 import { startPriceSnapshotCron } from './services/snapshot-cron.js';
 import { startAgentCron } from './services/agent-cron.js';
 
@@ -42,12 +43,21 @@ const RATE_LIMITS: Record<string, number> = {
   '/api/yield-agent/run-now': 5,
 };
 
+const RATE_LIMIT_PREFIXES: Array<{ prefix: string; limit: number }> = [
+  { prefix: '/api/conversation/', limit: 30 },
+];
+
 app.addHook('onRequest', async (request, reply) => {
-  const limit = RATE_LIMITS[request.url.split('?')[0]];
+  const path = request.url.split('?')[0];
+  let limit = RATE_LIMITS[path];
+  if (!limit) {
+    const prefixMatch = RATE_LIMIT_PREFIXES.find((p) => path.startsWith(p.prefix));
+    limit = prefixMatch?.limit ?? 0;
+  }
   if (!limit) return;
 
   const ip = request.ip;
-  const key = `${ip}:${request.url.split('?')[0]}`;
+  const key = `${ip}:${path}`;
   const now = Date.now();
   const entry = rateLimitMap.get(key);
 
@@ -84,6 +94,7 @@ await app.register(tradeRoutes);
 await app.register(agentRoutes);
 await app.register(wsRoutes);
 await app.register(yieldAgentRoutes);
+await app.register(conversationRoutes);
 
 try {
   await app.listen({ port: PORT, host: '0.0.0.0' });

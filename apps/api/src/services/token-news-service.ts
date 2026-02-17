@@ -49,7 +49,7 @@ function buildSearchQuery(symbol: string): string {
   return `${name} exchange rate news ${month} ${year}`;
 }
 
-function extractOneLiner(first: { title?: string; excerpts?: string[]; snippet?: string }): string {
+function extractOneLiner(first: { title?: string | null; excerpts?: string[] | null; snippet?: string | null }): string {
   const title = (first.title ?? '').trim();
   const excerpt = (first.excerpts?.join(' ') ?? '').trim();
   const snippet = (first.snippet ?? '').trim();

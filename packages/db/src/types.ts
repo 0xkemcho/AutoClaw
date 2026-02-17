@@ -223,6 +223,89 @@ export type Database = {
           },
         ]
       }
+      conversation_chats: {
+        Row: {
+          id: string
+          wallet_address: string
+          title: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          wallet_address: string
+          title?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          wallet_address?: string
+          title?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_chats_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      conversation_messages: {
+        Row: {
+          id: string
+          chat_id: string
+          wallet_address: string
+          role: string
+          content: string
+          model_requested: string | null
+          model_routed: string | null
+          tool_calls_json: Json | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          chat_id: string
+          wallet_address: string
+          role: string
+          content: string
+          model_requested?: string | null
+          model_routed?: string | null
+          tool_calls_json?: Json | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          chat_id?: string
+          wallet_address?: string
+          role?: string
+          content?: string
+          model_requested?: string | null
+          model_routed?: string | null
+          tool_calls_json?: Json | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_messages_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
       fx_agent_timeline: {
         Row: {
           amount_usd: number | null

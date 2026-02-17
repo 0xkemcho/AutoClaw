@@ -18,6 +18,7 @@
     "@autoclaw/shared": "workspace:*",
     "@fastify/cors": "^10.x",
     "@fastify/websocket": "^11.2.0",
+    "@mendable/firecrawl-js": "^4.13.0",
     "@supabase/supabase-js": "^2.x",
     "ai": "^6.0.79",
     "ai-sdk-provider-gemini-cli": "^2.0.1",
