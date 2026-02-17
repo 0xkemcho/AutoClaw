@@ -87,6 +87,21 @@ export interface AgentTimelineEntry {
   amountUsd: number | null;
   direction: TradeDirection | null;
   txHash: string | null;
+  runId: string | null;
+  attestationId: string | null;
+  attestationStatus: 'missing' | 'mock_verified' | 'mock_invalid';
+  createdAt: string;
+}
+
+export interface AgentAttestation {
+  id: string;
+  walletAddress: string;
+  agentType: AgentType;
+  runId: string | null;
+  payload: Record<string, unknown>;
+  signature: string;
+  algorithm: string;
+  isMock: boolean;
   createdAt: string;
 }
 

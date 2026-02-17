@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { motion } from 'motion/react';
+import { useState } from 'react';
 import {
   Zap,
   Pause,
@@ -17,7 +16,15 @@ import { useAgentStatus, useToggleAgent, useRunNow } from '@/hooks/use-agent';
 import { usePortfolio } from '@/hooks/use-portfolio';
 import { useAgentProgress } from '@/hooks/use-agent-progress';
 import { useSelfClawStatus } from '@/hooks/use-selfclaw';
+import { useFxAttestations } from '@/hooks/use-timeline';
 import { SelfClawVerificationDialog } from '@/app/(app)/_components/selfclaw-verification-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { formatUsd } from '@/lib/format';
@@ -30,7 +37,9 @@ export function AgentControlCard() {
   const runNowMutation = useRunNow();
   const selfclawStatus = useSelfClawStatus();
   const selfclawVerified = selfclawStatus.data?.verified ?? false;
+  const { data: attestationsData } = useFxAttestations(25, 0);
   const [selfclawDialogOpen, setSelfclawDialogOpen] = useState(false);
+  const [attestationsOpen, setAttestationsOpen] = useState(false);
 
   const config = agent?.config;
   const isActive = config?.active ?? false;
@@ -44,26 +53,22 @@ export function AgentControlCard() {
 
   // Helpers for PnL color
   const pnlColor = totalPnl >= 0 ? "text-green-500" : "text-red-500";
-  const pnlBg = totalPnl >= 0 ? "bg-green-500/10" : "bg-red-500/10";
   const pnlSign = totalPnl >= 0 ? "+" : "";
-
-  const timeToNextRun = useMemo(() => {
-    if (!nextRunAt) return 'Paused';
-    const now = new Date();
-    if (nextRunAt < now) return 'Due';
-    // Simple format for the center text
-    const diff = nextRunAt.getTime() - now.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
-  }, [nextRunAt]);
   return (
     <Card className="flex flex-col justify-between overflow-hidden border-border/50 bg-card p-6 shadow-sm dark:bg-[#18181b]">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <h3 className="text-lg font-semibold text-foreground">Agent Controls & Status</h3>
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-[10px] uppercase tracking-wide"
+            onClick={() => setAttestationsOpen(true)}
+          >
+            Past Attestations
+          </Button>
           {selfclawVerified ? (
             <span className="flex items-center gap-1 text-xs font-medium text-primary">
               <UserCheck className="size-3.5" />
@@ -86,6 +91,40 @@ export function AgentControlCard() {
         open={selfclawDialogOpen}
         onOpenChange={setSelfclawDialogOpen}
       />
+      <Dialog open={attestationsOpen} onOpenChange={setAttestationsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Past Attestations</DialogTitle>
+            <DialogDescription>
+              Mock TEE attestations for recent FX agent runs.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] space-y-2 overflow-auto rounded-md border border-border/60 p-3">
+            {(attestationsData?.entries ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No attestations yet.</p>
+            ) : (
+              (attestationsData?.entries ?? []).map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-md border border-border/60 bg-muted/20 p-2 text-xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-muted-foreground">
+                      {entry.runId ? `Run ${entry.runId.slice(0, 8)}...` : 'No run id'}
+                    </span>
+                    <span className="rounded border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-400">
+                      Mock Verified
+                    </span>
+                  </div>
+                  <p className="mt-1 text-muted-foreground">
+                    {new Date(entry.createdAt).toLocaleString()} · {entry.algorithm}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Main Status Circle */}
       <div className="flex flex-1 flex-col items-center justify-center py-6">

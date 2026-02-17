@@ -10,7 +10,9 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "echo 'no linter configured yet'"
+    "lint": "echo 'no linter configured yet'",
+    "attestation:backfill": "tsx src/scripts/backfill-attestations.ts",
+    "attestation:migrate-8004-uri": "tsx src/scripts/migrate-8004-agent-uri.ts"
   },
   "dependencies": {
     "@autoclaw/contracts": "workspace:*",

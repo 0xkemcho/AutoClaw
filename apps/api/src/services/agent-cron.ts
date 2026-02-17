@@ -12,6 +12,7 @@ import {
 import { calculateTradeAmount } from './rules-engine.js';
 import { emitProgress } from './agent-events.js';
 import { submitTradeFeedback } from './agent-registry.js';
+import { createAndAttachRunAttestation } from './attestation-service.js';
 import { getStrategy } from './strategies/index.js';
 import type { WalletBalance } from './strategies/types.js';
 import { celoClient } from '../lib/celo-client.js';
@@ -109,6 +110,20 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
   // Load the strategy for this agent type
   const strategy = getStrategy(agentType);
   const progressSteps = strategy.getProgressSteps() as ProgressStep[];
+  const attachRunAttestationIfPossible = async () => {
+    try {
+      await createAndAttachRunAttestation({
+        walletAddress,
+        agentType: agentType as 'fx' | 'yield',
+        runId,
+      });
+    } catch (error) {
+      console.error(
+        `[agent:${walletAddress.slice(0, 8)}:${agentType}] Failed to create run attestation:`,
+        error,
+      );
+    }
+  };
 
   try {
     // 1. Log cycle start
@@ -184,6 +199,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
       emitProgress(walletAddress, 'complete', summary || 'No actionable signals.', {
         signalCount: 0, tradeCount: 0, blockedCount: 0,
       });
+      await attachRunAttestationIfPossible();
       return;
     }
 
@@ -212,6 +228,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
         summary: 'Wallet empty - add funds to execute trades',
         detail: { signals, portfolioValue: 0 },
       }, runId, agentType);
+      await attachRunAttestationIfPossible();
       return;
     }
 
@@ -366,6 +383,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
       `${agentType.toUpperCase()}: ${signals.length} signals, ${tradeCount} executed, ${blockedCount} blocked.`,
       { signalCount: signals.length, tradeCount, blockedCount },
     );
+    await attachRunAttestationIfPossible();
   } catch (error) {
     console.error(`[agent:${walletAddress.slice(0, 8)}:${agentType}] Cycle FAILED:`, error);
     emitProgress(walletAddress, 'error',
@@ -376,6 +394,7 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
       summary: `Agent cycle failed: ${formatExecutionError(error)}`,
       detail: { error: error instanceof Error ? error.message : String(error) },
     }, runId, agentType);
+    await attachRunAttestationIfPossible();
   }
 }
 

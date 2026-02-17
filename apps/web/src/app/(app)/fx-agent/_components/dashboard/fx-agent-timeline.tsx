@@ -12,7 +12,9 @@ import {
   Filter,
   Calendar,
   FileDown,
-  Code
+  Code,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -178,7 +180,7 @@ function TimelineRow({ event, onViewLogs }: { event: any, onViewLogs: () => void
     iconBg = "bg-green-500/10 border-green-500/20 text-green-500";
     title = event.direction === 'buy' ? "Buy Executed" : "Sell Executed";
 
-    const amount = event.amount_usd ? `$${event.amount_usd.toFixed(2)}` : null;
+    const amount = event.amountUsd ? `$${event.amountUsd.toFixed(2)}` : null;
     if (amount) {
        impact = <span className="font-mono font-medium text-emerald-500 text-sm">+{amount}</span>;
     }
@@ -193,7 +195,7 @@ function TimelineRow({ event, onViewLogs }: { event: any, onViewLogs: () => void
     iconBg = "bg-blue-500/10 border-blue-500/20 text-blue-500";
     title = "AI Analysis";
 
-    const confidence = event.confidence_pct ?? 0;
+    const confidence = event.confidencePct ?? 0;
     impact = (
         <div className="flex items-center justify-end gap-2">
             <div className="w-16 bg-gray-700 rounded-full h-1.5 overflow-hidden">
@@ -221,6 +223,18 @@ function TimelineRow({ event, onViewLogs }: { event: any, onViewLogs: () => void
         </span>
     );
   }
+
+  const attestationBadge = event.attestationStatus === 'mock_verified' ? (
+    <span className="inline-flex items-center gap-1 rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium leading-none text-emerald-400">
+      <ShieldCheck className="size-3" />
+      Mock Verified
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 rounded border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium leading-none text-amber-300">
+      <ShieldAlert className="size-3" />
+      Missing
+    </span>
+  );
 
   return (
     <tr className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group h-12 border-b border-gray-100 dark:border-gray-800 last:border-0">
@@ -258,7 +272,10 @@ function TimelineRow({ event, onViewLogs }: { event: any, onViewLogs: () => void
 
        {/* Status */}
        <td className="px-4 py-3 text-center">
-           {statusBadge}
+           <div className="flex flex-col items-center gap-1">
+             {statusBadge}
+             {attestationBadge}
+           </div>
        </td>
 
        {/* Actions */}

@@ -16,6 +16,7 @@ import { IchiVaultAdapter } from '../services/vault-adapters/ichi.js';
 import { celoClient } from '../lib/celo-client.js';
 import { createServerWallet } from '../lib/thirdweb-wallet.js';
 import { registerAgentOnChain, getAgentReputation } from '../services/agent-registry.js';
+import { getAttestationById, getLatestAttestationSummary, listAttestations } from '../services/attestation-service.js';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 type AgentTimelineRow = Database['public']['Tables']['agent_timeline']['Row'];
@@ -226,7 +227,7 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
 
       // Create a separate server wallet for yield agent (thirdweb)
       const identifier = `agent-yield-${walletAddress.toLowerCase()}`;
-      let walletResult;
+      let walletResult: { address: string };
       try {
         walletResult = await createServerWallet(identifier);
       } catch (err) {
@@ -781,6 +782,11 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
       const displayName = profileResult.data?.display_name ?? walletAddress.slice(0, 8);
       const agentConfig = configResult.data as Pick<AgentConfigRow, 'active'>;
       const agentName = `AutoClaw-Yield-${displayName.replace(/\s+/g, '-')}`;
+      const teeSummary = await getLatestAttestationSummary({
+        walletAddress,
+        agentType: 'yield',
+      });
+      const nowUnix = Math.floor(Date.now() / 1000);
 
       return {
         type: 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',
@@ -793,10 +799,64 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
         services: [
           { name: 'web', endpoint: 'https://autoclaw.co', description: 'Website' },
           { name: 'github', endpoint: 'https://github.com/0xkemcho/AutoClaw', description: 'Source Code' },
+          {
+            name: 'attestations',
+            endpoint: `${process.env.PUBLIC_API_BASE_URL || 'https://api.autoclaw.co'}/api/yield-agent/attestations`,
+            description: 'Run attestations (mock TEE-ready interface)',
+          },
         ],
+        supportedTrust: ['reputation', 'tee-attestation'],
+        updatedAt: nowUnix,
+        attributes: {
+          tee: {
+            mode: 'mock',
+            status: teeSummary.status,
+            attestationType: 'hmac-sha256',
+            latestAttestationAt: teeSummary.latestAttestationAt,
+            attestationEndpoint: `${process.env.PUBLIC_API_BASE_URL || 'https://api.autoclaw.co'}/api/yield-agent/attestations`,
+          },
+        },
         x402Support: false,
         active: agentConfig.active,
       };
+    },
+  );
+
+  // GET /api/yield-agent/attestations
+  app.get(
+    '/api/yield-agent/attestations',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const query = request.query as { limit?: string; offset?: string };
+      const limit = Math.min(100, Math.max(1, parseInt(query.limit || '20', 10)));
+      const offset = Math.max(0, parseInt(query.offset || '0', 10));
+
+      try {
+        return await listAttestations({ walletAddress, agentType: 'yield', limit, offset });
+      } catch (error) {
+        console.error('Failed to list Yield attestations:', error);
+        return reply.status(500).send({ error: 'Failed to fetch attestations' });
+      }
+    },
+  );
+
+  // GET /api/yield-agent/attestations/:id
+  app.get(
+    '/api/yield-agent/attestations/:id',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const { id } = request.params as { id: string };
+
+      try {
+        const attestation = await getAttestationById({ walletAddress, agentType: 'yield', id });
+        if (!attestation) return reply.status(404).send({ error: 'Attestation not found' });
+        return attestation;
+      } catch (error) {
+        console.error('Failed to fetch Yield attestation:', error);
+        return reply.status(500).send({ error: 'Failed to fetch attestation' });
+      }
     },
   );
 
@@ -855,6 +915,8 @@ function mapTimelineEntry(row: Record<string, unknown>) {
     direction: row.direction,
     txHash: row.tx_hash,
     runId: row.run_id ?? null,
+    attestationId: row.attestation_id ?? null,
+    attestationStatus: row.attestation_status ?? 'missing',
     createdAt: row.created_at,
   };
 }

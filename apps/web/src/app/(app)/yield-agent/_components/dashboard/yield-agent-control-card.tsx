@@ -19,11 +19,23 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { useYieldAgentStatus, useToggleYieldAgent, useRunYieldNow } from '@/hooks/use-yield-agent';
+import {
+  useYieldAgentStatus,
+  useToggleYieldAgent,
+  useRunYieldNow,
+  useYieldAttestations,
+} from '@/hooks/use-yield-agent';
 import { usePortfolio } from '@/hooks/use-portfolio';
 import { useAgentProgress } from '@/hooks/use-agent-progress';
 import { useSelfClawStatus } from '@/hooks/use-selfclaw';
 import { SelfClawVerificationDialog } from '@/app/(app)/_components/selfclaw-verification-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { formatUsd } from '@/lib/format';
@@ -35,7 +47,9 @@ export function YieldAgentControlCard() {
   const { data: agent } = useYieldAgentStatus();
   const selfclawStatus = useSelfClawStatus();
   const selfclawVerified = selfclawStatus.data?.verified ?? false;
+  const { data: attestationsData } = useYieldAttestations(25, 0);
   const [selfclawDialogOpen, setSelfclawDialogOpen] = useState(false);
+  const [attestationsOpen, setAttestationsOpen] = useState(false);
   const { data: portfolio } = usePortfolio('yield');
   const { isRunning, stepLabel } = useAgentProgress();
   const toggleMutation = useToggleYieldAgent();
@@ -84,6 +98,15 @@ export function YieldAgentControlCard() {
       <div className="mb-6 flex items-start justify-between">
         <h3 className="text-lg font-semibold text-foreground">Agent Controls & Status</h3>
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-[10px] uppercase tracking-wide"
+            onClick={() => setAttestationsOpen(true)}
+          >
+            Past Attestations
+          </Button>
           {selfclawVerified ? (
             <span className="flex items-center gap-1 text-xs font-medium text-primary">
               <UserCheck className="size-3.5" />
@@ -106,6 +129,40 @@ export function YieldAgentControlCard() {
         open={selfclawDialogOpen}
         onOpenChange={setSelfclawDialogOpen}
       />
+      <Dialog open={attestationsOpen} onOpenChange={setAttestationsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Past Attestations</DialogTitle>
+            <DialogDescription>
+              Mock TEE attestations for recent Yield agent runs.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] space-y-2 overflow-auto rounded-md border border-border/60 p-3">
+            {(attestationsData?.entries ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No attestations yet.</p>
+            ) : (
+              (attestationsData?.entries ?? []).map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-md border border-border/60 bg-muted/20 p-2 text-xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-muted-foreground">
+                      {entry.runId ? `Run ${entry.runId.slice(0, 8)}...` : 'No run id'}
+                    </span>
+                    <span className="rounded border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-400">
+                      Mock Verified
+                    </span>
+                  </div>
+                  <p className="mt-1 text-muted-foreground">
+                    {new Date(entry.createdAt).toLocaleString()} · {entry.algorithm}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Main Status Circle */}
       <div className="flex flex-1 flex-col items-center justify-center py-6">

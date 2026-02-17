@@ -80,11 +80,31 @@ interface TimelineEntry {
   direction: string | null;
   txHash: string | null;
   runId: string | null;
+  attestationId: string | null;
+  attestationStatus: 'missing' | 'mock_verified' | 'mock_invalid';
   createdAt: string;
 }
 
 interface YieldTimelineResponse {
   entries: TimelineEntry[];
+  total: number;
+  hasMore: boolean;
+}
+
+interface YieldAttestationEntry {
+  id: string;
+  walletAddress: string;
+  agentType: 'fx' | 'yield';
+  runId: string | null;
+  payload: Record<string, unknown>;
+  signature: string;
+  algorithm: string;
+  isMock: boolean;
+  createdAt: string;
+}
+
+interface YieldAttestationResponse {
+  entries: YieldAttestationEntry[];
   total: number;
   hasMore: boolean;
 }
@@ -103,6 +123,9 @@ export const yieldAgentKeys = {
   rewards: () => [...yieldAgentKeys.all, 'rewards'] as const,
   timeline: (filters?: YieldTimelineFilters) =>
     [...yieldAgentKeys.all, 'timeline', filters] as const,
+  attestations: (limit?: number, offset?: number) =>
+    [...yieldAgentKeys.all, 'attestations', limit, offset] as const,
+  attestation: (id: string) => [...yieldAgentKeys.all, 'attestation', id] as const,
 };
 
 export function useYieldAgentStatus() {
@@ -185,6 +208,27 @@ export function useYieldTimeline(filters?: YieldTimelineFilters) {
         },
       }),
     refetchInterval: onYieldPage ? YIELD_PAGE_SYNC_MS : false,
+  });
+}
+
+export function useYieldAttestations(limit = 20, offset = 0) {
+  const { isAuthenticated } = useAuth();
+  return useQuery({
+    queryKey: yieldAgentKeys.attestations(limit, offset),
+    queryFn: () =>
+      api.get<YieldAttestationResponse>('/api/yield-agent/attestations', {
+        params: { limit, offset },
+      }),
+    enabled: isAuthenticated,
+  });
+}
+
+export function useYieldAttestation(id: string) {
+  const { isAuthenticated } = useAuth();
+  return useQuery({
+    queryKey: yieldAgentKeys.attestation(id),
+    queryFn: () => api.get<YieldAttestationEntry>(`/api/yield-agent/attestations/${id}`),
+    enabled: isAuthenticated && !!id,
   });
 }
 

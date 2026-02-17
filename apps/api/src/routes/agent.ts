@@ -5,6 +5,7 @@ import { frequencyToMs, parseFrequencyToMs, type AgentFrequency, MENTO_TOKENS, C
 import { runAgentCycle } from '../services/agent-cron.js';
 import { getWalletBalances } from '../services/dune-balances.js';
 import { prepareAgentWalletLink, getAgentReputation, registerAgentOnChain } from '../services/agent-registry.js';
+import { getAttestationById, getLatestAttestationSummary, listAttestations } from '../services/attestation-service.js';
 
 type AgentConfigRow = Database['public']['Tables']['agent_configs']['Row'];
 type AgentTimelineRow = Database['public']['Tables']['agent_timeline']['Row'];
@@ -243,6 +244,44 @@ export async function agentRoutes(app: FastifyInstance) {
       }
 
       return mapTimelineEntry(data);
+    },
+  );
+
+  // GET /api/agent/attestations
+  app.get(
+    '/api/agent/attestations',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const query = request.query as { limit?: string; offset?: string };
+      const limit = Math.min(100, Math.max(1, parseInt(query.limit || '20', 10)));
+      const offset = Math.max(0, parseInt(query.offset || '0', 10));
+
+      try {
+        return await listAttestations({ walletAddress, agentType: 'fx', limit, offset });
+      } catch (error) {
+        console.error('Failed to list FX attestations:', error);
+        return reply.status(500).send({ error: 'Failed to fetch attestations' });
+      }
+    },
+  );
+
+  // GET /api/agent/attestations/:id
+  app.get(
+    '/api/agent/attestations/:id',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const { id } = request.params as { id: string };
+
+      try {
+        const attestation = await getAttestationById({ walletAddress, agentType: 'fx', id });
+        if (!attestation) return reply.status(404).send({ error: 'Attestation not found' });
+        return attestation;
+      } catch (error) {
+        console.error('Failed to fetch FX attestation:', error);
+        return reply.status(500).send({ error: 'Failed to fetch attestation' });
+      }
     },
   );
 
@@ -703,6 +742,11 @@ export async function agentRoutes(app: FastifyInstance) {
         : 'AutoClaw FX Agent monitors global FX news in real-time, generates trade signals with Gemini LLM, ' +
           'and executes stablecoin swaps via Mento on Celo — with configurable risk guardrails. ' +
           'Supports 15+ Mento stablecoins (USDm, EURm, BRLm, JPYm, and more). ERC-8004 on-chain identity and reputation.';
+      const teeSummary = await getLatestAttestationSummary({
+        walletAddress,
+        agentType,
+      });
+      const nowUnix = Math.floor(Date.now() / 1000);
 
       return {
         type: 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',
@@ -712,7 +756,27 @@ export async function agentRoutes(app: FastifyInstance) {
         services: [
           { name: 'web', endpoint: 'https://autoclaw.co', description: 'Website' },
           { name: 'github', endpoint: 'https://github.com/0xkemcho/AutoClaw', description: 'Source Code' },
+          {
+            name: 'attestations',
+            endpoint: agentType === 'yield'
+              ? `${process.env.PUBLIC_API_BASE_URL || 'https://api.autoclaw.co'}/api/yield-agent/attestations`
+              : `${process.env.PUBLIC_API_BASE_URL || 'https://api.autoclaw.co'}/api/agent/attestations`,
+            description: 'Run attestations (mock TEE-ready interface)',
+          },
         ],
+        supportedTrust: ['reputation', 'tee-attestation'],
+        updatedAt: nowUnix,
+        attributes: {
+          tee: {
+            mode: 'mock',
+            status: teeSummary.status,
+            attestationType: 'hmac-sha256',
+            latestAttestationAt: teeSummary.latestAttestationAt,
+            attestationEndpoint: agentType === 'yield'
+              ? `${process.env.PUBLIC_API_BASE_URL || 'https://api.autoclaw.co'}/api/yield-agent/attestations`
+              : `${process.env.PUBLIC_API_BASE_URL || 'https://api.autoclaw.co'}/api/agent/attestations`,
+          },
+        },
         x402Support: false,
         active: agentConfig.active,
       };
@@ -800,6 +864,8 @@ function mapTimelineEntry(row: Record<string, unknown>) {
     direction: row.direction,
     txHash: row.tx_hash,
     runId: row.run_id ?? null,
+    attestationId: row.attestation_id ?? null,
+    attestationStatus: row.attestation_status ?? 'missing',
     createdAt: row.created_at,
   };
 }
