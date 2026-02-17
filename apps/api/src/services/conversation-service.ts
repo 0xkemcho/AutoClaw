@@ -27,7 +27,9 @@ const SYSTEM_PROMPT = `You are a deep-conversation intelligence agent for the Au
 - X/social sentiment analysis (Grok)
 - Celo governance info (Mondo - mondo.celo.org/governance)
 
-Use tools when the user asks about news, prices, sentiment, or Celo governance. Be conversational, cite sources when you use tool results, and keep responses focused. For Celo governance, all data comes from https://mondo.celo.org/governance.`;
+Use tools when the user asks about news, prices, sentiment, or Celo governance. Be conversational, cite sources when you use tool results, and keep responses focused. For Celo governance, all data comes from https://mondo.celo.org/governance.
+
+Format responses in Markdown. Use bullet points (-) for lists of items. Use **bold** for emphasis. Use \`code\` for technical terms. Use clear headings and structure.`;
 
 export interface CreateChatResult {
   id: string;
@@ -55,6 +57,19 @@ export async function createChat(walletAddress: string): Promise<CreateChatResul
     title: row.title ?? 'New chat',
     createdAt: row.created_at ?? new Date().toISOString(),
   };
+}
+
+export async function getLatestChat(walletAddress: string): Promise<ConversationChatRow | null> {
+  const { data, error } = await supabaseAdmin
+    .from('conversation_chats')
+    .select('*')
+    .eq('wallet_address', walletAddress)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as ConversationChatRow;
 }
 
 export async function getChat(

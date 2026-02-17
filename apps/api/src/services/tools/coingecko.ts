@@ -12,6 +12,7 @@ export interface CoinGeckoPriceResult {
   price_change_24h?: number;
   price_change_percentage_24h?: number;
   market_cap?: number;
+  sparkline_in_7d?: { price: number[] };
 }
 
 /**
@@ -39,6 +40,48 @@ export async function getCoinGeckoPrices(
     throw new Error(`CoinGecko API error: ${res.status} ${res.statusText}`);
   }
   return (await res.json()) as Record<string, Record<string, number>>;
+}
+
+/**
+ * Fetch market data with sparkline for given coin IDs.
+ */
+export async function getCoinGeckoMarketData(
+  ids: string[],
+  vsCurrency = 'usd'
+): Promise<CoinGeckoPriceResult[]> {
+  const url = new URL(`${COINGECKO_BASE}/coins/markets`);
+  url.searchParams.set('vs_currency', vsCurrency);
+  url.searchParams.set('ids', ids.join(','));
+  url.searchParams.set('sparkline', 'true');
+  url.searchParams.set('price_change_percentage', '24h');
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  };
+  const apiKey = process.env.COINGECKO_API_KEY;
+  if (apiKey) {
+    headers['x-cg-demo-api-key'] = apiKey;
+  }
+
+  const res = await fetch(url.toString(), { headers });
+  if (!res.ok) {
+    throw new Error(`CoinGecko API error: ${res.status} ${res.statusText}`);
+  }
+  
+  // The API returns an array of objects
+  const data = await res.json();
+  
+  // Map the response to our interface
+  return (data as any[]).map((coin: any) => ({
+    id: coin.id,
+    symbol: coin.symbol,
+    name: coin.name,
+    current_price: coin.current_price,
+    price_change_24h: coin.price_change_24h,
+    price_change_percentage_24h: coin.price_change_percentage_24h,
+    market_cap: coin.market_cap,
+    sparkline_in_7d: coin.sparkline_in_7d,
+  }));
 }
 
 /**

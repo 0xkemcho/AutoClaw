@@ -6,7 +6,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { searchParallelAI } from './tools/parallel-ai.js';
-import { getCoinGeckoPrices, searchCoinGecko } from './tools/coingecko.js';
+import { getCoinGeckoMarketData, searchCoinGecko } from './tools/coingecko.js';
 import { analyzeGrokSentiment } from './tools/grok.js';
 import { scrapeCeloGovernance } from './tools/celo-governance-firecrawl.js';
 
@@ -31,7 +31,17 @@ export const conversationTools = {
     execute: async ({ query, maxResults }) => {
       try {
         const results = await withTimeout(searchParallelAI(query, maxResults), TOOL_TIMEOUT_MS);
-        return { results, count: results.length };
+        const xDomains = ['x.com', 'twitter.com'];
+        const sorted = [...results].sort((a, b) => {
+          const aSource = a.source?.toLowerCase() ?? '';
+          const bSource = b.source?.toLowerCase() ?? '';
+          const aIsX = xDomains.some((d) => aSource.includes(d));
+          const bIsX = xDomains.some((d) => bSource.includes(d));
+          if (aIsX && !bIsX) return -1;
+          if (!aIsX && bIsX) return 1;
+          return 0;
+        });
+        return { results: sorted, count: sorted.length };
       } catch (err) {
         return { error: err instanceof Error ? err.message : 'Search failed', results: [] };
       }
@@ -46,10 +56,10 @@ export const conversationTools = {
     }),
     execute: async ({ ids }) => {
       try {
-        const prices = await withTimeout(getCoinGeckoPrices(ids.slice(0, 10)), TOOL_TIMEOUT_MS);
+        const prices = await withTimeout(getCoinGeckoMarketData(ids.slice(0, 10)), TOOL_TIMEOUT_MS);
         return { prices };
       } catch (err) {
-        return { error: err instanceof Error ? err.message : 'Price fetch failed', prices: {} };
+        return { error: err instanceof Error ? err.message : 'Price fetch failed', prices: [] };
       }
     },
   }),
@@ -77,8 +87,22 @@ export const conversationTools = {
     }),
     execute: async ({ topic }) => {
       try {
-        const result = await withTimeout(analyzeGrokSentiment(topic), TOOL_TIMEOUT_MS);
-        return result;
+        const xDomains = ['x.com', 'twitter.com'];
+        const [grokResult, xSearchResults] = await Promise.all([
+          withTimeout(analyzeGrokSentiment(topic), TOOL_TIMEOUT_MS),
+          withTimeout(
+            searchParallelAI(`${topic} site:x.com OR site:twitter.com`, 5).catch(() => []),
+            TOOL_TIMEOUT_MS
+          ),
+        ]);
+        const postUrls = xSearchResults
+          .filter((r) => {
+            const src = r.source?.toLowerCase() ?? '';
+            return xDomains.some((d) => src.includes(d));
+          })
+          .map((r) => r.url)
+          .slice(0, 5);
+        return { ...grokResult, postUrls: postUrls.length > 0 ? postUrls : undefined };
       } catch (err) {
         return {
           sentiment: 'error',

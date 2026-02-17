@@ -1,6 +1,5 @@
-import { MessageSquare, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
+import { MessageSquare, ThumbsUp, ThumbsDown, Minus, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 
 interface SentimentResult {
   sentiment: string;
@@ -8,6 +7,7 @@ interface SentimentResult {
   positivePct?: number;
   neutralPct?: number;
   negativePct?: number;
+  postUrls?: string[];
 }
 
 export function SentimentCard({ result }: { result: SentimentResult }) {
@@ -70,6 +70,27 @@ export function SentimentCard({ result }: { result: SentimentResult }) {
               <span className="text-zinc-400">{result.neutralPct}% Neutral</span>
               <span className="text-rose-400">{result.negativePct}% Negative</span>
             </div>
+          </div>
+        )}
+
+        {result.postUrls && result.postUrls.length > 0 && (
+          <div className="space-y-2 pt-2 border-t border-zinc-800">
+            <p className="text-xs font-medium text-zinc-500">Related X posts</p>
+            <ul className="space-y-1.5">
+              {result.postUrls.map((url, i) => (
+                <li key={i}>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-amber-400 hover:text-amber-300 underline flex items-center gap-1 truncate"
+                  >
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{url}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </CardContent>

@@ -31,7 +31,9 @@
     "radix-ui": "^1.4.3",
     "react": "^19.x",
     "react-dom": "^19.x",
+    "react-markdown": "^10.1.0",
     "recharts": "^2.x",
+    "remark-gfm": "^4.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.x",
     "thirdweb": "^5.x"

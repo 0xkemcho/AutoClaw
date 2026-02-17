@@ -1,19 +1,64 @@
 'use client';
 
 import * as React from 'react';
+import type { UIMessage } from 'ai';
 import { Loader2 } from 'lucide-react';
-import { api } from '@/lib/api-client';
+import { api, ApiError } from '@/lib/api-client';
 import { ChatInterface } from './_components/chat-interface';
+
+interface ApiMessage {
+  id: string;
+  role: string;
+  content: string;
+}
+
+function toUIMessages(apiMessages: ApiMessage[]): UIMessage[] {
+  return apiMessages.map((m) => ({
+    id: m.id,
+    role: m.role as 'user' | 'assistant' | 'system',
+    parts: [{ type: 'text' as const, text: m.content }],
+  }));
+}
 
 export default function AgentChatPage() {
   const [chatId, setChatId] = React.useState<string | null>(null);
+  const [initialMessages, setInitialMessages] = React.useState<UIMessage[]>([]);
   const [error, setError] = React.useState<string | null>(null);
+
+  const handleNewChat = React.useCallback(async () => {
+    try {
+      setError(null);
+      const chat = await api.post<{ id: string }>('/api/conversation/chats');
+      setChatId(chat.id);
+      setInitialMessages([]);
+    } catch (err) {
+      console.error('Failed to create new chat:', err);
+      setError('Failed to start new conversation. Please try again.');
+    }
+  }, []);
 
   React.useEffect(() => {
     const initChat = async () => {
       try {
+        // Preload last chat on refresh; create new only if none exist
+        try {
+          const latest = await api.get<{ id: string }>('/api/conversation/chats/latest');
+          setChatId(latest.id);
+          const { messages } = await api.get<{ messages: ApiMessage[] }>(
+            `/api/conversation/chats/${latest.id}/messages`
+          );
+          setInitialMessages(toUIMessages(messages ?? []));
+          return;
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 404) {
+            // No chats yet — create first one
+          } else {
+            throw e;
+          }
+        }
         const chat = await api.post<{ id: string }>('/api/conversation/chats');
         setChatId(chat.id);
+        setInitialMessages([]);
       } catch (err) {
         console.error('Failed to initialize chat:', err);
         setError('Failed to start conversation. Please try again.');
@@ -28,7 +73,8 @@ export default function AgentChatPage() {
       <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
         <div className="text-center space-y-2">
           <p className="text-rose-400">{error}</p>
-          <button 
+          <button
+            type="button"
             onClick={() => window.location.reload()}
             className="text-sm text-zinc-400 hover:text-white underline"
           >
@@ -50,5 +96,12 @@ export default function AgentChatPage() {
     );
   }
 
-  return <ChatInterface chatId={chatId} />;
+  return (
+    <ChatInterface
+      key={chatId}
+      chatId={chatId}
+      initialMessages={initialMessages}
+      onNewChat={handleNewChat}
+    />
+  );
 }

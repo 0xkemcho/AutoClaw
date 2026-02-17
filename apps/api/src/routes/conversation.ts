@@ -7,6 +7,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import {
   createChat,
   getChat,
+  getLatestChat,
   getMessages,
   sendMessageStream,
 } from '../services/conversation-service.js';
@@ -15,6 +16,25 @@ import { CONVERSATION_MODEL_IDS, isConversationModelId } from '../services/model
 const MAX_MESSAGE_LENGTH = 32_768;
 
 export async function conversationRoutes(app: FastifyInstance) {
+  // GET /api/conversation/chats/latest — get user's most recent chat (must be before :chatId)
+  app.get(
+    '/api/conversation/chats/latest',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const chat = await getLatestChat(walletAddress);
+      if (!chat) {
+        return reply.status(404).send({ error: 'No chats found' });
+      }
+      return {
+        id: chat.id,
+        title: chat.title,
+        createdAt: chat.created_at,
+        updatedAt: chat.updated_at,
+      };
+    }
+  );
+
   // POST /api/conversation/chats — start new chat
   app.post(
     '/api/conversation/chats',
