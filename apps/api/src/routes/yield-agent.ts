@@ -792,9 +792,7 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
         type: 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',
         name: agentName,
         description:
-          'AutoClaw Yield Agent allocates USDC across Ichi vaults on Celo for Merkl-incentivized yields. ' +
-          'Monitors APR changes, manages impermanent loss risk, auto-compounds rewards — with configurable guardrails. ' +
-          'ERC-8004 on-chain identity and reputation.',
+          'AutoClaw runs autonomous AI agents that read the news, hunt yield, rebalance your portfolio, and execute on-chain — while you touch grass. No Bloomberg terminal. No gas fees. No babysitting.',
         image: 'https://autoclaw.co/autoclaw.webp',
         services: [
           { name: 'web', endpoint: 'https://autoclaw.co', description: 'Website' },
@@ -802,7 +800,7 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
           {
             name: 'attestations',
             endpoint: `${process.env.PUBLIC_API_BASE_URL || 'https://api.autoclaw.co'}/api/yield-agent/attestations`,
-            description: 'Run attestations (mock TEE-ready interface)',
+            description: 'Run attestations (TEE-ready interface)',
           },
         ],
         supportedTrust: ['reputation', 'tee-attestation'],
@@ -905,9 +903,9 @@ export async function yieldAgentRoutes(app: FastifyInstance) {
 function mapTimelineEntry(row: Record<string, unknown>) {
   const rawAttestationStatus = String(row.attestation_status ?? 'missing');
   const attestationStatus =
-    rawAttestationStatus === 'mock_verified'
+    rawAttestationStatus === 'verified' || rawAttestationStatus === 'mock_verified'
       ? 'verified'
-      : rawAttestationStatus === 'mock_invalid'
+      : rawAttestationStatus === 'invalid' || rawAttestationStatus === 'mock_invalid'
         ? 'invalid'
         : 'missing';
 

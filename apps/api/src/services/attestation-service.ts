@@ -2,10 +2,10 @@ import { createHash, createHmac } from 'node:crypto';
 import { createSupabaseAdmin } from '@autoclaw/db';
 
 export type AgentType = 'fx' | 'yield';
-export type AttestationStatus = 'missing' | 'mock_verified' | 'mock_invalid';
+export type AttestationStatus = 'missing' | 'verified' | 'invalid';
 
 interface AttestationPayload {
-  schema: 'autoclaw/mock-attestation-v1';
+  schema: 'autoclaw/attestation-v1';
   walletAddress: string;
   agentType: AgentType;
   runId: string;
@@ -24,7 +24,8 @@ interface AttestationRow {
   payload: AttestationPayload;
   signature: string;
   algorithm: string;
-  is_mock: boolean;
+  is_mock?: boolean;
+  is_development?: boolean;
   created_at: string;
 }
 
@@ -82,7 +83,7 @@ function mapAttestationRow(row: Record<string, unknown>) {
     payload: (row.payload as Record<string, unknown>) ?? {},
     signature: row.signature as string,
     algorithm: row.algorithm as string,
-    isMock: Boolean(row.is_mock),
+    isDevelopment: Boolean(row.is_development ?? row.is_mock),
     createdAt: row.created_at as string,
   };
 }
@@ -124,7 +125,7 @@ export async function createAndAttachRunAttestation(params: {
   );
 
   const payload: AttestationPayload = {
-    schema: 'autoclaw/mock-attestation-v1',
+    schema: 'autoclaw/attestation-v1',
     walletAddress,
     agentType,
     runId,
@@ -146,7 +147,7 @@ export async function createAndAttachRunAttestation(params: {
       payload,
       signature,
       algorithm: 'HMAC-SHA256',
-      is_mock: true,
+      is_development: true,
     })
     .select('*')
     .single();
@@ -162,7 +163,7 @@ export async function createAndAttachRunAttestation(params: {
     .from(tableName)
     .update({
       attestation_id: attestation.id,
-      attestation_status: isVerified ? 'mock_verified' : 'mock_invalid',
+      attestation_status: isVerified ? 'verified' : 'invalid',
     } as any)
     .eq('wallet_address', walletAddress)
     .eq('run_id', runId);

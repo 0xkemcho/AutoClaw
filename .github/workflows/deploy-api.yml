@@ -29,5 +29,20 @@ jobs:
             git reset --hard origin/main
             pnpm install --frozen-lockfile
             pnpm exec turbo run build --filter=@autoclaw/api
+            # Restart picks up new build; fallback to start if app not yet registered
             pm2 restart autoclaw-api --update-env || pm2 start dist/index.js --name autoclaw-api --cwd /opt/autoclaw/apps/api
             pm2 save
+            sleep 3
+            pm2 list
+      - name: Verify API is up
+        run: |
+          for i in 1 2 3 4 5; do
+            if curl -sf -o /dev/null https://backend.autoclaw.co/api/health; then
+              echo "API health check OK"
+              exit 0
+            fi
+            echo "Attempt $i: API not ready, retrying in 5s..."
+            sleep 5
+          done
+          echo "API health check failed after 5 attempts"
+          exit 1

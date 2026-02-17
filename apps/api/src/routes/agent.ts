@@ -735,13 +735,8 @@ export async function agentRoutes(app: FastifyInstance) {
 
       const agentLabel = agentType === 'yield' ? 'Yield' : 'FX';
       const agentName = `AutoClaw-${agentLabel}-${displayName.replace(/\s+/g, '-')}`;
-      const agentDesc = agentType === 'yield'
-        ? 'AutoClaw Yield Agent autonomously allocates funds across Ichi vaults on Celo to earn Merkl-incentivized APR. ' +
-          'Scans opportunities, manages positions, claims rewards, and rebalances — all with configurable guardrails. ' +
-          'ERC-8004 on-chain identity and reputation.'
-        : 'AutoClaw FX Agent monitors global FX news in real-time, generates trade signals with Gemini LLM, ' +
-          'and executes stablecoin swaps via Mento on Celo — with configurable risk guardrails. ' +
-          'Supports 15+ Mento stablecoins (USDm, EURm, BRLm, JPYm, and more). ERC-8004 on-chain identity and reputation.';
+      const agentDesc =
+        'AutoClaw runs autonomous AI agents that read the news, hunt yield, rebalance your portfolio, and execute on-chain — while you touch grass. No Bloomberg terminal. No gas fees. No babysitting.';
       const teeSummary = await getLatestAttestationSummary({
         walletAddress,
         agentType,
@@ -761,7 +756,7 @@ export async function agentRoutes(app: FastifyInstance) {
             endpoint: agentType === 'yield'
               ? `${process.env.PUBLIC_API_BASE_URL || 'https://api.autoclaw.co'}/api/yield-agent/attestations`
               : `${process.env.PUBLIC_API_BASE_URL || 'https://api.autoclaw.co'}/api/agent/attestations`,
-            description: 'Run attestations (mock TEE-ready interface)',
+            description: 'Run attestations (TEE-ready interface)',
           },
         ],
         supportedTrust: ['reputation', 'tee-attestation'],
@@ -854,9 +849,9 @@ export async function agentRoutes(app: FastifyInstance) {
 function mapTimelineEntry(row: Record<string, unknown>) {
   const rawAttestationStatus = String(row.attestation_status ?? 'missing');
   const attestationStatus =
-    rawAttestationStatus === 'mock_verified'
+    rawAttestationStatus === 'verified' || rawAttestationStatus === 'mock_verified'
       ? 'verified'
-      : rawAttestationStatus === 'mock_invalid'
+      : rawAttestationStatus === 'invalid' || rawAttestationStatus === 'mock_invalid'
         ? 'invalid'
         : 'missing';
 

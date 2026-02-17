@@ -101,7 +101,7 @@ export interface AgentAttestation {
   payload: Record<string, unknown>;
   signature: string;
   algorithm: string;
-  isMock: boolean;
+  isDevelopment: boolean;
   createdAt: string;
 }
 
