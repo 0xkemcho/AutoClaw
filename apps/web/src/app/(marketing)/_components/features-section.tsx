@@ -1,4 +1,4 @@
-import { TrendingUp, Sprout, RefreshCcw, Newspaper, Shield, Zap } from 'lucide-react';
+import { TrendingUp, Sprout, Lock, Newspaper, Shield, Zap } from 'lucide-react';
 
 const agents = [
   {
@@ -14,10 +14,10 @@ const agents = [
       'Scans for the best on-chain yield opportunities across ICHI vaults, Uniswap, CarbonFi, and Merkl. Deploys idle stables, auto-compounds rewards, and exits when the math stops working.',
   },
   {
-    icon: RefreshCcw,
-    title: 'Rebalancing Agent',
+    icon: Lock,
+    title: 'TEE-Secured Execution',
     description:
-      'Set your target portfolio weights. The agent monitors drift and rebalances automatically — across stablecoins, yield positions, and DeFi protocols. No more "I should really sort that out" energy.',
+      'Agent logic runs inside a Trusted Execution Environment powered by Phala Network. Every run produces a cryptographic attestation — a signed proof that no one, not even AutoClaw, tampered with the decision.',
   },
   {
     icon: Newspaper,
