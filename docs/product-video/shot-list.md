@@ -1,5 +1,5 @@
 # AutoClaw — Shot List & Timing Guide
-**Total runtime:** 2:10 – 2:20
+**Total runtime:** 2:40 – 2:45
 **Format:** Screen Studio recording, 1080p, 16:9
 
 > Use this alongside `script.md`.
@@ -87,33 +87,36 @@
 ---
 
 ## SECTION 5 — YIELD AGENT
-**Timestamp:** 1:20 – 1:48 (28 seconds)
+**Timestamp:** 1:20 – 2:00 (40 seconds)
 **Narration:**
-> *"The Yield Agent works in parallel. It scans ICHI vaults, Uniswap, and Merkl for the best on-chain returns — deploys your idle stablecoins, claims rewards, and auto-compounds — continuously. No manual intervention. No missed opportunities."*
+> *"The Yield Agent works in parallel. It scans ICHI vaults, Uniswap, and Merkl for the best on-chain returns — deploys your idle stablecoins, claims rewards, and auto-compounds — continuously. Your guardrails stay in control: minimum APR thresholds, maximum vault allocation, minimum hold periods. The agent only moves when the math makes sense. Every deposit, every reward claim, every rebalance — logged. Fully auditable. No manual intervention. No missed opportunities."*
 
 **What to show:**
-- 1:20 – 1:28: Yield Agent page — show the opportunities list (vault name, TVL, APR columns)
-- 1:28 – 1:36: Active yield position — show a vault with current APR and accrued rewards
-- 1:36 – 1:42: Rewards section — unclaimed rewards amount, "Auto-compound: ON" toggle visible
-- 1:42 – 1:48: Portfolio chart showing upward trend — the result
+- 1:20 – 1:28: Yield Agent page — opportunities list (vault name, TVL, APR columns visible)
+- 1:28 – 1:36: Active yield position — a vault showing current APR and accrued rewards
+- 1:36 – 1:43: Yield guardrails settings panel — zoom in on min APR field, max vault allocation %, min hold period
+- 1:43 – 1:52: Yield timeline / activity log — show logged events: deposit entry, reward claim entry, rebalance entry with timestamps
+- 1:52 – 2:00: Rewards section — unclaimed rewards amount, "Auto-compound: ON" toggle
 
 **Screen Studio notes:**
-- Zoom IN on the opportunities list, pan across TVL / APR columns
-- Zoom IN on a specific vault showing APR (e.g., "12.4% APR")
-- Zoom IN on the auto-compound toggle in the ON state
-- Smooth zoom OUT to portfolio overview at the end of this section
+- Zoom IN on the opportunities list, highlight the APR column — pause on a vault showing e.g. "14.2% APR"
+- Zoom IN on active vault position card
+- Zoom IN TIGHT on the yield guardrails: min APR threshold (e.g. "5%"), max allocation (e.g. "40%"), hold period (e.g. "3 days") — these three numbers on screen while voiceover names them is powerful
+- Zoom IN on the yield timeline log — show at least 3 events (deposit / reward claim / rebalance) so it looks active, not empty
+- Zoom IN on the auto-compound toggle in the ON state as the final beat of this section
+- Keep cursor off screen while panning the log — let the content speak
 
 ---
 
 ## SECTION 6 — AGENT CHAT (INTELLIGENCE)
-**Timestamp:** 1:48 – 2:05 (17 seconds)
+**Timestamp:** 2:00 – 2:17 (17 seconds)
 **Narration:**
 > *"And when you want to understand what's happening — just ask. AutoClaw's intelligence agent has access to live prices, FX news, social sentiment from X, and Celo governance data. Ask it why your agent sold EURm. Ask it where yield on Celo is right now. It knows."*
 
 **What to show:**
-- 1:48 – 1:54: Agent Chat page loading — show the chat interface
-- 1:54 – 2:00: Type (or show pre-typed) a question: *"Why did my agent sell EURm this morning?"*
-- 2:00 – 2:05: Show the AI response populating — a few lines of markdown with cited sources
+- 2:00 – 2:06: Agent Chat page loading — show the chat interface
+- 2:06 – 2:12: Type (or show pre-typed) a question: *"Why did my agent sell EURm this morning?"*
+- 2:12 – 2:17: Show the AI response populating — a few lines of markdown with cited sources
 
 **Screen Studio notes:**
 - Zoom IN on the chat input as the question appears
@@ -124,15 +127,15 @@
 ---
 
 ## SECTION 7 — PROOF / CREDIBILITY
-**Timestamp:** 2:05 – 2:22 (17 seconds)
+**Timestamp:** 2:17 – 2:34 (17 seconds)
 **Narration:**
 > *"Every trade logged on-chain. Every decision auditable. Every AutoClaw agent is registered on-chain via ERC-8004 — a verifiable identity, a transparent track record. Not a black box. And with SelfClaw integration, your agent is cryptographically verified as human-backed — passport-level proof, zero-knowledge, published on-chain. In the emerging agent economy, that matters. Your agents run whether you're watching or not."*
 
 **What to show:**
-- 2:05 – 2:08: Timeline page — list of logged trade events with txHashes visible
-- 2:08 – 2:13: Agent identity section showing ERC-8004 registration (agent ID, badge, or 8004scan.io link)
-- 2:13 – 2:19: SelfClaw verification section — show the selfclaw.ai verification badge, ZK proof status, or the "Human-Backed" indicator in the AutoClaw UI
-- 2:19 – 2:22: Zoom OUT to the full dashboard — portfolio chart, balances — the "whole picture" close
+- 2:17 – 2:20: Timeline page — list of logged trade events with txHashes visible
+- 2:20 – 2:25: Agent identity section showing ERC-8004 registration (agent ID, badge, or 8004scan.io link)
+- 2:25 – 2:31: SelfClaw verification section — show the selfclaw.ai verification badge, ZK proof status, or the "Human-Backed" indicator in the AutoClaw UI
+- 2:31 – 2:34: Zoom OUT to the full dashboard — portfolio chart, balances — the "whole picture" close
 
 **Screen Studio notes:**
 - Zoom IN on a txHash in the timeline — real on-chain activity, not a mock
@@ -150,7 +153,7 @@ Show whichever of these is implemented in the AutoClaw UI:
 ---
 
 ## SECTION 8 — CTA
-**Timestamp:** 2:22 – 2:30 (8 seconds)
+**Timestamp:** 2:34 – 2:42 (8 seconds)
 **Narration:**
 > *"AutoClaw is live on Celo mainnet. Connect your wallet and deploy your first agent at autoclaw.co."*
 
@@ -173,12 +176,12 @@ Show whichever of these is implemented in the AutoClaw UI:
 0:12 – 0:20   INTRODUCE      Meet AutoClaw (8s)
 0:20 – 0:45   SETUP          Connect → overview → activate agent (25s)
 0:45 – 1:20   FX AGENT       Live run card — money shot (35s)
-1:20 – 1:48   YIELD AGENT    Vaults, APR, auto-compound (28s)
-1:48 – 2:05   AGENT CHAT     Ask the intelligence layer (17s)
-2:05 – 2:22   PROOF          Timeline + ERC-8004 + SelfClaw verified (17s)
-2:22 – 2:30   CTA            autoclaw.co (8s)
+1:20 – 2:00   YIELD AGENT    Vaults, guardrails, logs, auto-compound (40s)
+2:00 – 2:17   AGENT CHAT     Ask the intelligence layer (17s)
+2:17 – 2:34   PROOF          Timeline + ERC-8004 + SelfClaw verified (17s)
+2:34 – 2:42   CTA            autoclaw.co (8s)
 ─────────────────────────────────────────────────────
-TOTAL                                           2:30
+TOTAL                                           2:42
 ```
 
 ---

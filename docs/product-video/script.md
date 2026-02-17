@@ -52,6 +52,10 @@ The Yield Agent works in parallel.
 
 It scans ICHI vaults, Uniswap, and Merkl for the best on-chain returns — deploys your idle stablecoins, claims rewards, and auto-compounds — continuously.
 
+Your guardrails stay in control: minimum APR thresholds, maximum vault allocation, minimum hold periods. The agent only moves when the math makes sense.
+
+Every deposit, every reward claim, every rebalance — logged. Fully auditable.
+
 No manual intervention. No missed opportunities.
 
 ...

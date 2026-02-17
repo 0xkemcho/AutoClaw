@@ -1,7 +1,9 @@
 'use client';
 
-import { ArrowUpRight, Star } from 'lucide-react';
+import { ArrowUpRight, PlayCircle } from 'lucide-react';
 import { ConnectCTA } from './connect-cta';
+import { Button } from '@/components/ui/button';
+import { VideoModal } from './video-modal';
 
 export function HeroSection() {
   return (
@@ -26,33 +28,33 @@ export function HeroSection() {
         </p>
 
         <div className="mt-10 flex flex-col items-center gap-3">
-          <ConnectCTA
-            // @ts-ignore
-            variant="brand"
-            size="lg"
-            className="rounded-full px-8 py-6 text-base font-semibold"
-          >
-            Ape In
-            <ArrowUpRight className="ml-1.5 h-4 w-4" />
-          </ConnectCTA>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <ConnectCTA
+              variant="brand"
+              size="lg"
+              className="rounded-full px-8 py-6 text-base font-semibold"
+            >
+              Ape In
+              <ArrowUpRight className="ml-1.5 h-4 w-4" />
+            </ConnectCTA>
+            <VideoModal
+              trigger={
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full border-white/15 bg-white/[0.03] px-8 py-6 text-base font-semibold hover:bg-white/[0.08]"
+                >
+                  Watch Demo
+                  <PlayCircle className="h-4 w-4" />
+                </Button>
+              }
+            />
+          </div>
           <p className="text-xs text-muted-foreground">
             Connect with wallet or social login — no KYC, no forms.
           </p>
         </div>
 
-        {/* Trust badge */}
-        <div className="mt-12 flex flex-col items-center gap-2">
-          <p className="text-sm text-muted-foreground">Trusted by degens worldwide</p>
-          <div className="flex items-center gap-1.5">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                className="h-4 w-4 fill-primary text-primary"
-              />
-            ))}
-            <span className="ml-1 text-sm font-medium">4.9</span>
-          </div>
-        </div>
       </div>
     </section>
   );
