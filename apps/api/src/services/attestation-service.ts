@@ -75,12 +75,17 @@ function hashEvents(events: Array<{ event_type: string; summary: string; tx_hash
 }
 
 function mapAttestationRow(row: Record<string, unknown>) {
+  const rawPayload = (row.payload as Record<string, unknown>) ?? {};
+  const payload = { ...rawPayload };
+  if (typeof payload.schema === 'string' && payload.schema.includes('mock')) {
+    payload.schema = (payload.schema as string).replace('mock-attestation', 'attestation');
+  }
   return {
     id: row.id as string,
     walletAddress: row.wallet_address as string,
     agentType: row.agent_type as AgentType,
     runId: (row.run_id as string | null) ?? null,
-    payload: (row.payload as Record<string, unknown>) ?? {},
+    payload,
     signature: row.signature as string,
     algorithm: row.algorithm as string,
     isDevelopment: Boolean(row.is_development ?? row.is_mock),
