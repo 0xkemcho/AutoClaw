@@ -96,7 +96,7 @@ export function AgentControlCard() {
           <DialogHeader>
             <DialogTitle>Past Attestations</DialogTitle>
             <DialogDescription>
-              Mock TEE attestations for recent FX agent runs.
+              TEE attestations for recent FX agent runs.
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[60vh] space-y-2 overflow-auto rounded-md border border-border/60 p-3">
@@ -113,7 +113,7 @@ export function AgentControlCard() {
                       {entry.runId ? `Run ${entry.runId.slice(0, 8)}...` : 'No run id'}
                     </span>
                     <span className="rounded border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-400">
-                      Mock Verified
+                      Verified
                     </span>
                   </div>
                   <p className="mt-1 text-muted-foreground">

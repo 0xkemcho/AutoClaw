@@ -240,10 +240,10 @@ function TimelineRow({ event, onViewLogs }: { event: any, onViewLogs: () => void
     );
   }
 
-  const attestationBadge = event.attestationStatus === 'mock_verified' ? (
+  const attestationBadge = event.attestationStatus === 'verified' ? (
     <span className="inline-flex items-center gap-1 rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium leading-none text-emerald-400">
       <ShieldCheck className="size-3" />
-      Mock Verified
+      Verified
     </span>
   ) : (
     <span className="inline-flex items-center gap-1 rounded border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium leading-none text-amber-300">

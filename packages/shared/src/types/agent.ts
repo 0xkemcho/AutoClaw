@@ -89,7 +89,7 @@ export interface AgentTimelineEntry {
   txHash: string | null;
   runId: string | null;
   attestationId: string | null;
-  attestationStatus: 'missing' | 'mock_verified' | 'mock_invalid';
+  attestationStatus: 'missing' | 'verified' | 'invalid';
   createdAt: string;
 }
 

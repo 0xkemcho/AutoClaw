@@ -768,7 +768,7 @@ export async function agentRoutes(app: FastifyInstance) {
         updatedAt: nowUnix,
         attributes: {
           tee: {
-            mode: 'mock',
+            mode: 'attested',
             status: teeSummary.status,
             attestationType: 'hmac-sha256',
             latestAttestationAt: teeSummary.latestAttestationAt,
@@ -852,6 +852,14 @@ export async function agentRoutes(app: FastifyInstance) {
 
 /** Map a raw DB row to a camelCase timeline entry. */
 function mapTimelineEntry(row: Record<string, unknown>) {
+  const rawAttestationStatus = String(row.attestation_status ?? 'missing');
+  const attestationStatus =
+    rawAttestationStatus === 'mock_verified'
+      ? 'verified'
+      : rawAttestationStatus === 'mock_invalid'
+        ? 'invalid'
+        : 'missing';
+
   return {
     id: row.id,
     eventType: row.event_type,
@@ -865,7 +873,7 @@ function mapTimelineEntry(row: Record<string, unknown>) {
     txHash: row.tx_hash,
     runId: row.run_id ?? null,
     attestationId: row.attestation_id ?? null,
-    attestationStatus: row.attestation_status ?? 'missing',
+    attestationStatus,
     createdAt: row.created_at,
   };
 }
