@@ -4,6 +4,7 @@ import { TaglineBanner } from './_components/tagline-banner';
 import { FeaturesSection } from './_components/features-section';
 import { CryptosSection } from './_components/cryptos-section';
 import { HowItWorks } from './_components/how-it-works';
+import { Testimonials } from './_components/testimonials';
 import { FaqSection } from './_components/faq-section';
 import { CtaSection } from './_components/cta-section';
 import { LandingPageClient } from './_components/landing-page-client';
@@ -19,6 +20,7 @@ export default function LandingPage() {
       <FeaturesSection />
       <CryptosSection />
       <HowItWorks />
+      <Testimonials />
       <FaqSection />
       <CtaSection />
     </LandingPageClient>

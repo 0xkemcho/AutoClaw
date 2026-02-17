@@ -7,21 +7,21 @@ import { ChevronLeft, ChevronRight, BadgeCheck } from 'lucide-react';
 const testimonials = [
   {
     quote:
-      'AutoClaw makes FX trading effortless. Fast transactions, low fees, and a sleek interface — exactly what I needed.',
+      'I literally set the guardrails once and forgot about it. Woke up to the yield agent having auto-compounded rewards overnight. This is the way.',
     name: 'Alex M.',
-    role: 'DeFi Analyst at NovaChain',
+    role: 'DeFi degen, previously manual trader',
   },
   {
     quote:
-      'The autonomous trading agent saves me hours every week. I set my preferences and AutoClaw handles the rest with precision.',
+      'The FX agent reads the news, picks the signal, and executes — all without me touching anything. I used to spend hours on this. Now I don\'t.',
     name: 'Sarah K.',
-    role: 'Portfolio Manager at Meridian Capital',
+    role: 'Portfolio manager, Celo ecosystem',
   },
   {
     quote:
-      'Finally, a platform that combines stablecoin swaps with intelligent automation. The Celo integration is seamless.',
+      'Finally a platform that treats agents as first-class citizens. The ERC-8004 on-chain identity for agents is a nice touch — verifiable, not a black box.',
     name: 'James T.',
-    role: 'Founder at BlockBridge',
+    role: 'Founder, BlockBridge',
   },
 ];
 
@@ -42,14 +42,14 @@ export function Testimonials() {
         <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Trusted by Crypto
+              Don't take our word for it.
               <br />
-              Enthusiasts Worldwide
+              Take theirs.
             </h2>
           </div>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Join a growing community of investors who choose AutoClaw for its
-            seamless experience, security, and premium design.
+            Here's what the early believers say — the ones who deployed agents
+            before you did.
           </p>
         </div>
 

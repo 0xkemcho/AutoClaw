@@ -1,8 +1,8 @@
 import { Logo } from '@/components/logo';
 
 const navigationLinks = [
-  { label: 'Why AutoClaw?', href: '#features' },
-  { label: 'Currencies', href: '#cryptos' },
+  { label: 'Agents', href: '#features' },
+  { label: 'Token universe', href: '#cryptos' },
   { label: 'How it works', href: '#how-it-works' },
   { label: 'FAQ', href: '#faq' },
 ];
@@ -22,12 +22,12 @@ export function Footer() {
           <div className="space-y-4 max-w-xs">
             <Logo size="sm" />
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Secure, fast, and seamless FX trading. AutoClaw makes stablecoin
-              management effortless.
+              Autonomous AI agents that trade, farm yield, and rebalance your
+              on-chain portfolio — non-custodial, gasless, around the clock.
             </p>
 
             <div className="pt-8 text-xs text-muted-foreground">
-              <p>Built on Celo &middot; Powered by Mento Protocol</p>
+              <p>Built on Celo &middot; Mento · ICHI · Uniswap · Merkl</p>
             </div>
           </div>
 

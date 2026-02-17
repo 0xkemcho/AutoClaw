@@ -8,7 +8,7 @@ import { Menu, ArrowUpRight } from 'lucide-react';
 import { ConnectCTA } from './connect-cta';
 
 const navLinks = [
-  { label: 'Cryptos', href: '#cryptos' },
+  { label: 'Agents', href: '#features' },
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Testimonials', href: '#testimonials' },
   { label: 'Pricing', href: '#pricing' },
@@ -55,7 +55,7 @@ export function Navbar() {
               size="sm"
               className="rounded-full h-10 px-5 font-semibold"
           >
-            Get Started
+            Ape In
           </ConnectCTA>
         </div>
 
@@ -78,7 +78,7 @@ export function Navbar() {
                 </button>
               ))}
               <ConnectCTA className="mt-4 rounded-full">
-                Get Started
+                Ape In
                 <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
               </ConnectCTA>
             </div>

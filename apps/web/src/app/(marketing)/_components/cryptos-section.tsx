@@ -68,13 +68,14 @@ export function CryptosSection() {
         <div className="grid items-stretch lg:grid-cols-2">
           <div className="flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-neutral-800 p-8 lg:p-16">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl text-white">
-              All Cestos,
+              15+ global currencies.
               <br />
-              One Platform
+              One agent runtime.
             </h2>
             <p className="mt-4 max-w-md text-muted-foreground">
-              Buy, sell, and convert all major stablecoins on a single platform.
-              A seamless experience with no compromises.
+              USDm, EURm, BRLm, KESm, NGNm, JPYm and more — plus USDC, USDT,
+              and yield positions across Uniswap and ICHI vaults. Your agents
+              trade and farm across all of it, automatically.
             </p>
             <a
               href="#get-started"

@@ -3,9 +3,9 @@ import { ArrowUpRight, Wallet, ArrowDownToLine, ArrowLeftRight } from 'lucide-re
 const steps = [
   {
     number: 1,
-    title: 'Connect your wallet',
+    title: 'Connect',
     description:
-      'Sign in easily and secure your profile in just a few steps.',
+      'Sign in with your wallet or social login (Google, Apple, and more). No KYC. No email. No forms. Just your address.',
     mock: (
       <div className="space-y-3">
         <div>
@@ -15,9 +15,13 @@ const steps = [
           </div>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Network</p>
-          <div className="mt-1 rounded-lg border border-neutral-700 bg-white/[0.04] px-3 py-2.5 text-sm text-muted-foreground">
-            Celo Mainnet
+          <p className="text-xs text-muted-foreground">Or sign in with</p>
+          <div className="mt-1 flex gap-2">
+            {['Google', 'Apple', 'X'].map((s) => (
+              <div key={s} className="flex-1 rounded-lg border border-neutral-700 bg-white/[0.04] py-2.5 text-center text-xs text-muted-foreground">
+                {s}
+              </div>
+            ))}
           </div>
         </div>
         <div className="rounded-lg bg-white/[0.06] py-2.5 text-center text-sm text-muted-foreground/60">
@@ -29,32 +33,34 @@ const steps = [
   },
   {
     number: 2,
-    title: 'Fund your wallet',
+    title: 'Configure your agents',
     description:
-      'Deposit your stablecoins or make a transfer to start trading.',
+      'Pick your risk profile, choose which agents to activate, and set your guardrails — max trade size, allocation limits, allowed assets. Takes 2 minutes.',
     mock: (
       <div className="space-y-3">
-        <div>
-          <p className="text-xs text-muted-foreground">Amount to Deposit</p>
-          <div className="mt-1 flex items-center justify-between rounded-lg border border-neutral-700 bg-white/[0.04] px-3 py-2.5">
-            <span className="text-lg font-mono">500.00</span>
-            <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
-              USDm
-            </span>
-          </div>
+        <div className="space-y-2">
+          {['Conservative', 'Moderate', 'Aggressive'].map((profile, i) => (
+            <div
+              key={profile}
+              className={`flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm ${
+                i === 1
+                  ? 'border-primary/50 bg-primary/10 text-white'
+                  : 'border-neutral-700 bg-white/[0.04] text-muted-foreground'
+              }`}
+            >
+              <span>{profile}</span>
+              {i === 1 && <span className="text-xs text-primary">Selected</span>}
+            </div>
+          ))}
         </div>
         <div className="space-y-1.5 text-xs">
           <div className="flex justify-between text-muted-foreground">
-            <span>Deposit Amount</span>
-            <span>500.00 USDm</span>
+            <span>Max trade size</span>
+            <span>$200</span>
           </div>
           <div className="flex justify-between text-muted-foreground">
-            <span>Network Fee</span>
-            <span>0.001 CELO</span>
-          </div>
-          <div className="flex justify-between text-muted-foreground">
-            <span>Total Credited</span>
-            <span>500.00 USDm</span>
+            <span>Daily trade limit</span>
+            <span>5 trades</span>
           </div>
         </div>
       </div>
@@ -63,36 +69,23 @@ const steps = [
   },
   {
     number: 3,
-    title: 'Buy, sell, or convert',
+    title: 'Touch grass',
     description:
-      'Enjoy the simplicity of a platform that makes every transaction seamless in real-time.',
+      'Agents run on schedule. Watch the live progress stream in your dashboard — or don\'t. That\'s the whole point.',
     mock: (
       <div className="space-y-2">
         {[
-          { name: 'EURm', price: '$1.0845', change: '+0.56%', up: true },
-          { name: 'USDm', price: '$1.0002', change: '+0.02%', up: true },
-          { name: 'BRLm', price: '$0.1932', change: '-0.12%', up: false },
-        ].map((token) => (
+          { label: 'Fetching FX news', status: 'done', color: 'text-emerald-400' },
+          { label: 'Analyzing signals', status: 'done', color: 'text-emerald-400' },
+          { label: 'Executing swap: EURm', status: 'live', color: 'text-primary' },
+          { label: 'Claiming yield rewards', status: 'queued', color: 'text-muted-foreground' },
+        ].map((item) => (
           <div
-            key={token.name}
+            key={item.label}
             className="flex items-center justify-between rounded-lg border border-neutral-700 bg-white/[0.04] px-3 py-2.5"
           >
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.1] text-xs font-bold">
-                {token.name.charAt(0)}
-              </div>
-              <div>
-                <p className="text-sm font-medium">{token.name}</p>
-                <p className="text-xs text-muted-foreground">{token.price}</p>
-              </div>
-            </div>
-            <span
-              className={`text-xs font-medium ${
-                token.up ? 'text-emerald-400' : 'text-red-400'
-              }`}
-            >
-              {token.change}
-            </span>
+            <span className="text-xs text-muted-foreground">{item.label}</span>
+            <span className={`text-xs font-medium ${item.color}`}>{item.status}</span>
           </div>
         ))}
       </div>
@@ -112,8 +105,7 @@ export function HowItWorks() {
               How It Works
             </h2>
             <p className="mt-4 max-w-md text-muted-foreground">
-              A simple, fast, and secure platform to manage your stablecoins in
-              just a few steps.
+              Three steps. Then you go touch grass.
             </p>
           </div>
           <div className="flex items-center lg:items-end justify-start lg:justify-end p-8 lg:p-12">

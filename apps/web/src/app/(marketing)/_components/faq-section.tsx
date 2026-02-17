@@ -7,35 +7,35 @@ import { Plus, ArrowUpRight } from 'lucide-react';
 const faqs = [
   {
     q: 'What is AutoClaw?',
-    a: 'AutoClaw is an autonomous FX trading platform built on the Celo blockchain. It uses AI-powered agents to analyze markets and execute stablecoin swaps via the Mento protocol.',
+    a: 'AutoClaw is an autonomous agent platform on Celo. AI agents trade stablecoins, farm yield across Uniswap and ICHI vaults, rebalance your portfolio, and monitor markets — on-chain, non-custodial, while you do other things.',
   },
   {
     q: 'Is AutoClaw secure?',
-    a: 'Yes. AutoClaw uses Privy server wallets for secure key management, all trades go through audited smart contracts, and guardrails prevent unauthorized or excessive trading.',
+    a: 'You stay non-custodial throughout. Agents execute via server wallets using gasless EIP-7702 transactions — your private keys never move. Every agent registers on-chain via ERC-8004 for a transparent, verifiable track record.',
   },
   {
-    q: 'Which currencies are supported?',
-    a: 'AutoClaw supports 15+ Mento stablecoins including USDm, EURm, BRLm, KESm, PHPm, COPm, XOFm, NGNm, JPYm, CHFm, ZARm, GBPm, AUDm, CADm, and GHSm.',
+    q: 'How do I sign in?',
+    a: 'Connect with any wallet (MetaMask, Coinbase Wallet, etc.) or use social login (Google, Apple, X) via thirdweb. No KYC, no email required, no forms.',
   },
   {
-    q: 'What are the fees for transactions?',
-    a: 'Fees vary by plan. The Free tier has 0.8% standard fees, Pro offers 0.4%, and Business enjoys ultra-low 0.1% fees per trade. No hidden charges.',
+    q: 'Which assets are supported?',
+    a: '15+ Mento stablecoins (USDm, EURm, BRLm, KESm, NGNm, JPYm, CHFm, GBPm, AUDm, CADm, and more), USDC, USDT, and yield positions across ICHI/Uniswap vaults tracked via Merkl.',
   },
   {
-    q: 'How fast are transactions?',
-    a: 'Transactions on Celo are near-instant, typically confirming in under 5 seconds. AutoClaw executes swaps in real-time with no manual intervention needed.',
+    q: 'What are the fees?',
+    a: 'Gas is fully sponsored — you pay zero for transactions on Celo. AutoClaw fees vary by plan. No hidden spreads, no surprises.',
   },
   {
     q: 'Do I need to verify my identity?',
-    a: 'No KYC is required. AutoClaw uses Sign-In With Ethereum (SIWE) for authentication — just connect your wallet to get started.',
+    a: 'No KYC, no ID verification. Connect a wallet or social account and you\'re in.',
+  },
+  {
+    q: 'Can I control how aggressive the agents are?',
+    a: 'Yes. Every agent has configurable guardrails — max trade size, daily trade limits, allocation caps, stop-loss thresholds, allowed/blocked currencies, minimum APR requirements. You\'re always in control.',
   },
   {
     q: 'Can I access AutoClaw on mobile?',
-    a: 'Yes. AutoClaw is fully responsive and works on any device. Connect your mobile wallet to access the full trading experience on the go.',
-  },
-  {
-    q: 'How can I contact support?',
-    a: 'You can reach our support team via email, Discord, or through the in-app help center. Pro and Business users get priority response times.',
+    a: 'Yes. AutoClaw is fully responsive and works on any device. Connect your mobile wallet or use social login to access your agents and portfolio on the go.',
   },
 ];
 
@@ -88,11 +88,11 @@ export function FaqSection() {
         <div className="grid grid-cols-1 border-b border-neutral-800 lg:grid-cols-2">
           <div className="border-b lg:border-b-0 lg:border-r border-neutral-800 p-8 lg:p-12">
             <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Your Questions, Answered
+              Your questions, actually answered.
             </h2>
             <p className="mt-4 max-w-lg text-muted-foreground">
-              Find everything you need to know about AutoClaw, from security to
-              supported assets.
+              No corporate waffle. Just the real stuff about how AutoClaw works,
+              what it costs, and what it does with your money.
             </p>
           </div>
           <div className="flex items-center lg:items-end justify-start lg:justify-end p-8 lg:p-12">

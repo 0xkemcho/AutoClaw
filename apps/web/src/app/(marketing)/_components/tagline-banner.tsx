@@ -37,7 +37,7 @@ export function TaglineBanner() {
       <div className="mx-auto max-w-5xl px-6">
         <p className="text-center text-3xl font-light leading-snug tracking-tight text-foreground sm:text-4xl md:text-[2.75rem] md:leading-snug">
           <ScrollReveal>
-            Simplicity, performance, and security, empowering you to navigate the digital world with confidence and agility.
+            Your portfolio doesn't sleep. Neither does AutoClaw. Agents trade, farm yield, and rebalance around the clock — so you don't have to.
           </ScrollReveal>
         </p>
       </div>

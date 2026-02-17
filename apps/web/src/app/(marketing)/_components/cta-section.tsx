@@ -16,24 +16,27 @@ export function CtaSection() {
           <div className="hidden border-r border-neutral-800 md:block" />
           <div className="col-span-2 flex flex-col items-center justify-center p-12 text-center md:py-32">
             <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-7xl">
-              Ready to take control
+              Your analyst is expensive.
               <br />
-              of your crypto?
+              Your agent is not.
             </h2>
             <p className="mx-auto mt-6 max-w-md text-lg text-muted-foreground">
-              Join thousands of users who trust AutoClaw for secure, seamless, and
-              efficient stablecoin transactions.
+              Autonomous AI agents. 15+ global stablecoins. Yield farming on autopilot.
+              On-chain, non-custodial, gasless. Connect a wallet or sign in with socials.
             </p>
-            <div className="mt-10">
+            <div className="mt-10 flex flex-col items-center gap-3">
               <ConnectCTA
                   // @ts-ignore
                   variant="brand"
                   size="lg"
                   className="rounded-full px-8 text-base font-semibold"
               >
-                AutoClaw for Web
+                Deploy your first agent
                 <ArrowUpRight className="ml-1.5 h-4 w-4" />
               </ConnectCTA>
+              <p className="text-xs text-muted-foreground">
+                Wallet or social login — no KYC required.
+              </p>
             </div>
           </div>
           <div className="hidden border-l border-neutral-800 md:block" />

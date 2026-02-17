@@ -14,32 +14,35 @@ export function HeroSection() {
 
       <div className="relative mx-auto max-w-4xl px-6 text-center">
         <h1 className="text-5xl font-normal leading-[1.08] tracking-tight sm:text-7xl lg:text-[5.5rem]">
-          Take Control of
+          Fire your analyst.
           <br />
-          Your Digital Assets
+          Deploy your agent.
         </h1>
 
         <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
-          AutoClaw offers a seamless, secure experience for managing your
-          digital assets. Instant transactions, optimized fees, and premium
-          design.
+          AutoClaw runs autonomous AI agents that read the news, hunt yield,
+          rebalance your portfolio, and execute on-chain — while you touch
+          grass. No Bloomberg terminal. No gas fees. No babysitting.
         </p>
 
-        <div className="mt-10">
+        <div className="mt-10 flex flex-col items-center gap-3">
           <ConnectCTA
             // @ts-ignore
             variant="brand"
             size="lg"
             className="rounded-full px-8 py-6 text-base font-semibold"
           >
-            Get Started
+            Ape In
             <ArrowUpRight className="ml-1.5 h-4 w-4" />
           </ConnectCTA>
+          <p className="text-xs text-muted-foreground">
+            Connect with wallet or social login — no KYC, no forms.
+          </p>
         </div>
 
         {/* Trust badge */}
         <div className="mt-12 flex flex-col items-center gap-2">
-          <p className="text-sm text-muted-foreground">They trust us</p>
+          <p className="text-sm text-muted-foreground">Trusted by degens worldwide</p>
           <div className="flex items-center gap-1.5">
             {[...Array(5)].map((_, i) => (
               <Star
