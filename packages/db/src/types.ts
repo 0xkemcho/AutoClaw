@@ -624,6 +624,13 @@ export type Database = {
           preferred_currencies: string[] | null
           risk_answers: Json | null
           risk_profile: string | null
+          selfclaw_agent_name: string | null
+          selfclaw_human_id: string | null
+          selfclaw_private_key: string | null
+          selfclaw_public_key: string | null
+          selfclaw_session_id: string | null
+          selfclaw_verified: boolean | null
+          selfclaw_verified_at: string | null
           updated_at: string | null
           wallet_address: string
         }
@@ -636,6 +643,13 @@ export type Database = {
           preferred_currencies?: string[] | null
           risk_answers?: Json | null
           risk_profile?: string | null
+          selfclaw_agent_name?: string | null
+          selfclaw_human_id?: string | null
+          selfclaw_private_key?: string | null
+          selfclaw_public_key?: string | null
+          selfclaw_session_id?: string | null
+          selfclaw_verified?: boolean | null
+          selfclaw_verified_at?: string | null
           updated_at?: string | null
           wallet_address: string
         }
@@ -648,6 +662,13 @@ export type Database = {
           preferred_currencies?: string[] | null
           risk_answers?: Json | null
           risk_profile?: string | null
+          selfclaw_agent_name?: string | null
+          selfclaw_human_id?: string | null
+          selfclaw_private_key?: string | null
+          selfclaw_public_key?: string | null
+          selfclaw_session_id?: string | null
+          selfclaw_verified?: boolean | null
+          selfclaw_verified_at?: string | null
           updated_at?: string | null
           wallet_address?: string
         }

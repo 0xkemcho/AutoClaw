@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Loader2, Info } from 'lucide-react';
+import { Loader2, Info, UserCheck, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatFrequency } from '@autoclaw/shared';
 import { useAgentStatus, useUpdateSettings } from '@/hooks/use-agent';
+import { useSelfClawStatus } from '@/hooks/use-selfclaw';
+import { SelfClawVerificationDialog } from '../../_components/selfclaw-verification-dialog';
 import { useMotionSafe } from '@/lib/motion';
 import { Button } from '@/components/ui/button';
 import {
@@ -134,6 +136,8 @@ export function SettingsContent() {
   const m = useMotionSafe();
   const { data, isLoading } = useAgentStatus();
   const updateSettings = useUpdateSettings();
+  const selfclawStatus = useSelfClawStatus();
+  const [selfclawDialogOpen, setSelfclawDialogOpen] = useState(false);
 
   const [form, setForm] = useState<FormState | null>(null);
   const [initialState, setInitialState] = useState<FormState | null>(null);
@@ -216,6 +220,69 @@ export function SettingsContent() {
       transition={m.spring}
       className="space-y-6"
     >
+      {/* Card 0: Identity Verification */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Identity Verification</CardTitle>
+          <CardDescription>
+            Verify your agent as human-backed with SelfClaw. Proves your agent is
+            operated by a verified human using passport verification.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {selfclawStatus.data?.verified ? (
+            <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <UserCheck className="size-5 text-green-500" />
+                <div>
+                  <p className="font-medium">Verified</p>
+                  {selfclawStatus.data.agentName && (
+                    <p className="text-sm text-muted-foreground">
+                      Agent: {selfclawStatus.data.agentName}
+                    </p>
+                  )}
+                  {selfclawStatus.data.verifiedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Verified {new Date(selfclawStatus.data.verifiedAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-muted-foreground">
+                Optional. Verify with your biometric passport via the Self.xyz app.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="default"
+                  onClick={() => setSelfclawDialogOpen(true)}
+                  disabled={selfclawStatus.isLoading}
+                >
+                  <UserCheck className="size-4 mr-2" />
+                  Verify with SelfClaw
+                </Button>
+                <a
+                  href="https://selfclaw.ai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                >
+                  Learn more
+                  <ExternalLink className="size-3" />
+                </a>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <SelfClawVerificationDialog
+        open={selfclawDialogOpen}
+        onOpenChange={setSelfclawDialogOpen}
+      />
+
       {/* Card 1: Trading Frequency */}
       <Card>
         <CardHeader>

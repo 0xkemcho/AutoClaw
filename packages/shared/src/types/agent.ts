@@ -276,6 +276,15 @@ export interface Agent8004Reputation {
   summaryDecimals: number;
 }
 
+/** SelfClaw human-backed verification status */
+export interface SelfClawVerification {
+  verified: boolean;
+  agentName: string | null;
+  humanId: string | null;
+  verifiedAt: string | null;
+  sessionId: string | null; // non-null if verification in progress
+}
+
 /** Default guardrails by risk profile */
 export const DEFAULT_GUARDRAILS: Record<
   'conservative' | 'moderate' | 'aggressive',

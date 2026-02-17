@@ -11,6 +11,7 @@ import { agentRoutes } from './routes/agent.js';
 import { wsRoutes } from './routes/ws.js';
 import { yieldAgentRoutes } from './routes/yield-agent.js';
 import { conversationRoutes } from './routes/conversation.js';
+import { selfclawRoutes } from './routes/selfclaw.js';
 import { startPriceSnapshotCron } from './services/snapshot-cron.js';
 import { startAgentCron } from './services/agent-cron.js';
 
@@ -95,6 +96,7 @@ await app.register(agentRoutes);
 await app.register(wsRoutes);
 await app.register(yieldAgentRoutes);
 await app.register(conversationRoutes);
+await app.register(selfclawRoutes);
 
 try {
   await app.listen({ port: PORT, host: '0.0.0.0' });

@@ -17,6 +17,7 @@ import {
   Star,
   ShieldCheck,
   ShieldAlert,
+  UserCheck,
 } from 'lucide-react';
 import type { ProgressStep } from '@/hooks/use-agent-progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +31,8 @@ import {
 } from '@/components/ui/tooltip';
 import { useToggleAgent, useRunNow } from '@/hooks/use-agent';
 import { useAgentReputation } from '@/hooks/use-reputation';
+import { useSelfClawStatus } from '@/hooks/use-selfclaw';
+import { SelfClawVerificationDialog } from '../../_components/selfclaw-verification-dialog';
 import { SignalCard } from '@/components/signal-card';
 import { formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -117,6 +120,11 @@ export function AgentStatusCard({
   const agent8004Id = config.agent8004Id;
   const isRegistered8004 = agent8004Id !== null;
   const reputationQuery = useAgentReputation(agent8004Id);
+
+  /* ---- SelfClaw verification ---- */
+  const selfclawStatus = useSelfClawStatus();
+  const selfclawVerified = selfclawStatus.data?.verified ?? false;
+  const [selfclawDialogOpen, setSelfclawDialogOpen] = useState(false);
   const reputation = reputationQuery.data ?? null;
   const reputationScore =
     reputation !== null
@@ -300,6 +308,32 @@ export function AgentStatusCard({
             </button>
           ) : null}
         </div>
+
+        {/* ---- SelfClaw Human-Backed Badge ---- */}
+        <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+          {selfclawVerified ? (
+            <div className="flex items-center gap-2">
+              <UserCheck className="size-4 text-primary" />
+              <span className="text-sm font-medium">Human-Backed</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <UserCheck className="size-4 text-muted-foreground" />
+              <button
+                type="button"
+                onClick={() => setSelfclawDialogOpen(true)}
+                className="text-sm text-primary hover:underline"
+              >
+                Verify Identity
+              </button>
+            </div>
+          )}
+        </div>
+
+        <SelfClawVerificationDialog
+          open={selfclawDialogOpen}
+          onOpenChange={setSelfclawDialogOpen}
+        />
       </CardHeader>
 
       <CardContent className="flex flex-col items-center gap-6">
