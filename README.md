@@ -8,8 +8,7 @@
   <a href="#quick-start">Quick Start</a> •
   <a href="#agents">Agents</a> •
   <a href="#architecture">Architecture</a> •
-  <a href="#stack">Stack</a> •
-  <a href="#environment">Environment</a>
+  <a href="#stack">Stack</a>
 </p>
 
 ---
@@ -161,30 +160,6 @@ Ask it why your agent sold EURm, where yield is highest right now, or what's mov
 ├── supabase/         # Migrations
 └── docs/             # Audit reports, plans, product video scripts
 ```
-
----
-
-## Environment
-
-**API** (`apps/api/.env`):
-
-| Variable | Description |
-|----------|-------------|
-| `THIRDWEB_SECRET_KEY` | thirdweb auth |
-| `THIRDWEB_ADMIN_PRIVATE_KEY` | Server wallet management |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key |
-| `PARALLEL_API_KEY` | FX news search |
-| `DUNE_SIM_API_KEY` | Portfolio balances |
-| `CELO_RPC_URL` | Default: `https://forno.celo.org` |
-| `CORS_ORIGIN` | Default: `http://localhost:3000` |
-
-**Web** (`apps/web/.env.local`):
-
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_THIRDWEB_CLIENT_ID` | thirdweb client |
-| `NEXT_PUBLIC_API_URL` | Default: `http://localhost:4000` |
 
 ---
 
