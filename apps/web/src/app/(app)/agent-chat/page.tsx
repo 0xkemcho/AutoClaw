@@ -20,9 +20,15 @@ function toUIMessages(apiMessages: ApiMessage[]): UIMessage[] {
   }));
 }
 
+interface MessagesResponse {
+  chat: { enabledTools?: string[] };
+  messages: ApiMessage[];
+}
+
 export default function AgentChatPage() {
   const [chatId, setChatId] = React.useState<string | null>(null);
   const [initialMessages, setInitialMessages] = React.useState<UIMessage[]>([]);
+  const [initialEnabledTools, setInitialEnabledTools] = React.useState<string[] | undefined>();
   const [error, setError] = React.useState<string | null>(null);
 
   const handleNewChat = React.useCallback(async () => {
@@ -31,6 +37,7 @@ export default function AgentChatPage() {
       const chat = await api.post<{ id: string }>('/api/conversation/chats');
       setChatId(chat.id);
       setInitialMessages([]);
+      setInitialEnabledTools(undefined);
     } catch (err) {
       console.error('Failed to create new chat:', err);
       setError('Failed to start new conversation. Please try again.');
@@ -44,10 +51,11 @@ export default function AgentChatPage() {
         try {
           const latest = await api.get<{ id: string }>('/api/conversation/chats/latest');
           setChatId(latest.id);
-          const { messages } = await api.get<{ messages: ApiMessage[] }>(
+          const { chat, messages } = await api.get<MessagesResponse>(
             `/api/conversation/chats/${latest.id}/messages`
           );
           setInitialMessages(toUIMessages(messages ?? []));
+          setInitialEnabledTools(chat?.enabledTools);
           return;
         } catch (e) {
           if (e instanceof ApiError && e.status === 404) {
@@ -59,6 +67,7 @@ export default function AgentChatPage() {
         const chat = await api.post<{ id: string }>('/api/conversation/chats');
         setChatId(chat.id);
         setInitialMessages([]);
+        setInitialEnabledTools(undefined);
       } catch (err) {
         console.error('Failed to initialize chat:', err);
         setError('Failed to start conversation. Please try again.');
@@ -101,6 +110,7 @@ export default function AgentChatPage() {
       key={chatId}
       chatId={chatId}
       initialMessages={initialMessages}
+      initialEnabledTools={initialEnabledTools}
       onNewChat={handleNewChat}
     />
   );

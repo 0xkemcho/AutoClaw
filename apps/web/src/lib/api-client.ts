@@ -75,4 +75,7 @@ export const api = {
 
   put: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>('PUT', endpoint, body, options),
+
+  patch: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
+    request<T>('PATCH', endpoint, body, options),
 };

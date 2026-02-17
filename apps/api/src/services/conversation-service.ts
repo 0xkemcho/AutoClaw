@@ -7,6 +7,7 @@ import { streamText, stepCountIs, type ModelMessage } from 'ai';
 import { createGeminiProvider } from 'ai-sdk-provider-gemini-cli';
 import { createSupabaseAdmin, type Database } from '@autoclaw/db';
 import { resolveModel, type ConversationModelId } from './model-router.js';
+import { getActiveToolsFromGroups } from './tool-groups.js';
 import { conversationTools, MAX_TOOL_CALLS_PER_TURN } from './tool-orchestrator.js';
 
 type ConversationChatRow = Database['public']['Tables']['conversation_chats']['Row'];
@@ -93,6 +94,20 @@ export async function getChat(
   return data as ConversationChatRow;
 }
 
+export async function updateChatEnabledTools(
+  chatId: string,
+  walletAddress: string,
+  enabledTools: string[]
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from('conversation_chats')
+    .update({ enabled_tools: enabledTools.length > 0 ? enabledTools : null, updated_at: new Date().toISOString() })
+    .eq('id', chatId)
+    .eq('wallet_address', walletAddress);
+
+  if (error) throw new Error(`Failed to update chat tools: ${error.message}`);
+}
+
 export async function getMessages(
   chatId: string,
   walletAddress: string
@@ -122,6 +137,8 @@ export interface SendMessageParams {
   walletAddress: string;
   content: string;
   modelId: ConversationModelId;
+  /** Tool group IDs to enable. If omitted, uses chat.enabled_tools or all. */
+  enabledTools?: string[] | null;
 }
 
 export interface SendMessageStreamResult {
@@ -132,10 +149,13 @@ export interface SendMessageStreamResult {
 }
 
 export async function sendMessageStream(params: SendMessageParams): Promise<SendMessageStreamResult> {
-  const { chatId, walletAddress, content, modelId } = params;
+  const { chatId, walletAddress, content, modelId, enabledTools: paramEnabledTools } = params;
 
   const chat = await getChat(chatId, walletAddress);
   if (!chat) throw new Error('Chat not found');
+
+  const enabledGroups = paramEnabledTools ?? (chat as { enabled_tools?: string[] | null }).enabled_tools ?? null;
+  const activeToolNames = getActiveToolsFromGroups(enabledGroups);
 
   const routing = resolveModel(modelId);
   const model = gemini(routing.routedModelId);
@@ -162,6 +182,10 @@ export async function sendMessageStream(params: SendMessageParams): Promise<Send
     system: SYSTEM_PROMPT,
     messages: coreMessages,
     tools: conversationTools,
+    activeTools:
+      activeToolNames.length > 0
+        ? (activeToolNames as (keyof typeof conversationTools)[])
+        : undefined,
     stopWhen: stepCountIs(MAX_TOOL_CALLS_PER_TURN),
     onFinish: async ({ text }) => {
       await supabaseAdmin.from('conversation_messages').insert({

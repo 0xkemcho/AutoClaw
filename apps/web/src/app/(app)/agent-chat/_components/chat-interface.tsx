@@ -5,12 +5,22 @@ import { DefaultChatTransport } from 'ai';
 import { Send, Loader2, MessageSquarePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { api } from '@/lib/api-client';
 import { getToken } from '@/lib/token-store';
 import { MessageItem } from './message-item';
 import { ModelSelector } from './model-selector';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+const TOOL_GROUPS = [
+  { id: 'parallel_ai', name: 'Parallel AI', description: 'News & Web Search' },
+  { id: 'coingecko', name: 'CoinGecko', description: 'Crypto Market Data' },
+  { id: 'grok', name: 'Grok (xAI)', description: 'Social Sentiment' },
+  { id: 'firecrawl', name: 'Firecrawl', description: 'Governance Scraping' },
+] as const;
+const ALL_TOOL_GROUP_IDS = TOOL_GROUPS.map((g) => g.id);
 
 function extractLastUserContent(messages: { role: string; parts?: Array<{ type: string; text?: string }> }[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -28,6 +38,7 @@ interface ChatInterfaceProps {
   chatId: string;
   initialModelId?: string;
   initialMessages?: UIMessage[];
+  initialEnabledTools?: string[];
   onNewChat?: () => void;
 }
 
@@ -35,11 +46,21 @@ export function ChatInterface({
   chatId,
   initialModelId = 'gemini-3-flash',
   initialMessages = [],
+  initialEnabledTools,
   onNewChat,
 }: ChatInterfaceProps) {
   const [modelId, setModelId] = React.useState(initialModelId);
   const [input, setInput] = React.useState('');
   const [activeTab, setActiveTab] = React.useState('chat');
+  const [enabledTools, setEnabledTools] = React.useState<string[]>(
+    initialEnabledTools ?? ALL_TOOL_GROUP_IDS
+  );
+  const enabledToolsRef = React.useRef(enabledTools);
+  enabledToolsRef.current = enabledTools;
+
+  React.useEffect(() => {
+    setEnabledTools(initialEnabledTools ?? ALL_TOOL_GROUP_IDS);
+  }, [chatId, initialEnabledTools]);
 
   const transportRef = React.useRef<InstanceType<typeof DefaultChatTransport> | null>(null);
   if (!transportRef.current) {
@@ -49,10 +70,16 @@ export function ChatInterface({
       prepareSendMessagesRequest: ({ messages, body }) => {
         const content = extractLastUserContent(messages);
         const resolvedModelId = (body?.modelId as string) ?? 'gemini-3-flash';
+        const tools = enabledToolsRef.current;
         if (typeof window !== 'undefined') {
-          console.log('[agent-chat] Sending message', { chatId, contentLength: content.length, modelId: resolvedModelId });
+          console.log('[agent-chat] Sending message', {
+            chatId,
+            contentLength: content.length,
+            modelId: resolvedModelId,
+            enabledTools: tools.length,
+          });
         }
-        return { body: { content, modelId: resolvedModelId } };
+        return { body: { content, modelId: resolvedModelId, enabledTools: tools } };
       },
     });
   }
@@ -176,11 +203,33 @@ export function ChatInterface({
           <div className="max-w-3xl mx-auto">
             <div className="p-6 border rounded-lg bg-card text-card-foreground">
               <h3 className="font-semibold mb-4 text-lg">Connected Tools</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Toggle tools on or off. At least one tool must stay enabled.
+              </p>
               <div className="grid gap-4 md:grid-cols-2">
-                <ToolStatusCard name="Parallel AI" status="Active" description="News & Web Search" />
-                <ToolStatusCard name="CoinGecko" status="Active" description="Crypto Market Data" />
-                <ToolStatusCard name="Grok (xAI)" status="Active" description="Social Sentiment" />
-                <ToolStatusCard name="Firecrawl" status="Active" description="Governance Scraping" />
+                {TOOL_GROUPS.map((group) => (
+                  <ToolToggleCard
+                    key={group.id}
+                    id={group.id}
+                    name={group.name}
+                    description={group.description}
+                    enabled={enabledTools.includes(group.id)}
+                    disabled={enabledTools.length <= 1 && enabledTools.includes(group.id)}
+                    onToggle={async (checked) => {
+                      const next = checked
+                        ? [...enabledTools, group.id]
+                        : enabledTools.filter((id) => id !== group.id);
+                      if (next.length === 0) return;
+                      setEnabledTools(next);
+                      try {
+                        await api.patch(`/api/conversation/chats/${chatId}`, { enabledTools: next });
+                      } catch (err) {
+                        console.error('Failed to update tools:', err);
+                        setEnabledTools(enabledTools);
+                      }
+                    }}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -216,16 +265,35 @@ export function ChatInterface({
   );
 }
 
-function ToolStatusCard({ name, status, description }: { name: string; status: string; description: string }) {
+function ToolToggleCard({
+  id,
+  name,
+  description,
+  enabled,
+  disabled,
+  onToggle,
+}: {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  disabled: boolean;
+  onToggle: (checked: boolean) => void | Promise<void>;
+}) {
   return (
     <div className="p-4 rounded-md border bg-zinc-900/30 flex items-center justify-between">
       <div>
         <div className="font-medium text-sm">{name}</div>
         <div className="text-xs text-muted-foreground">{description}</div>
       </div>
-      <div className="flex items-center gap-1.5">
-        <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-        <span className="text-xs text-primary font-medium">{status}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">{enabled ? 'On' : 'Off'}</span>
+        <Switch
+          id={`tool-${id}`}
+          checked={enabled}
+          disabled={disabled}
+          onCheckedChange={onToggle}
+        />
       </div>
     </div>
   );

@@ -10,7 +10,9 @@ import {
   getLatestChat,
   getMessages,
   sendMessageStream,
+  updateChatEnabledTools,
 } from '../services/conversation-service.js';
+import { ALL_TOOL_GROUP_IDS, VALID_TOOL_GROUP_IDS } from '../services/tool-groups.js';
 import { CONVERSATION_MODEL_IDS, isConversationModelId } from '../services/model-router.js';
 
 const MAX_MESSAGE_LENGTH = 32_768;
@@ -26,11 +28,13 @@ export async function conversationRoutes(app: FastifyInstance) {
       if (!chat) {
         return reply.status(404).send({ error: 'No chats found' });
       }
+      const row = chat as { enabled_tools?: string[] | null };
       return {
         id: chat.id,
         title: chat.title,
         createdAt: chat.created_at,
         updatedAt: chat.updated_at,
+        enabledTools: row.enabled_tools ?? ALL_TOOL_GROUP_IDS,
       };
     }
   );
@@ -64,11 +68,47 @@ export async function conversationRoutes(app: FastifyInstance) {
       if (!chat) {
         return reply.status(404).send({ error: 'Chat not found' });
       }
+      const row = chat as { enabled_tools?: string[] | null };
       return {
         id: chat.id,
         title: chat.title,
         createdAt: chat.created_at,
         updatedAt: chat.updated_at,
+        enabledTools: row.enabled_tools ?? ALL_TOOL_GROUP_IDS,
+      };
+    }
+  );
+
+  // PATCH /api/conversation/chats/:chatId — update chat (e.g. enabled tools)
+  app.patch(
+    '/api/conversation/chats/:chatId',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const walletAddress = request.user!.walletAddress;
+      const { chatId } = request.params as { chatId: string };
+      const body = request.body as { enabledTools?: string[] };
+
+      const chat = await getChat(chatId, walletAddress);
+      if (!chat) {
+        return reply.status(404).send({ error: 'Chat not found' });
+      }
+
+      if (Array.isArray(body?.enabledTools)) {
+        const valid = body.enabledTools.filter((id) => VALID_TOOL_GROUP_IDS.has(id));
+        if (valid.length === 0) {
+          return reply.status(400).send({ error: 'At least one tool must be enabled' });
+        }
+        await updateChatEnabledTools(chatId, walletAddress, valid);
+      }
+
+      const updated = await getChat(chatId, walletAddress);
+      const row = updated as { enabled_tools?: string[] | null };
+      return {
+        id: updated!.id,
+        title: updated!.title,
+        createdAt: updated!.created_at,
+        updatedAt: updated!.updated_at,
+        enabledTools: row?.enabled_tools ?? ALL_TOOL_GROUP_IDS,
       };
     }
   );
@@ -87,12 +127,14 @@ export async function conversationRoutes(app: FastifyInstance) {
       }
 
       const messages = await getMessages(chatId, walletAddress);
+      const row = chat as { enabled_tools?: string[] | null };
       return {
         chat: {
           id: chat.id,
           title: chat.title,
           createdAt: chat.created_at,
           updatedAt: chat.updated_at,
+          enabledTools: row.enabled_tools ?? ALL_TOOL_GROUP_IDS,
         },
         messages: messages.map((m) => ({
           id: m.id,
@@ -114,9 +156,15 @@ export async function conversationRoutes(app: FastifyInstance) {
       const walletAddress = request.user!.walletAddress;
       const { chatId } = request.params as { chatId: string };
 
-      const body = request.body as { content?: string; modelId?: string; messages?: Array<{ role: string; parts?: Array<{ type: string; text?: string }> }> };
+      const body = request.body as {
+        content?: string;
+        modelId?: string;
+        enabledTools?: string[];
+        messages?: Array<{ role: string; parts?: Array<{ type: string; text?: string }> }>;
+      };
       let content = typeof body?.content === 'string' ? body.content.trim() : '';
       const modelId = typeof body?.modelId === 'string' ? body.modelId : 'gemini-3-flash';
+      const enabledTools = Array.isArray(body?.enabledTools) ? body.enabledTools : undefined;
 
       // Fallback: extract from AI SDK messages format if content not provided
       if (!content && Array.isArray(body?.messages) && body.messages.length > 0) {
@@ -153,6 +201,7 @@ export async function conversationRoutes(app: FastifyInstance) {
           walletAddress,
           content,
           modelId: resolvedModelId,
+          enabledTools,
         });
 
         reply.raw.statusCode = response.status;
