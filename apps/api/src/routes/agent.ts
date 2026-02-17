@@ -36,6 +36,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 
 			const { data, error } = await supabaseAdmin
 				.from("agent_configs")
@@ -97,6 +98,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 
 			// Get current state
 			const { data: configData, error: fetchError } = await supabaseAdmin
@@ -162,6 +164,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 
 			const { data: configData, error: fetchError } = await supabaseAdmin
 				.from("agent_configs")
@@ -211,6 +214,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 			const query = request.query as {
 				type?: string;
 				limit?: string;
@@ -257,6 +261,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 			const { id } = request.params as { id: string };
 
 			const { data, error } = await supabaseAdmin
@@ -280,6 +285,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 			const query = request.query as { limit?: string; offset?: string };
 			const limit = Math.min(
 				100,
@@ -309,6 +315,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 			const { id } = request.params as { id: string };
 
 			try {
@@ -333,6 +340,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 			const body = request.body as {
 				frequency?: AgentFrequency;
 				maxTradeSizeUsd?: number;
@@ -461,6 +469,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 
 			const { data: posData, error } = await supabaseAdmin
 				.from("agent_positions")
@@ -495,6 +504,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 			const agentType =
 				(request.query as { agent_type?: string })?.agent_type ?? "fx";
 			const validType = agentType === "yield" ? "yield" : "fx";
@@ -625,6 +635,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 			const { agent_type = "fx" } = (request.body ?? {}) as {
 				agent_type?: "fx" | "yield";
 			};
@@ -709,6 +720,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 			const { agentId } = request.body as { agentId: number };
 
 			if (agentId == null || typeof agentId !== "number") {
@@ -766,6 +778,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 			const {
 				agentId,
 				txHash,
@@ -810,6 +823,7 @@ export async function agentRoutes(app: FastifyInstance) {
 		{ preHandler: authMiddleware },
 		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 
 			const { data: configData, error: fetchError } = await supabaseAdmin
 				.from("agent_configs")
@@ -928,8 +942,9 @@ export async function agentRoutes(app: FastifyInstance) {
 	app.get(
 		"/api/agent/portfolio/history",
 		{ preHandler: authMiddleware },
-		async (request, _reply) => {
+		async (request, reply) => {
 			const walletAddress = request.user?.walletAddress;
+			if (!walletAddress) return reply.status(401).send({ error: "Unauthorized" });
 
 			// Look up the server wallet to get positions for this user
 			const { data: positions } = await supabaseAdmin
