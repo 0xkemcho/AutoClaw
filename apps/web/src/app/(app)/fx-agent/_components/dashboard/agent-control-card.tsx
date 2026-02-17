@@ -1,33 +1,36 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import {
   Zap,
   Pause,
-  Trophy,
-  LineChart,
-  Repeat,
   Play,
-  Wallet,      // Added
-  TrendingUp,  // Added
-  Activity     // Added
+  Wallet,
+  TrendingUp,
+  Activity,
+  UserCheck,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAgentStatus, useToggleAgent, useRunNow } from '@/hooks/use-agent';
-import { usePortfolio } from '@/hooks/use-portfolio'; // Added
-import { useAgentProgress } from '@/hooks/use-agent-progress'; // Added
+import { usePortfolio } from '@/hooks/use-portfolio';
+import { useAgentProgress } from '@/hooks/use-agent-progress';
+import { useSelfClawStatus } from '@/hooks/use-selfclaw';
+import { SelfClawVerificationDialog } from '@/app/(app)/_components/selfclaw-verification-dialog';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
-import { formatUsd } from '@/lib/format'; // Added
+import { formatUsd } from '@/lib/format';
 
 export function AgentControlCard() {
-  const { data: agent, isLoading } = useAgentStatus();
-  const { data: portfolio } = usePortfolio('fx'); // Added
-  const { isRunning } = useAgentProgress(); // Added
+  const { data: agent } = useAgentStatus();
+  const { data: portfolio } = usePortfolio('fx');
+  const { isRunning } = useAgentProgress();
   const toggleMutation = useToggleAgent();
   const runNowMutation = useRunNow();
+  const selfclawStatus = useSelfClawStatus();
+  const selfclawVerified = selfclawStatus.data?.verified ?? false;
+  const [selfclawDialogOpen, setSelfclawDialogOpen] = useState(false);
 
   const config = agent?.config;
   const isActive = config?.active ?? false;
@@ -60,7 +63,29 @@ export function AgentControlCard() {
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <h3 className="text-lg font-semibold text-foreground">Agent Controls & Status</h3>
+        <div className="flex items-center gap-2">
+          {selfclawVerified ? (
+            <span className="flex items-center gap-1 text-xs font-medium text-primary">
+              <UserCheck className="size-3.5" />
+              Human-Backed
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSelfclawDialogOpen(true)}
+              className="flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <UserCheck className="size-3.5 opacity-50" />
+              Verify Identity
+            </button>
+          )}
+        </div>
       </div>
+
+      <SelfClawVerificationDialog
+        open={selfclawDialogOpen}
+        onOpenChange={setSelfclawDialogOpen}
+      />
 
       {/* Main Status Circle */}
       <div className="flex flex-1 flex-col items-center justify-center py-6">

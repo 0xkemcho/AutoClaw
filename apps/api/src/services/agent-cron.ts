@@ -194,7 +194,12 @@ export async function runAgentCycle(config: AgentConfigRow): Promise<void> {
     }, runId, agentType);
 
     // Skip execution if wallet is empty (exploration mode only)
-    if (portfolioValue === 0) {
+    // FX: portfolioValue only counts DB positions; include on-chain wallet balances for "has funds" check
+    const totalInvestableValue =
+      agentType === 'fx'
+        ? portfolioValue + walletBalances.reduce((s, b) => s + b.valueUsd, 0)
+        : portfolioValue;
+    if (totalInvestableValue === 0) {
       console.log(`[agent:${walletAddress.slice(0, 8)}:${agentType}] Wallet empty - skipping execution`);
       emitProgress(
         walletAddress,

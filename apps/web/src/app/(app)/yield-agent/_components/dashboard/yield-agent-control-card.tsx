@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Zap,
   Pause,
@@ -7,7 +8,8 @@ import {
   Wallet,
   TrendingUp,
   Activity,
-  Loader2
+  Loader2,
+  UserCheck,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +22,8 @@ import {
 import { useYieldAgentStatus, useToggleYieldAgent, useRunYieldNow } from '@/hooks/use-yield-agent';
 import { usePortfolio } from '@/hooks/use-portfolio';
 import { useAgentProgress } from '@/hooks/use-agent-progress';
+import { useSelfClawStatus } from '@/hooks/use-selfclaw';
+import { SelfClawVerificationDialog } from '@/app/(app)/_components/selfclaw-verification-dialog';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { formatUsd } from '@/lib/format';
@@ -29,6 +33,9 @@ import { useRouter } from 'next/navigation';
 export function YieldAgentControlCard() {
   const router = useRouter();
   const { data: agent } = useYieldAgentStatus();
+  const selfclawStatus = useSelfClawStatus();
+  const selfclawVerified = selfclawStatus.data?.verified ?? false;
+  const [selfclawDialogOpen, setSelfclawDialogOpen] = useState(false);
   const { data: portfolio } = usePortfolio('yield');
   const { isRunning, stepLabel } = useAgentProgress();
   const toggleMutation = useToggleYieldAgent();
@@ -76,7 +83,29 @@ export function YieldAgentControlCard() {
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <h3 className="text-lg font-semibold text-foreground">Agent Controls & Status</h3>
+        <div className="flex items-center gap-2">
+          {selfclawVerified ? (
+            <span className="flex items-center gap-1 text-xs font-medium text-primary">
+              <UserCheck className="size-3.5" />
+              Human-Backed
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSelfclawDialogOpen(true)}
+              className="flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <UserCheck className="size-3.5 opacity-50" />
+              Verify Identity
+            </button>
+          )}
+        </div>
       </div>
+
+      <SelfClawVerificationDialog
+        open={selfclawDialogOpen}
+        onOpenChange={setSelfclawDialogOpen}
+      />
 
       {/* Main Status Circle */}
       <div className="flex flex-1 flex-col items-center justify-center py-6">

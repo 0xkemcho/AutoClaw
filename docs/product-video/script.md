@@ -1,7 +1,7 @@
 # AutoClaw — Product Video Script
 
-**Runtime target:** 2:10 – 2:20
-**Word count:** ~305 words at 140 wpm
+**Runtime target:** 2:20 – 2:30
+**Word count:** ~325 words at 140 wpm
 **Voice:** ElevenLabs — Adam (Stability 0.70, Similarity 0.75, Style 0, Speaker Boost ON)
 **Tone:** Measured, confident, slightly cinematic. Not hype. Not corporate.
 
@@ -68,7 +68,9 @@ It knows.
 
 Every trade logged on-chain. Every decision auditable.
 
-And every AutoClaw agent is registered on-chain via ERC-8004 — a verifiable identity, a transparent track record. Not a black box.
+Every AutoClaw agent is registered on-chain via ERC-8004 — a verifiable identity, a transparent track record. Not a black box.
+
+And with SelfClaw integration, your agent is cryptographically verified as human-backed — passport-level proof, zero-knowledge, published on-chain. In the emerging agent economy, that matters.
 
 Your agents run whether you're watching or not.
 
@@ -86,6 +88,8 @@ Connect your wallet and deploy your first agent at autoclaw.co.
 - If "AutoClaw" sounds off, add it to your pronunciation dictionary as: **"Auto-Claw"**
 - If "Mento" sounds rushed, write it as: **"Mento Protocol"** (the extra word forces a natural pause)
 - If "EURm" sounds wrong, write phonetically: **"Euro-M"**
+- If "SelfClaw" sounds like two separate words, add a pronunciation entry: **"Self-Claw"** (hard stop between syllables)
+- If "zero-knowledge" is mispronounced, write it as: **"zero knowledge"** (no hyphen)
 - The `...` lines create deliberate pauses between sections — keep them in when pasting
 - Export as WAV 44.1kHz for best quality before importing to your video editor
 

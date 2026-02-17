@@ -124,26 +124,33 @@
 ---
 
 ## SECTION 7 — PROOF / CREDIBILITY
-**Timestamp:** 2:05 – 2:17 (12 seconds)
+**Timestamp:** 2:05 – 2:22 (17 seconds)
 **Narration:**
-> *"Every trade logged on-chain. Every decision auditable. And every AutoClaw agent is registered on-chain via ERC-8004 — a verifiable identity, a transparent track record. Not a black box. Your agents run whether you're watching or not."*
+> *"Every trade logged on-chain. Every decision auditable. Every AutoClaw agent is registered on-chain via ERC-8004 — a verifiable identity, a transparent track record. Not a black box. And with SelfClaw integration, your agent is cryptographically verified as human-backed — passport-level proof, zero-knowledge, published on-chain. In the emerging agent economy, that matters. Your agents run whether you're watching or not."*
 
 **What to show:**
-- 2:05 – 2:09: Timeline page — list of logged trade events with txHashes visible, click one to show the on-chain link
-- 2:09 – 2:14: Agent settings or profile showing the ERC-8004 agent identity / on-chain registration status (the agent ID, registration badge, or link to 8004scan.io)
-- 2:14 – 2:17: Zoom OUT to the full dashboard — portfolio chart, balances — the "whole picture" frame
+- 2:05 – 2:08: Timeline page — list of logged trade events with txHashes visible
+- 2:08 – 2:13: Agent identity section showing ERC-8004 registration (agent ID, badge, or 8004scan.io link)
+- 2:13 – 2:19: SelfClaw verification section — show the selfclaw.ai verification badge, ZK proof status, or the "Human-Backed" indicator in the AutoClaw UI
+- 2:19 – 2:22: Zoom OUT to the full dashboard — portfolio chart, balances — the "whole picture" close
 
 **Screen Studio notes:**
-- Zoom IN on a txHash in the timeline — shows real on-chain activity, not a mock
-- Zoom IN on the ERC-8004 agent identity section — even 2 seconds here is enough to plant the idea
-- The word "ERC-8004" on screen while the voiceover says it reinforces the concept for technical viewers
-- Slow zoom OUT to dashboard to close this section with a calm, confident wide shot
-- No cursor movement on the final dashboard frame — let it breathe
+- Zoom IN on a txHash in the timeline — real on-chain activity, not a mock
+- Zoom IN on the ERC-8004 agent ID badge — hold for 2 seconds, the word on screen reinforces the voiceover
+- Zoom IN on the SelfClaw verification indicator — this is new and differentiating, give it 4–5 seconds of screen time
+- If the SelfClaw UI shows a green "Verified" or passport-icon badge, zoom in tight on that — it's visually legible and makes the concept instant
+- Slow zoom OUT to dashboard to close — calm, confident, no cursor movement on the final frame
+
+**What "SelfClaw integration" looks like on screen (record this):**
+Show whichever of these is implemented in the AutoClaw UI:
+- A "Human Verified · SelfClaw" badge on the agent profile/settings page
+- A link or button to selfclaw.ai from the agent identity section
+- A ZK verification status indicator (e.g., "Passport verified · ZK proof on-chain")
 
 ---
 
 ## SECTION 8 — CTA
-**Timestamp:** 2:17 – 2:25 (8 seconds)
+**Timestamp:** 2:22 – 2:30 (8 seconds)
 **Narration:**
 > *"AutoClaw is live on Celo mainnet. Connect your wallet and deploy your first agent at autoclaw.co."*
 
@@ -168,10 +175,10 @@
 0:45 – 1:20   FX AGENT       Live run card — money shot (35s)
 1:20 – 1:48   YIELD AGENT    Vaults, APR, auto-compound (28s)
 1:48 – 2:05   AGENT CHAT     Ask the intelligence layer (17s)
-2:05 – 2:17   PROOF          Timeline + ERC-8004 identity + dashboard (12s)
-2:17 – 2:25   CTA            autoclaw.co (8s)
+2:05 – 2:22   PROOF          Timeline + ERC-8004 + SelfClaw verified (17s)
+2:22 – 2:30   CTA            autoclaw.co (8s)
 ─────────────────────────────────────────────────────
-TOTAL                                           2:25
+TOTAL                                           2:30
 ```
 
 ---

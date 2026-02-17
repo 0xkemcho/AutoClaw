@@ -8,6 +8,7 @@ import {
   Play,
   Sprout,
   ShieldCheck,
+  UserCheck,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,8 @@ import {
 import { usePortfolio } from '@/hooks/use-portfolio';
 import { useAgentReputation, useYieldReputation } from '@/hooks/use-reputation';
 import { useAgentProgress } from '@/hooks/use-agent-progress';
+import { useSelfClawStatus } from '@/hooks/use-selfclaw';
+import { SelfClawVerificationDialog } from '../../_components/selfclaw-verification-dialog';
 
 const ERC8004_SCAN_BASE = 'https://www.8004scan.io/agents/celo';
 const isLpToken = (symbol: string) => /VAULT|LP|UNIV3/i.test(symbol);
@@ -63,6 +66,9 @@ export function OverviewAgentCard({ agentType }: OverviewAgentCardProps) {
   const fxRep = useAgentReputation(isFx ? agent8004Id : null);
   const yieldRep = useYieldReputation(!isFx ? agent8004Id : null);
   const reputationData = isFx ? fxRep.data : yieldRep.data;
+  const selfclawStatus = useSelfClawStatus();
+  const selfclawVerified = selfclawStatus.data?.verified ?? false;
+  const [selfclawDialogOpen, setSelfclawDialogOpen] = useState(false);
   const reputationScore =
     reputationData != null
       ? reputationData.summaryValue / Math.pow(10, reputationData.summaryDecimals)
@@ -246,6 +252,24 @@ export function OverviewAgentCard({ agentType }: OverviewAgentCardProps) {
             <span className="text-xs text-muted-foreground italic">Not registered</span>
           )}
         </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-medium uppercase text-muted-foreground">Human-Backed</span>
+          {selfclawVerified ? (
+            <span className="flex items-center gap-1 text-xs font-medium text-primary">
+              <UserCheck className="size-3" />
+              Verified
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSelfclawDialogOpen(true)}
+              className="flex items-center gap-1 text-xs text-primary hover:underline text-left"
+            >
+              <UserCheck className="size-3 opacity-50" />
+              Verify
+            </button>
+          )}
+        </div>
         {positionItems.length > 0 ? (
           <div className="flex flex-col gap-1">
             <span className="text-[10px] font-medium uppercase text-muted-foreground">Positions</span>
@@ -264,6 +288,11 @@ export function OverviewAgentCard({ agentType }: OverviewAgentCardProps) {
           </div>
         )}
         </div>
+
+      <SelfClawVerificationDialog
+        open={selfclawDialogOpen}
+        onOpenChange={setSelfclawDialogOpen}
+      />
 
       {/* Footer Actions */}
       <div className="flex gap-2">
