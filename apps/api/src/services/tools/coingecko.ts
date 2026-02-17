@@ -15,6 +15,9 @@ export interface CoinGeckoPriceResult {
   sparkline_in_7d?: { price: number[] };
 }
 
+const priceCache = new Map<string, { data: CoinGeckoPriceResult[]; expiresAt: number }>();
+const PRICE_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
 /**
  * Fetch simple price for given coin IDs (e.g. 'celo', 'bitcoin', 'ethereum').
  */
@@ -49,6 +52,10 @@ export async function getCoinGeckoMarketData(
   ids: string[],
   vsCurrency = 'usd'
 ): Promise<CoinGeckoPriceResult[]> {
+  const cacheKey = [...ids].sort().join(',') + ':' + vsCurrency;
+  const cached = priceCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) return cached.data;
+
   const url = new URL(`${COINGECKO_BASE}/coins/markets`);
   url.searchParams.set('vs_currency', vsCurrency);
   url.searchParams.set('ids', ids.join(','));
@@ -72,7 +79,7 @@ export async function getCoinGeckoMarketData(
   const data = await res.json();
   
   // Map the response to our interface
-  return (data as any[]).map((coin: any) => ({
+  const result = (data as any[]).map((coin: any) => ({
     id: coin.id,
     symbol: coin.symbol,
     name: coin.name,
@@ -82,6 +89,8 @@ export async function getCoinGeckoMarketData(
     market_cap: coin.market_cap,
     sparkline_in_7d: coin.sparkline_in_7d,
   }));
+  priceCache.set(cacheKey, { data: result, expiresAt: Date.now() + PRICE_CACHE_TTL_MS });
+  return result;
 }
 
 /**

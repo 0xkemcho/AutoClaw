@@ -25,19 +25,26 @@ export interface CeloGovernanceData {
   scrapedAt: string;
 }
 
+let governanceCache: { data: CeloGovernanceData; expiresAt: number } | null = null;
+const GOV_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
 /**
  * Scrape Celo governance page content via Firecrawl.
  */
 export async function scrapeCeloGovernance(): Promise<CeloGovernanceData> {
+  if (governanceCache && Date.now() < governanceCache.expiresAt) return governanceCache.data;
+
   const client = getFirecrawlClient();
   const doc = await client.scrape(CELO_GOVERNANCE_URL, {
     formats: ['markdown'],
   });
 
   const markdown = (doc as { markdown?: string }).markdown ?? '';
-  return {
+  const data: CeloGovernanceData = {
     markdown: markdown.slice(0, 15000),
     url: CELO_GOVERNANCE_URL,
     scrapedAt: new Date().toISOString(),
   };
+  governanceCache = { data, expiresAt: Date.now() + GOV_CACHE_TTL_MS };
+  return data;
 }

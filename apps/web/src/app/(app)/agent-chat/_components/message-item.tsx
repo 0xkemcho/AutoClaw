@@ -53,7 +53,20 @@ export function MessageItem({ message, isStreaming }: MessageItemProps) {
                 return <NewsList key={toolCallId} results={(output.results ?? []) as Array<{ title: string; url: string; excerpt: string; publishedAt?: string; source?: string }>} count={(output.count as number) ?? 0} />;
               }
               if (toolName === 'getCryptoPrices') {
-                return <CryptoPriceCard key={toolCallId} prices={(output.prices ?? {}) as Record<string, { usd: number; usd_24h_change?: number }>} />;
+                const rawPrices = output.prices;
+                const priceMap: Record<string, { usd: number; usd_24h_change?: number; sparkline_in_7d?: { price: number[] } }> = {};
+                if (Array.isArray(rawPrices)) {
+                  for (const coin of rawPrices as Array<{ id: string; current_price?: number; price_change_percentage_24h?: number; sparkline_in_7d?: { price: number[] } }>) {
+                    priceMap[coin.id] = {
+                      usd: coin.current_price ?? 0,
+                      usd_24h_change: coin.price_change_percentage_24h,
+                      sparkline_in_7d: coin.sparkline_in_7d,
+                    };
+                  }
+                } else if (rawPrices && typeof rawPrices === 'object' && !Array.isArray(rawPrices)) {
+                  Object.assign(priceMap, rawPrices);
+                }
+                return <CryptoPriceCard key={toolCallId} prices={priceMap} />;
               }
               if (toolName === 'analyzeSocialSentiment') {
                 return <SentimentCard key={toolCallId} result={output as { sentiment: string; summary: string; positivePct?: number; neutralPct?: number; negativePct?: number; postUrls?: string[] }} />;

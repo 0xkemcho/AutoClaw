@@ -10,8 +10,8 @@ import { getCoinGeckoMarketData, searchCoinGecko } from './tools/coingecko.js';
 import { analyzeGrokSentiment } from './tools/grok.js';
 import { scrapeCeloGovernance } from './tools/celo-governance-firecrawl.js';
 
-const MAX_TOOL_CALLS_PER_TURN = 5;
-const TOOL_TIMEOUT_MS = 30_000;
+const MAX_TOOL_CALLS_PER_TURN = 3;
+const TOOL_TIMEOUT_MS = 15_000;
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   const timeout = new Promise<never>((_, reject) =>

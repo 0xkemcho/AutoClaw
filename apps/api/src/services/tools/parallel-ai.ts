@@ -25,10 +25,17 @@ export interface ParallelSearchResult {
   source?: string;
 }
 
+const newsCache = new Map<string, { data: ParallelSearchResult[]; expiresAt: number }>();
+const NEWS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Search for news and web content via Parallel AI.
  */
 export async function searchParallelAI(query: string, maxResults = 10): Promise<ParallelSearchResult[]> {
+  const cacheKey = query.toLowerCase().trim() + ':' + maxResults;
+  const cached = newsCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) return cached.data;
+
   const client = getParallelClient();
   const response = await client.beta.search({
     objective: query,
@@ -54,5 +61,6 @@ export async function searchParallelAI(query: string, maxResults = 10): Promise<
     }
   }
 
+  newsCache.set(cacheKey, { data: results, expiresAt: Date.now() + NEWS_CACHE_TTL_MS });
   return results;
 }
